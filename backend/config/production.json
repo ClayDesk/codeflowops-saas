@@ -1,0 +1,23 @@
+{
+  "deployment": {
+    "environment": "production",
+    "enable_blue_green": true,
+    "rollback_on_failure": true
+  },
+  "security": {
+    "enable_vpc_endpoints": true,
+    "encryption_at_rest": true,
+    "encryption_in_transit": true
+  },
+  "monitoring": {
+    "enable_cloudwatch": true,
+    "enable_xray": true,
+    "log_level": "INFO",
+    "health_check_interval_minutes": 2
+  },
+  "database": {
+    "connection_pool_size": 20,
+    "ssl_required": true,
+    "proxy_enabled": true
+  }
+}

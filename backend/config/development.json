@@ -1,0 +1,15 @@
+{
+  "deployment": {
+    "environment": "development",
+    "enable_blue_green": false
+  },
+  "security": {
+    "enable_vpc_endpoints": false,
+    "encryption_at_rest": false
+  },
+  "monitoring": {
+    "enable_xray": false,
+    "log_level": "DEBUG",
+    "health_check_interval_minutes": 10
+  }
+}

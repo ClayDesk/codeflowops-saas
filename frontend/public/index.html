@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="CodeFlowOps - Deploy React & Static Sites to AWS Instantly">
+    <meta name="keywords" content="React deployment, AWS, S3, CloudFront, GitHub, CI/CD">
+    <meta name="author" content="CodeFlowOps">
+    
+    <!-- Open Graph Meta Tags -->
+    <meta property="og:title" content="CodeFlowOps - Deploy React & Static Sites to AWS Instantly">
+    <meta property="og:description" content="From GitHub to Live Site in Minutes. Automatic deployment to AWS with S3 + CloudFront.">
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://codeflowops.com">
+    
+    <!-- Twitter Card Meta Tags -->
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="CodeFlowOps - Deploy React & Static Sites to AWS Instantly">
+    <meta name="twitter:description" content="From GitHub to Live Site in Minutes. Automatic deployment to AWS with S3 + CloudFront.">
+    
+    <title>CodeFlowOps - Deploy React & Static Sites to AWS Instantly</title>
+    
+    <!-- Favicons -->
+    <link rel="icon" type="image/x-icon" href="%PUBLIC_URL%/favicon.ico">
+    <link rel="apple-touch-icon" sizes="180x180" href="%PUBLIC_URL%/apple-touch-icon.png">
+    <link rel="icon" type="image/png" sizes="32x32" href="%PUBLIC_URL%/favicon-32x32.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="%PUBLIC_URL%/favicon-16x16.png">
+    
+    <!-- Preconnect to external domains for performance -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    
+    <!-- Temporarily disable console override for debugging -->
+    <!-- 
+    <script>
+        // React Refresh Runtime Error Prevention
+        (function() {
+            // Store original console.error to restore later if needed
+            const originalConsoleError = console.error;
+            
+            // Override console.error to filter out React refresh errors
+            console.error = function(...args) {
+                const errorMsg = args.join(' ');
+                
+                // Filter out specific React refresh errors
+                if (errorMsg.includes('Cannot read properties of undefined (reading \'forEach\')') ||
+                    errorMsg.includes('react-refresh') ||
+                    errorMsg.includes('options.factory')) {
+                    // Log a cleaned up message instead
+                    console.warn('React Fast Refresh encountered a minor issue (this is normal in development)');
+                    return;
+                }
+                
+                // Allow other errors to pass through
+                originalConsoleError.apply(console, args);
+            };
+            
+            // Global error handler for React refresh issues
+            window.addEventListener('error', function(event) {
+                if (event.error && (
+                    event.error.message.includes('Cannot read properties of undefined (reading \'forEach\')') ||
+                    event.error.stack.includes('react-refresh') ||
+                    event.error.stack.includes('options.factory')
+                )) {
+                    console.warn('Caught and handled React Fast Refresh error');
+                    event.preventDefault();
+                    event.stopPropagation();
+                    return false;
+                }
+            }, true);
+            
+            // Handle unhandled promise rejections related to React refresh
+            window.addEventListener('unhandledrejection', function(event) {
+                if (event.reason && (
+                    event.reason.message.includes('react-refresh') ||
+                    event.reason.stack.includes('react-refresh')
+                )) {
+                    console.warn('Caught and handled React Fast Refresh promise rejection');
+                    event.preventDefault();
+                    return false;
+                }
+            });
+            
+            // Safely initialize React DevTools
+            if (typeof window !== 'undefined') {
+                window.__REACT_DEVTOOLS_GLOBAL_HOOK__ = window.__REACT_DEVTOOLS_GLOBAL_HOOK__ || {};
+                window.__REACT_DEVTOOLS_GLOBAL_HOOK__.supportsFiber = true;
+                
+                // Override injectIntoGlobalHook to prevent errors
+                if (window.$RefreshReg$ === undefined) {
+                    window.$RefreshReg$ = function() {};
+                }
+                if (window.$RefreshSig$ === undefined) {
+                    window.$RefreshSig$ = function() { return function(type) { return type; }; };
+                }
+                
+                // Safely handle webpack module cache
+                try {
+                    if (window.__webpack_require__ && window.__webpack_require__.cache) {
+                        Object.keys(window.__webpack_require__.cache).forEach(function(id) {
+                            var module = window.__webpack_require__.cache[id];
+                            if (module && module.hot && module.hot.data) {
+                                module.hot.data = {};
+                            }
+                        });
+                    }
+                } catch (error) {
+                    console.warn('React refresh initialization warning (safe to ignore):', error.message);
+                }
+            }
+        })();
+    </script>
+    -->
+    
+    <!-- Simple debug test -->
+    <script>
+        console.log('🌟 HTML SCRIPT TAG EXECUTED - BEFORE REACT BUNDLE');
+        window.debugTest = function() {
+            console.log('🌟 DEBUG FUNCTION WORKS');
+        };
+    </script>
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="preconnect" href="https://js.stripe.com">
+    
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    
+    <!-- Suppress React DevTools suggestion in development -->
+    <script>
+        if (typeof window !== 'undefined') {
+            window.__REACT_DEVTOOLS_GLOBAL_HOOK__ = window.__REACT_DEVTOOLS_GLOBAL_HOOK__ || {};
+            window.__REACT_DEVTOOLS_GLOBAL_HOOK__.supportsFiber = true;
+            window.__REACT_DEVTOOLS_GLOBAL_HOOK__.onCommitFiberRoot = () => {};
+            window.__REACT_DEVTOOLS_GLOBAL_HOOK__.onCommitFiberUnmount = () => {};
+        }
+    </script>
+</head>
+<body>
+    <noscript>You need to enable JavaScript to run this app.</noscript>
+    <div id="root"></div>
+    <!--
+      This HTML file is a template.
+      If you open it directly in the browser, you will see an empty page.
+
+      You can add webfonts, meta tags, or analytics to this file.
+      The build step will place the bundled scripts into the <body> tag.
+
+      To begin the development, run `npm start` or `yarn start`.
+      To create a production bundle, use `npm run build` or `yarn build`.
+    -->
+</body>
+</html>

@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, Suspense } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { useAuth } from '@/lib/auth-context'
 import { useTheme } from 'next-themes'
@@ -57,7 +57,7 @@ interface Subscription {
   }
 }
 
-export default function ProfilePage() {
+function ProfilePageContent() {
   const searchParams = useSearchParams()
   const { 
     user, 
@@ -1100,5 +1100,13 @@ function ThemeSelector() {
         )
       })}
     </div>
+  )
+}
+
+export default function ProfilePage() {
+  return (
+    <Suspense fallback={<div>Loading...</div>}>
+      <ProfilePageContent />
+    </Suspense>
   )
 }

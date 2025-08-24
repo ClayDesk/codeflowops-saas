@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, Suspense } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -8,7 +8,7 @@ import { Badge } from '@/components/ui/badge'
 import { SDKDeploymentWizard } from '@/components/deployment/sdk-deployment-wizard'
 import { Rocket, Github, Zap, ArrowRight } from 'lucide-react'
 
-export default function DeployPage() {
+function DeployPageContent() {
   const [showDeploymentFlow, setShowDeploymentFlow] = useState(false)
   const [prefilledRepo, setPrefilledRepo] = useState('')
   const searchParams = useSearchParams()
@@ -161,5 +161,13 @@ export default function DeployPage() {
         </div>
       </div>
     </div>
+  )
+}
+
+export default function DeployPage() {
+  return (
+    <Suspense fallback={<div>Loading...</div>}>
+      <DeployPageContent />
+    </Suspense>
   )
 }

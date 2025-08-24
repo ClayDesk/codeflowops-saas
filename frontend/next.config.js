@@ -1,11 +1,11 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  // Only use export mode for production builds, not development
-  ...(process.env.NODE_ENV === 'production' && process.env.BUILD_MODE === 'export' ? {
-    output: 'export',
-    distDir: 'out',
-    trailingSlash: true,
-  } : {}),
+  // Disable static export for Amplify deployment - use SSR instead
+  // ...(process.env.NODE_ENV === 'production' && process.env.BUILD_MODE === 'export' ? {
+  //   output: 'export',
+  //   distDir: 'out',
+  //   trailingSlash: true,
+  // } : {}),
   basePath: '',
   assetPrefix: '',
   images: {

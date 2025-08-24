@@ -148,8 +148,8 @@ class ReactDeployer:
             self._cleanup()
     
     def _build_react_app(self) -> Dict[str, Any]:
-        """Build the React application using npm"""
-        logger.info("🔨 Building React application...")
+        """Build the React application using yarn (more reliable than npm)"""
+        logger.info("🔨 Building React application with yarn...")
         
         try:
             # Set up enhanced environment for React builds
@@ -159,31 +159,46 @@ class ReactDeployer:
                 'GENERATE_SOURCEMAP': 'false',               # Skip source maps
                 'CI': 'true',                                # CI mode
                 'FORCE_COLOR': '0',                          # No colors
-                'NPM_CONFIG_PROGRESS': 'false',              # No progress bars
-                'NPM_CONFIG_LOGLEVEL': 'warn'                # Reduce noise
+                'YARN_SILENT': '1',                          # Reduce yarn noise
+                'YARN_PROGRESS': 'false'                     # No progress bars
             })
             
-            # Step 1: Install dependencies
-            logger.info("📦 Installing dependencies...")
+            # Step 1: Install dependencies with yarn
+            logger.info("📦 Installing dependencies with yarn...")
             install_result = subprocess.run([
-                "npm", "install"
+                "yarn", "install", "--frozen-lockfile", "--non-interactive"
             ], cwd=self.repo_path, capture_output=True, text=True, 
                timeout=600, env=env)  # 10 minute timeout
             
             if install_result.returncode != 0:
-                raise Exception(f"npm install failed: {install_result.stderr}")
+                # Fallback to npm if yarn fails
+                logger.warning("⚠️ Yarn install failed, falling back to npm...")
+                install_result = subprocess.run([
+                    "npm", "install"
+                ], cwd=self.repo_path, capture_output=True, text=True, 
+                   timeout=600, env=env)
+                
+                if install_result.returncode != 0:
+                    raise Exception(f"Both yarn and npm install failed: {install_result.stderr}")
+                
+                # Use npm for build too
+                build_tool = "npm"
+                build_cmd = ["npm", "run", "build"]
+            else:
+                build_tool = "yarn"
+                build_cmd = ["yarn", "build"]
             
-            logger.info("✅ Dependencies installed successfully")
+            logger.info(f"✅ Dependencies installed successfully with {build_tool}")
             
             # Step 2: Build the application
-            logger.info("🏗️ Building React application...")
-            build_result = subprocess.run([
-                "npm", "run", "build"
-            ], cwd=self.repo_path, capture_output=True, text=True,
-               timeout=900, env=env)  # 15 minute timeout
+            logger.info(f"🏗️ Building React application with {build_tool}...")
+            build_result = subprocess.run(
+                build_cmd, cwd=self.repo_path, capture_output=True, text=True,
+                timeout=900, env=env  # 15 minute timeout
+            )
             
             if build_result.returncode != 0:
-                raise Exception(f"npm run build failed: {build_result.stderr}")
+                raise Exception(f"{build_tool} build failed: {build_result.stderr}")
             
             # Step 3: Locate build output
             possible_build_dirs = ["build", "dist", "out"]

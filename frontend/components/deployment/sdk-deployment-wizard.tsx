@@ -923,33 +923,57 @@ function FrameworkConfigStep({
 }) {
   // Trust backend analysis - no frontend detection needed
   const getDetectedFramework = () => {
-    // Use the SAME logic as step 1 analysis display to ensure consistency
-    const analysis = analysisResult?.analysis || {};
-    const frameworks = analysis.frameworks || [];
+    console.log('🔍 FrameworkConfig Debug - FULL analysisResult:', JSON.stringify(analysisResult, null, 2));
     
-    console.log('🔍 FrameworkConfig Debug - analysisResult:', analysisResult);
+    // 1. Check direct framework field FIRST (this is where EnhancedRepositoryAnalyzer puts it)
+    const directFramework = analysisResult?.framework?.type;
+    if (directFramework) {
+      console.log('🎯 Direct framework field:', directFramework);
+      const fw = directFramework.toLowerCase();
+      if (fw.includes('react') || fw === 'react-spa') return 'react';
+      if (fw.includes('nextjs')) return 'nextjs';
+      if (fw.includes('vue')) return 'vue';
+      if (fw.includes('angular')) return 'angular';
+      if (fw.includes('static')) return 'static';
+      return fw;
+    }
+    
+    // 2. Use frameworks array (same as step 1 analysis display)
+    const analysis = analysisResult?.analysis || {};
+    const frameworks = analysis.frameworks || analysisResult?.frameworks || [];
+    
     console.log('🔍 FrameworkConfig Debug - frameworks array:', frameworks);
     
-    // 1. Use frameworks array (same as step 1 analysis display)
     if (frameworks && frameworks.length > 0) {
       const topFramework = frameworks[0];
       const frameworkName = (topFramework.name || '').toLowerCase();
       
       console.log('🎯 Top framework from backend:', topFramework);
+      console.log('🎯 Framework name:', frameworkName);
       
       if (frameworkName.includes('react')) return 'react';
-      if (frameworkName.includes('static')) return 'static';
       if (frameworkName.includes('nextjs')) return 'nextjs';
       if (frameworkName.includes('vue')) return 'vue';
       if (frameworkName.includes('angular')) return 'angular';
+      if (frameworkName.includes('static')) return 'static';
       
+      // Return the framework name as-is if it doesn't match patterns
       return frameworkName || 'static';
     }
     
-    // 2. Fallback to other analysis fields
-    const backendFramework = analysisResult?.framework?.type || 
-                           analysisResult?.stack_classification?.type ||
-                           analysis?.detected_framework ||
+    // 3. Check stack classification
+    const stackType = analysisResult?.stack_classification?.type;
+    if (stackType) {
+      console.log('🎯 Stack classification:', stackType);
+      const fw = stackType.toLowerCase();
+      if (fw.includes('react') || fw === 'react-spa') return 'react';
+      if (fw.includes('static')) return 'static';
+      return fw;
+    }
+    
+    // 4. Fallback to other analysis fields
+    const backendFramework = analysis?.detected_framework ||
+                           analysisResult?.detected_framework ||
                            'static';
     
     console.log('🎯 Fallback framework detected:', backendFramework);
@@ -958,6 +982,7 @@ function FrameworkConfigStep({
     if (framework.includes('react') || framework === 'react-spa') return 'react';
     if (framework.includes('static')) return 'static';
     
+    console.log('❌ No framework detected, defaulting to static');
     return 'static'; // Default fallback
   }
   

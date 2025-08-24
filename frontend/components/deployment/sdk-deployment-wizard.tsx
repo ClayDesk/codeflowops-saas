@@ -29,57 +29,62 @@ const deploymentSteps: DeploymentStep[] = [
   { id: 'complete', title: 'Complete', description: 'Deployment successful', completed: false }
 ]
 
-// Helper function to get framework display info
+// Helper function to get framework display info - Dynamic for thousands of users
 const getFrameworkDisplayInfo = (framework: string) => {
-  const fw = framework?.toLowerCase() || ''
+  if (!framework) return { name: 'Web App', color: 'bg-purple-100 text-purple-800', emoji: '🌐' }
   
-  // React frameworks
-  if (fw.includes('react') || fw.includes('jsx') || fw.includes('create-react-app') || fw === 'react-spa') {
-    return { name: 'React', color: 'bg-blue-100 text-blue-800', emoji: '⚛️' }
-  } 
-  // Vue.js frameworks
-  else if (fw.includes('vue') || fw.includes('nuxt')) {
-    return { name: 'Vue.js', color: 'bg-green-100 text-green-800', emoji: '🟢' }
-  } 
-  // Angular frameworks
-  else if (fw.includes('angular')) {
-    return { name: 'Angular', color: 'bg-red-100 text-red-800', emoji: '🅰️' }
-  } 
-  // Svelte frameworks
-  else if (fw.includes('svelte') || fw.includes('sveltekit')) {
-    return { name: 'Svelte', color: 'bg-orange-100 text-orange-800', emoji: '🔥' }
-  } 
-  // PHP frameworks
-  else if (fw.includes('php') || fw.includes('laravel') || fw.includes('symfony') || fw.includes('codeigniter')) {
-    return { name: 'PHP', color: 'bg-purple-100 text-purple-800', emoji: '🐘' }
-  } 
-  // Node.js/Express
-  else if (fw.includes('node') || fw.includes('express') || fw.includes('koa')) {
-    return { name: 'Node.js', color: 'bg-green-100 text-green-800', emoji: '💚' }
-  } 
-  // Static sites
-  else if (fw.includes('static') || fw.includes('html') || fw.includes('gatsby') || fw.includes('jekyll')) {
-    return { name: 'Static Site', color: 'bg-gray-100 text-gray-800', emoji: '📄' }
-  } 
-  // Go frameworks
-  else if (fw.includes('go') || fw.includes('gin') || fw.includes('fiber') || fw.includes('echo')) {
-    return { name: 'Go', color: 'bg-cyan-100 text-cyan-800', emoji: '🔷' }
-  } 
-  // Java frameworks
-  else if (fw.includes('java') || fw.includes('spring') || fw.includes('maven') || fw.includes('gradle')) {
-    return { name: 'Java', color: 'bg-red-100 text-red-800', emoji: '☕' }
-  } 
-  // .NET frameworks
-  else if (fw.includes('dotnet') || fw.includes('csharp') || fw.includes('blazor') || fw.includes('asp.net')) {
-    return { name: '.NET', color: 'bg-blue-100 text-blue-800', emoji: '🔷' }
-  } 
-  // Python/Django frameworks
-  else if (fw.includes('django') || fw.includes('python') || fw.includes('flask') || fw.includes('fastapi')) {
-    return { name: 'Python', color: 'bg-yellow-100 text-yellow-800', emoji: '🐍' }
-  } 
-  // Default fallback
-  else {
-    return { name: framework || 'Web App', color: 'bg-purple-100 text-purple-800', emoji: '🌐' }
+  const fw = framework.toLowerCase()
+  
+  // Dynamic color assignment based on framework characteristics
+  const getFrameworkColor = (frameworkName: string) => {
+    const hash = frameworkName.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0)
+    const colors = [
+      'bg-blue-100 text-blue-800',
+      'bg-green-100 text-green-800', 
+      'bg-purple-100 text-purple-800',
+      'bg-red-100 text-red-800',
+      'bg-yellow-100 text-yellow-800',
+      'bg-indigo-100 text-indigo-800',
+      'bg-pink-100 text-pink-800',
+      'bg-cyan-100 text-cyan-800',
+      'bg-orange-100 text-orange-800'
+    ]
+    return colors[hash % colors.length]
+  }
+  
+  // Dynamic emoji assignment based on framework type/language
+  const getFrameworkEmoji = (frameworkName: string) => {
+    const fw = frameworkName.toLowerCase()
+    if (fw.includes('react')) return '⚛️'
+    if (fw.includes('vue')) return '🟢'
+    if (fw.includes('angular')) return '🅰️'
+    if (fw.includes('svelte')) return '🔥'
+    if (fw.includes('next')) return '▲'
+    if (fw.includes('nuxt')) return '💚'
+    if (fw.includes('php') || fw.includes('laravel')) return '�'
+    if (fw.includes('python') || fw.includes('django') || fw.includes('flask')) return '�'
+    if (fw.includes('node') || fw.includes('express') || fw.includes('javascript')) return '�'
+    if (fw.includes('java') || fw.includes('spring')) return '☕'
+    if (fw.includes('go') || fw.includes('gin')) return '🔷'
+    if (fw.includes('dotnet') || fw.includes('csharp')) return '🔷'
+    if (fw.includes('ruby') || fw.includes('rails')) return '�'
+    if (fw.includes('rust')) return '🦀'
+    if (fw.includes('swift')) return '🍎'
+    if (fw.includes('kotlin')) return '🤖'
+    if (fw.includes('static') || fw.includes('html')) return '📄'
+    return '🌐' // Default web app emoji
+  }
+  
+  // Capitalize framework name for display
+  const displayName = framework
+    .split(/[-_\s]/)
+    .map((word: string) => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(' ')
+  
+  return {
+    name: displayName,
+    color: getFrameworkColor(framework),
+    emoji: getFrameworkEmoji(framework)
   }
 }
 
@@ -678,56 +683,49 @@ function RepositoryStep({
             <div className="text-xs sm:text-sm text-green-700 space-y-1 break-words">
               <p><strong>Detected Framework:</strong> {
                 (() => {
-                  // Corrected framework detection logic - prioritize React detection
-                  const framework = analysisResult?.framework?.type || analysisResult?.analysis?.detected_framework || analysisResult?.projectType || '';
-                  const detectedStack = analysisResult?.analysis?.detected_stack || '';
-                  const primaryTech = analysisResult?.analysis?.executive_summary?.primary_technology || '';
-                  const projectType = analysisResult?.analysis?.executive_summary?.project_type || '';
-                  const frameworks = analysisResult?.analysis?.frameworks || [];
+                  // Dynamic framework detection - no hardcoding, trust backend analysis
+                  const analysis = analysisResult?.analysis || {};
+                  const executiveSummary = analysis.executive_summary || {};
+                  const frameworks = analysis.frameworks || [];
                   
-                  // 1. Check frameworks array first (most reliable)
+                  // 1. Prioritize backend frameworks array (most reliable)
                   if (frameworks && frameworks.length > 0) {
                     const topFramework = frameworks[0];
-                    if (topFramework.name === 'react') return 'React Application';
-                    if (topFramework.name === 'laravel') return 'Laravel Application'; 
-                    if (topFramework.name === 'django') return 'Django Application';
-                    if (topFramework.name === 'nextjs') return 'Next.js Application';
-                    if (topFramework.name === 'static-basic') return 'Static Site';
+                    const frameworkName = topFramework.name || 'Unknown';
+                    const confidence = topFramework.confidence || 0;
+                    
+                    // Capitalize and format framework name dynamically
+                    const formattedName = frameworkName
+                      .split('-')
+                      .map((word: string) => word.charAt(0).toUpperCase() + word.slice(1))
+                      .join(' ');
+                    
+                    // Add context based on framework type if available
+                    const frameworkType = topFramework.framework_type || '';
+                    if (frameworkType === 'frontend') {
+                      return `${formattedName} Application`;
+                    } else if (frameworkType === 'backend') {
+                      return `${formattedName} API`;
+                    } else if (frameworkType === 'fullstack') {
+                      return `${formattedName} Full-Stack Application`;
+                    }
+                    
+                    return formattedName;
                   }
                   
-                  // 2. Check primary technology
-                  if (primaryTech) {
-                    if (primaryTech.toLowerCase().includes('react jsx')) return 'React Application';
-                    if (primaryTech.toLowerCase().includes('php')) return 'PHP Application';
-                    if (primaryTech.toLowerCase().includes('python')) return 'Python Application';
-                    if (primaryTech.toLowerCase().includes('typescript')) return 'TypeScript Application';
-                    if (primaryTech.toLowerCase().includes('javascript')) return 'JavaScript Application';
+                  // 2. Use executive summary project type as fallback
+                  const projectType = executiveSummary.project_type;
+                  if (projectType && projectType !== 'Unknown') {
+                    return projectType;
                   }
                   
-                  // 3. Check project type (but be more specific)
-                  if (projectType) {
-                    if (projectType.toLowerCase().includes('react')) return 'React Application';
-                    if (projectType.toLowerCase().includes('laravel')) return 'Laravel Application';
-                    if (projectType.toLowerCase().includes('django')) return 'Django Application';
-                    if (projectType.toLowerCase().includes('static website')) return 'Static Site';
+                  // 3. Use primary technology as final fallback
+                  const primaryTech = executiveSummary.primary_technology;
+                  if (primaryTech && primaryTech !== 'Unknown') {
+                    return `${primaryTech} Project`;
                   }
                   
-                  // 4. Check framework field as fallback
-                  if (framework && framework.toLowerCase() !== 'unknown') {
-                    if (framework.toLowerCase().includes('react')) return 'React Application';
-                    if (framework.toLowerCase().includes('laravel')) return 'Laravel Application';
-                    if (framework.toLowerCase().includes('django')) return 'Django Application';
-                    if (framework.toLowerCase().includes('static')) return 'Static Site';
-                    return framework;
-                  }
-                  
-                  // 5. Only classify as static site if explicitly detected as static
-                  if (primaryTech && primaryTech.toLowerCase() === 'html/css/js' && 
-                      projectType && projectType.toLowerCase().includes('static')) {
-                    return 'Static Site';
-                  }
-                  
-                  // Default fallback
+                  // 4. Ultimate fallback
                   return 'Web Application';
                 })()
               }</p>
@@ -923,51 +921,26 @@ function FrameworkConfigStep({
   setFrameworkConfig: (config: any) => void; 
   onNext: () => void;
 }) {
-  // Enhanced framework detection to match isPythonProject logic
+  // Trust backend analysis - no frontend detection needed
   const getDetectedFramework = () => {
-    const framework = analysisResult?.framework?.type || analysisResult?.analysis?.detected_framework || analysisResult?.projectType || ''
-    const detectedStack = analysisResult?.analysis?.detected_stack || ''
-    const primaryTech = analysisResult?.analysis?.executive_summary?.primary_technology || ''
-    const frameworks = analysisResult?.analysis?.frameworks || []
-    const projectTypeField = analysisResult?.project_type || ''
+    // Backend returns the detected framework in these fields
+    const backendFramework = analysisResult?.framework?.type || 
+                           analysisResult?.stack_classification?.type ||
+                           analysisResult?.frameworks?.[0]?.name ||
+                           analysisResult?.analysis?.detected_framework ||
+                           'static'
     
-    // Try framework field first
-    if (framework && framework.toLowerCase() !== 'unknown') {
-      return framework
-    }
+    console.log('🎯 Backend detected framework:', backendFramework)
     
-    // Try detected stack
-    if (detectedStack && detectedStack.toLowerCase().includes('react')) {
-      return 'react'
-    } else if (detectedStack && detectedStack.toLowerCase().includes('static')) {
-      return 'static'
-    }
+    // Convert backend format to frontend format if needed
+    const framework = backendFramework.toLowerCase()
+    if (framework.includes('react') || framework === 'react-spa') return 'react'
+    if (framework.includes('static')) return 'static'
+    if (framework.includes('nextjs')) return 'nextjs'
+    if (framework.includes('vue')) return 'vue'
+    if (framework.includes('angular')) return 'angular'
     
-    // Try primary technology
-    if (primaryTech && primaryTech.toLowerCase().includes('react')) {
-      return 'react'
-    } else if (primaryTech && primaryTech.toLowerCase().includes('django')) {
-      return 'django'
-    } else if (primaryTech && primaryTech.toLowerCase().includes('static')) {
-      return 'static'
-    }
-    
-    // Try frameworks array
-    if (frameworks.length > 0) {
-      const firstFramework = frameworks[0]
-      const name = firstFramework.name?.toLowerCase() || ''
-      if (name.includes('react')) return 'react'
-      if (name.includes('static')) return 'static'
-    }
-    
-    // Try project type field
-    if (projectTypeField && projectTypeField.toLowerCase().includes('react')) {
-      return 'react'
-    } else if (projectTypeField && projectTypeField.toLowerCase().includes('static')) {
-      return 'static'
-    }
-    
-    return 'static' // Default to static if we reached the framework config step
+    return backendFramework || 'static'
   }
   
   const detectedFramework = getDetectedFramework()

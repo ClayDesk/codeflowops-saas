@@ -1,7 +1,8 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  // Configure for Amplify deployment
-  output: 'standalone',
+  // Configure for Amplify static deployment
+  output: 'export',
+  distDir: 'out',
   trailingSlash: true,
   basePath: '',
   assetPrefix: '',

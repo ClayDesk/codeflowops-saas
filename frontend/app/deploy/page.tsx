@@ -8,6 +8,9 @@ import { Badge } from '@/components/ui/badge'
 import { SDKDeploymentWizard } from '@/components/deployment/sdk-deployment-wizard'
 import { Rocket, Github, Zap, ArrowRight } from 'lucide-react'
 
+// Force dynamic rendering for this page
+export const dynamic = 'force-dynamic'
+
 function DeployPageContent() {
   const [showDeploymentFlow, setShowDeploymentFlow] = useState(false)
   const [prefilledRepo, setPrefilledRepo] = useState('')

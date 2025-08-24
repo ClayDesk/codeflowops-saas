@@ -925,8 +925,12 @@ function FrameworkConfigStep({
   const getDetectedFramework = () => {
     console.log('🔍 FrameworkConfig Debug - FULL analysisResult:', JSON.stringify(analysisResult, null, 2));
     
+    // The data might be nested in analysisResult.analysis - check both locations
+    const rootData = analysisResult || {};
+    const analysisData = analysisResult?.analysis || {};
+    
     // 1. Check direct framework field FIRST (this is where EnhancedRepositoryAnalyzer puts it)
-    const directFramework = analysisResult?.framework?.type;
+    const directFramework = rootData?.framework?.type || analysisData?.framework?.type;
     if (directFramework) {
       console.log('🎯 Direct framework field:', directFramework);
       const fw = directFramework.toLowerCase();
@@ -938,9 +942,26 @@ function FrameworkConfigStep({
       return fw;
     }
     
-    // 2. Use frameworks array (same as step 1 analysis display)
-    const analysis = analysisResult?.analysis || {};
-    const frameworks = analysis.frameworks || analysisResult?.frameworks || [];
+    // 2. Check intelligence_profile.frameworks array (this is where the React data actually is)
+    const intelligenceProfile = rootData?.intelligence_profile || analysisData?.intelligence_profile;
+    if (intelligenceProfile?.frameworks && intelligenceProfile.frameworks.length > 0) {
+      const topFramework = intelligenceProfile.frameworks[0];
+      const frameworkName = (topFramework.name || '').toLowerCase();
+      
+      console.log('🎯 Intelligence profile framework:', topFramework);
+      console.log('🎯 Framework name:', frameworkName);
+      
+      if (frameworkName.includes('react')) return 'react';
+      if (frameworkName.includes('nextjs')) return 'nextjs';
+      if (frameworkName.includes('vue')) return 'vue';
+      if (frameworkName.includes('angular')) return 'angular';
+      if (frameworkName.includes('static')) return 'static';
+      
+      return frameworkName || 'static';
+    }
+    
+    // 3. Use frameworks array (fallback)
+    const frameworks = rootData?.frameworks || analysisData?.frameworks || [];
     
     console.log('🔍 FrameworkConfig Debug - frameworks array:', frameworks);
     
@@ -957,12 +978,11 @@ function FrameworkConfigStep({
       if (frameworkName.includes('angular')) return 'angular';
       if (frameworkName.includes('static')) return 'static';
       
-      // Return the framework name as-is if it doesn't match patterns
       return frameworkName || 'static';
     }
     
-    // 3. Check stack classification
-    const stackType = analysisResult?.stack_classification?.type;
+    // 4. Check stack classification
+    const stackType = rootData?.stack_classification?.type || analysisData?.intelligence_profile?.stack_classification?.type;
     if (stackType) {
       console.log('🎯 Stack classification:', stackType);
       const fw = stackType.toLowerCase();
@@ -971,9 +991,9 @@ function FrameworkConfigStep({
       return fw;
     }
     
-    // 4. Fallback to other analysis fields
-    const backendFramework = analysis?.detected_framework ||
-                           analysisResult?.detected_framework ||
+    // 5. Final fallback
+    const backendFramework = rootData?.detected_framework ||
+                           analysisData?.detected_framework ||
                            'static';
     
     console.log('🎯 Fallback framework detected:', backendFramework);

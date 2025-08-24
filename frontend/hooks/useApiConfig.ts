@@ -16,7 +16,7 @@ interface ApiConfig {
 
 export const useApiConfig = () => {
   const [config, setConfig] = useState<ApiConfig>({
-    baseUrl: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000',
+    baseUrl: process.env.NEXT_PUBLIC_API_URL || 'https://api.codeflowops.com',
     isProduction: process.env.NODE_ENV === 'production',
     endpoints: {
       smartDeploy: '/api/v1/smart-deploy',

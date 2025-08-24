@@ -86,16 +86,16 @@ export function useBillingData() {
       setData(prev => ({ ...prev, isLoading: true, error: null }))
 
       // Test backend health first
-      const healthResponse = await fetch('http://localhost:8000/health')
+      const healthResponse = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'https://api.codeflowops.com'}/health`)
       if (!healthResponse.ok) {
         throw new Error('Backend not available')
       }
 
       // Fetch billing data from enterprise endpoints
       const [subscriptionResponse, usageResponse, billingResponse] = await Promise.all([
-        fetch('http://localhost:8000/api/billing/subscription'),
-        fetch('http://localhost:8000/api/billing/usage'),
-        fetch('http://localhost:8000/api/billing/history')
+        fetch(`${process.env.NEXT_PUBLIC_API_URL || 'https://api.codeflowops.com'}/api/billing/subscription`),
+        fetch(`${process.env.NEXT_PUBLIC_API_URL || 'https://api.codeflowops.com'}/api/billing/usage`),
+        fetch(`${process.env.NEXT_PUBLIC_API_URL || 'https://api.codeflowops.com'}/api/billing/history`)
       ])
 
       let planData = data.currentPlan

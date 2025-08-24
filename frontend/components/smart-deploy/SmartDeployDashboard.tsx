@@ -125,7 +125,7 @@ const InfrastructurePreview = () => {
   const generatePreview = async () => {
     setIsGenerating(true);
     try {
-      const response = await fetch('http://localhost:8000/api/v1/smart-deploy/infrastructure/preview', {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'https://api.codeflowops.com'}/api/v1/smart-deploy/infrastructure/preview`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -358,7 +358,7 @@ const RealtimeMonitor = ({ deployments }: { deployments: any[] }) => {
     try {
       setWsStatus('connecting');
       // Try to connect to real WebSocket, fallback to simulation
-      wsRef.current = new WebSocket('ws://localhost:8000/api/v1/smart-deploy/ws/realtime');
+      wsRef.current = new WebSocket(`${process.env.NEXT_PUBLIC_API_URL?.replace('https://', 'wss://').replace('http://', 'ws://') || 'wss://api.codeflowops.com'}/api/v1/smart-deploy/ws/realtime`);
       
       wsRef.current.onopen = () => {
         setWsStatus('connected');
@@ -508,7 +508,7 @@ const RepositoryUpload = ({ onUploadComplete }: { onUploadComplete: () => void }
       const formData = new FormData();
       formData.append('file', file);
 
-      const response = await fetch('http://localhost:8000/api/v1/smart-deploy/upload-repository', {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'https://api.codeflowops.com'}/api/v1/smart-deploy/upload-repository`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('token') || 'demo-token'}`
@@ -561,7 +561,7 @@ const RepositoryUpload = ({ onUploadComplete }: { onUploadComplete: () => void }
 
   const performAnalysis = async (tempPath: string) => {
     try {
-      const response = await fetch('http://localhost:8000/api/v1/smart-deploy/analyze-repository', {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'https://api.codeflowops.com'}/api/v1/smart-deploy/analyze-repository`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

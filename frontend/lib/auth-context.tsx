@@ -82,7 +82,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const isAuthenticated = !!user
 
   // API base URL
-  const API_BASE = process.env.NEXT_PUBLIC_API_URL || process.env.REACT_APP_API_URL || 'http://localhost:8000'
+  const API_BASE = process.env.NEXT_PUBLIC_API_URL || process.env.REACT_APP_API_URL || 'https://api.codeflowops.com'
 
   // Storage keys
   const ACCESS_TOKEN_KEY = 'codeflowops_access_token'

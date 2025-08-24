@@ -6,7 +6,7 @@
 
 export const API_CONFIG = {
   // Backend server configuration
-  BASE_URL: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000',
+  BASE_URL: process.env.NEXT_PUBLIC_API_URL || 'https://api.codeflowops.com',
   
   // Core endpoints for simple SaaS workflow
   ENDPOINTS: {

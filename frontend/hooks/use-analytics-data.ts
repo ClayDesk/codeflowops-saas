@@ -70,16 +70,16 @@ export function useAnalyticsData() {
       setData(prev => ({ ...prev, isLoading: true, error: null }))
 
       // Test backend health first
-      const healthResponse = await fetch('http://localhost:8000/health')
+      const healthResponse = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'https://api.codeflowops.com'}/health`)
       if (!healthResponse.ok) {
         throw new Error('Backend not available')
       }
 
       // Fetch analytics data from enterprise endpoints
       const [overviewResponse, trendsResponse, performanceResponse] = await Promise.all([
-        fetch('http://localhost:8000/api/analytics/overview'),
-        fetch('http://localhost:8000/api/analytics/deployment-trends?days=30'),
-        fetch('http://localhost:8000/api/analytics/performance')
+        fetch(`${process.env.NEXT_PUBLIC_API_URL || 'https://api.codeflowops.com'}/api/analytics/overview`),
+        fetch(`${process.env.NEXT_PUBLIC_API_URL || 'https://api.codeflowops.com'}/api/analytics/deployment-trends?days=30`),
+        fetch(`${process.env.NEXT_PUBLIC_API_URL || 'https://api.codeflowops.com'}/api/analytics/performance`)
       ])
 
       let overview = data.overview

@@ -6,8 +6,8 @@
 
 export const API_CONFIG = {
   // Backend server configuration - SINGLE API ON PORT 8000
-  BASE_URL: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000',
-  LEGACY_URL: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000', // Same as base
+  BASE_URL: process.env.NEXT_PUBLIC_API_URL || 'https://api.codeflowops.com',
+  LEGACY_URL: process.env.NEXT_PUBLIC_API_URL || 'https://api.codeflowops.com', // Same as base
   
   // Core endpoints for integrated modular SaaS workflow
   ENDPOINTS: {

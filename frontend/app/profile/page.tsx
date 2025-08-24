@@ -2,9 +2,6 @@
 
 import React, { useState, useEffect, Suspense } from 'react'
 import { useSearchParams } from 'next/navigation'
-
-// Force dynamic rendering for this page
-export const dynamic = 'force-dynamic'
 import { useAuth } from '@/lib/auth-context'
 import { useTheme } from 'next-themes'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'

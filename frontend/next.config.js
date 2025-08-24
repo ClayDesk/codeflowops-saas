@@ -1,11 +1,7 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  // Configure for Amplify static deployment
-  output: 'export',
-  distDir: 'out',
+  // Simple configuration for Amplify
   trailingSlash: true,
-  basePath: '',
-  assetPrefix: '',
   images: {
     unoptimized: true,
     domains: ['localhost', 'avatars.githubusercontent.com', 'images.unsplash.com'],

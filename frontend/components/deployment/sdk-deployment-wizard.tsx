@@ -678,54 +678,57 @@ function RepositoryStep({
             <div className="text-xs sm:text-sm text-green-700 space-y-1 break-words">
               <p><strong>Detected Framework:</strong> {
                 (() => {
-                  // Fixed detection logic to prevent static sites from showing as React
+                  // Corrected framework detection logic - prioritize React detection
                   const framework = analysisResult?.framework?.type || analysisResult?.analysis?.detected_framework || analysisResult?.projectType || '';
                   const detectedStack = analysisResult?.analysis?.detected_stack || '';
                   const primaryTech = analysisResult?.analysis?.executive_summary?.primary_technology || '';
                   const projectType = analysisResult?.analysis?.executive_summary?.project_type || '';
                   const frameworks = analysisResult?.analysis?.frameworks || [];
                   
-                  // If project type indicates static site, prioritize that
-                  if (projectType && projectType.toLowerCase().includes('static')) {
-                    return 'Static Site';
+                  // 1. Check frameworks array first (most reliable)
+                  if (frameworks && frameworks.length > 0) {
+                    const topFramework = frameworks[0];
+                    if (topFramework.name === 'react') return 'React Application';
+                    if (topFramework.name === 'laravel') return 'Laravel Application'; 
+                    if (topFramework.name === 'django') return 'Django Application';
+                    if (topFramework.name === 'nextjs') return 'Next.js Application';
+                    if (topFramework.name === 'static-basic') return 'Static Site';
                   }
                   
-                  // If we have HTML/CSS/JS as primary tech, it's likely a static site
-                  if (primaryTech && (primaryTech.toLowerCase().includes('html') || primaryTech.toLowerCase().includes('css'))) {
-                    return 'Static Site';
+                  // 2. Check primary technology
+                  if (primaryTech) {
+                    if (primaryTech.toLowerCase().includes('react jsx')) return 'React Application';
+                    if (primaryTech.toLowerCase().includes('php')) return 'PHP Application';
+                    if (primaryTech.toLowerCase().includes('python')) return 'Python Application';
+                    if (primaryTech.toLowerCase().includes('typescript')) return 'TypeScript Application';
+                    if (primaryTech.toLowerCase().includes('javascript')) return 'JavaScript Application';
                   }
                   
-                  // Check for specific static site indicators
-                  if (detectedStack && detectedStack.toLowerCase().includes('static')) {
-                    return 'Static Site';
+                  // 3. Check project type (but be more specific)
+                  if (projectType) {
+                    if (projectType.toLowerCase().includes('react')) return 'React Application';
+                    if (projectType.toLowerCase().includes('laravel')) return 'Laravel Application';
+                    if (projectType.toLowerCase().includes('django')) return 'Django Application';
+                    if (projectType.toLowerCase().includes('static website')) return 'Static Site';
                   }
                   
-                  // Try framework field
+                  // 4. Check framework field as fallback
                   if (framework && framework.toLowerCase() !== 'unknown') {
-                    if (framework.toLowerCase().includes('react')) return 'React';
-                    if (framework.toLowerCase().includes('django')) return 'Python';
+                    if (framework.toLowerCase().includes('react')) return 'React Application';
+                    if (framework.toLowerCase().includes('laravel')) return 'Laravel Application';
+                    if (framework.toLowerCase().includes('django')) return 'Django Application';
                     if (framework.toLowerCase().includes('static')) return 'Static Site';
                     return framework;
                   }
                   
-                  // If we get here and detected_stack is "react" but project_type suggests static, 
-                  // it's likely a backend misclassification - default to static
-                  if (projectType && projectType.toLowerCase().includes('site')) {
+                  // 5. Only classify as static site if explicitly detected as static
+                  if (primaryTech && primaryTech.toLowerCase() === 'html/css/js' && 
+                      projectType && projectType.toLowerCase().includes('static')) {
                     return 'Static Site';
                   }
                   
-                  // Only trust "react" detection if we have strong evidence
-                  if (detectedStack && detectedStack.toLowerCase().includes('react')) {
-                    // Check if this is actually a React project by looking for frameworks array
-                    if (frameworks && frameworks.length > 0) {
-                      return 'React';
-                    }
-                    // If no frameworks detected, it's likely a misclassification
-                    return 'Static Site';
-                  }
-                  
-                  // Default fallback for ambiguous cases
-                  return 'Static Site';
+                  // Default fallback
+                  return 'Web Application';
                 })()
               }</p>
               <p><strong>Project Type:</strong> {

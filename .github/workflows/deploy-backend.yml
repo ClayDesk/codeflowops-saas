@@ -1,0 +1,79 @@
+name: Deploy Backend to Elastic Beanstalk
+
+# SETUP REQUIRED:
+# 1. Go to GitHub Repository → Settings → Secrets and variables → Actions
+# 2. Add these repository secrets:
+#    - AWS_ACCESS_KEY_ID: Your AWS access key
+#    - AWS_SECRET_ACCESS_KEY: Your AWS secret key
+# 3. Ensure your AWS user has ElasticBeanstalk permissions
+
+on:
+  push:
+    branches: [ main, master ]
+    paths: [ 'backend/**' ]
+  workflow_dispatch:
+
+env:
+  AWS_REGION: us-east-1
+  APPLICATION_NAME: codeflowops-backend
+  ENVIRONMENT_NAME: codeflowops-backend-env
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Create deployment package
+      run: |
+        cd backend
+        # Copy simple_api.py as main.py
+        cp simple_api.py main.py
+        # Create deployment directory
+        mkdir -p ../deployment
+        cp -r . ../deployment/
+        cd ../deployment
+        
+        # Create application.py
+        cat > application.py << 'EOF'
+        #!/usr/bin/env python3
+        import sys
+        from pathlib import Path
+        sys.path.insert(0, str(Path(__file__).parent))
+        from main import app as application
+        if __name__ == "__main__":
+            import uvicorn
+            uvicorn.run(application, host="0.0.0.0", port=8000)
+        EOF
+        
+        # Create Procfile
+        echo "web: uvicorn application:application --host 0.0.0.0 --port 8000" > Procfile
+        
+        # Create .ebextensions
+        mkdir -p .ebextensions
+        cat > .ebextensions/01_python.config << 'EOF'
+        option_settings:
+          aws:elasticbeanstalk:application:environment:
+            PYTHONPATH: "/var/app/current:$PYTHONPATH"
+            ENVIRONMENT: "production"
+            ALLOWED_ORIGINS: "https://www.codeflowops.com,https://codeflowops.com"
+          aws:elasticbeanstalk:container:python:
+            WSGIPath: "application:application"
+        EOF
+        
+        # Create zip
+        zip -r ../codeflowops-backend.zip . -x "*.git*" "*__pycache__*" "*.pyc"
+    
+    - name: Deploy to Elastic Beanstalk
+      uses: einaregilsson/beanstalk-deploy@v22
+      with:
+        aws_access_key: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws_secret_key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        application_name: ${{ env.APPLICATION_NAME }}
+        environment_name: ${{ env.ENVIRONMENT_NAME }}
+        version_label: deploy-${{ github.run_number }}
+        region: ${{ env.AWS_REGION }}
+        deployment_package: codeflowops-backend.zip
+        wait_for_environment_recovery: 300

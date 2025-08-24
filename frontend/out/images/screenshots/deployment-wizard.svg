@@ -1,0 +1,118 @@
+<svg width="1920" height="1080" viewBox="0 0 1920 1080" xmlns="http://www.w3.org/2000/svg">
+  <!-- Background -->
+  <rect width="1920" height="1080" fill="#0f172a"/>
+  
+  <!-- Header -->
+  <rect x="0" y="0" width="1920" height="64" fill="#1e293b"/>
+  <rect x="24" y="16" width="32" height="32" rx="8" fill="#3b82f6"/>
+  <text x="72" y="36" font-family="Inter, sans-serif" font-size="20" font-weight="600" fill="#f1f5f9">CodeFlowOps</text>
+  
+  <!-- Main Content -->
+  <rect x="0" y="64" width="1920" height="1016" fill="#0f172a"/>
+  
+  <!-- Wizard Container -->
+  <rect x="360" y="120" width="1200" height="800" rx="16" fill="#1e293b" stroke="#334155" stroke-width="1"/>
+  
+  <!-- Wizard Header -->
+  <text x="400" y="170" font-family="Inter, sans-serif" font-size="28" font-weight="700" fill="#f1f5f9">Deploy Your Application</text>
+  <text x="400" y="200" font-family="Inter, sans-serif" font-size="16" fill="#94a3b8">Follow these steps to deploy your application to production</text>
+  
+  <!-- Progress Steps -->
+  <rect x="400" y="240" width="1120" height="60" fill="#0f172a" rx="8"/>
+  
+  <!-- Step 1 - Active -->
+  <circle cx="450" cy="270" r="16" fill="#3b82f6"/>
+  <text x="445" y="276" font-family="Inter, sans-serif" font-size="14" font-weight="600" fill="white">1</text>
+  <text x="420" y="295" font-family="Inter, sans-serif" font-size="12" font-weight="500" fill="#3b82f6">Repository</text>
+  
+  <!-- Step 2 - Current -->
+  <circle cx="650" cy="270" r="16" fill="#3b82f6" stroke="#1e293b" stroke-width="4"/>
+  <text x="645" y="276" font-family="Inter, sans-serif" font-size="14" font-weight="600" fill="white">2</text>
+  <text x="615" y="295" font-family="Inter, sans-serif" font-size="12" font-weight="500" fill="#f1f5f9">Configuration</text>
+  
+  <!-- Step 3 - Pending -->
+  <circle cx="850" cy="270" r="16" fill="#374151"/>
+  <text x="845" y="276" font-family="Inter, sans-serif" font-size="14" font-weight="400" fill="#9ca3af">3</text>
+  <text x="825" y="295" font-family="Inter, sans-serif" font-size="12" fill="#64748b">Environment</text>
+  
+  <!-- Step 4 - Pending -->
+  <circle cx="1050" cy="270" r="16" fill="#374151"/>
+  <text x="1045" y="276" font-family="Inter, sans-serif" font-size="14" font-weight="400" fill="#9ca3af">4</text>
+  <text x="1030" y="295" font-family="Inter, sans-serif" font-size="12" fill="#64748b">Deploy</text>
+  
+  <!-- Step 5 - Pending -->
+  <circle cx="1250" cy="270" r="16" fill="#374151"/>
+  <text x="1245" y="276" font-family="Inter, sans-serif" font-size="14" font-weight="400" fill="#9ca3af">5</text>
+  <text x="1230" y="295" font-family="Inter, sans-serif" font-size="12" fill="#64748b">Review</text>
+  
+  <!-- Progress Lines -->
+  <line x1="466" y1="270" x2="634" y2="270" stroke="#3b82f6" stroke-width="2"/>
+  <line x1="666" y1="270" x2="834" y2="270" stroke="#374151" stroke-width="2"/>
+  <line x1="866" y1="270" x2="1034" y2="270" stroke="#374151" stroke-width="2"/>
+  <line x1="1066" y1="270" x2="1234" y2="270" stroke="#374151" stroke-width="2"/>
+  
+  <!-- Form Content -->
+  <rect x="400" y="330" width="1120" height="500" fill="#0f172a" rx="8"/>
+  
+  <!-- Form Header -->
+  <text x="440" y="370" font-family="Inter, sans-serif" font-size="22" font-weight="600" fill="#f1f5f9">Configuration Settings</text>
+  <text x="440" y="395" font-family="Inter, sans-serif" font-size="14" fill="#94a3b8">Configure your application settings and build parameters</text>
+  
+  <!-- Form Fields -->
+  <!-- Application Name -->
+  <text x="440" y="435" font-family="Inter, sans-serif" font-size="14" font-weight="500" fill="#f1f5f9">Application Name</text>
+  <rect x="440" y="445" width="400" height="40" rx="6" fill="#1e293b" stroke="#374151" stroke-width="1"/>
+  <text x="456" y="468" font-family="Inter, sans-serif" font-size="14" fill="#f1f5f9">my-web-app</text>
+  
+  <!-- Framework Detection -->
+  <text x="860" y="435" font-family="Inter, sans-serif" font-size="14" font-weight="500" fill="#f1f5f9">Framework Detected</text>
+  <rect x="860" y="445" width="250" height="40" rx="6" fill="#1e293b" stroke="#10b981" stroke-width="1"/>
+  <circle cx="880" cy="465" r="4" fill="#10b981"/>
+  <text x="895" y="468" font-family="Inter, sans-serif" font-size="14" fill="#f1f5f9">Next.js 14</text>
+  
+  <!-- Build Command -->
+  <text x="440" y="515" font-family="Inter, sans-serif" font-size="14" font-weight="500" fill="#f1f5f9">Build Command</text>
+  <rect x="440" y="525" width="670" height="40" rx="6" fill="#1e293b" stroke="#374151" stroke-width="1"/>
+  <text x="456" y="548" font-family="JetBrains Mono, monospace" font-size="13" fill="#94a3b8">npm run build</text>
+  
+  <!-- Output Directory -->
+  <text x="440" y="595" font-family="Inter, sans-serif" font-size="14" font-weight="500" fill="#f1f5f9">Output Directory</text>
+  <rect x="440" y="605" width="670" height="40" rx="6" fill="#1e293b" stroke="#374151" stroke-width="1"/>
+  <text x="456" y="628" font-family="JetBrains Mono, monospace" font-size="13" fill="#94a3b8">dist</text>
+  
+  <!-- Environment Variables -->
+  <text x="440" y="675" font-family="Inter, sans-serif" font-size="14" font-weight="500" fill="#f1f5f9">Environment Variables</text>
+  <rect x="440" y="685" width="670" height="80" rx="6" fill="#1e293b" stroke="#374151" stroke-width="1"/>
+  <text x="456" y="708" font-family="JetBrains Mono, monospace" font-size="13" fill="#10b981">NODE_ENV=production</text>
+  <text x="456" y="728" font-family="JetBrains Mono, monospace" font-size="13" fill="#10b981">API_URL=https://api.myapp.com</text>
+  <text x="456" y="748" font-family="JetBrains Mono, monospace" font-size="13" fill="#94a3b8">+ Add variable</text>
+  
+  <!-- AI Suggestions Panel -->
+  <rect x="1140" y="420" width="340" height="350" rx="8" fill="#1e293b" stroke="#8b5cf6" stroke-width="1"/>
+  <text x="1160" y="450" font-family="Inter, sans-serif" font-size="16" font-weight="600" fill="#8b5cf6">✨ AI Suggestions</text>
+  
+  <rect x="1160" y="470" width="300" height="60" rx="6" fill="#7c3aed" fill-opacity="0.1"/>
+  <text x="1175" y="490" font-family="Inter, sans-serif" font-size="12" font-weight="500" fill="#f1f5f9">Optimize Build</text>
+  <text x="1175" y="505" font-family="Inter, sans-serif" font-size="11" fill="#94a3b8">Add caching for 40% faster builds</text>
+  <rect x="1380" y="485" width="60" height="20" rx="10" fill="#8b5cf6"/>
+  <text x="1400" y="497" font-family="Inter, sans-serif" font-size="10" font-weight="500" fill="white">Apply</text>
+  
+  <rect x="1160" y="540" width="300" height="60" rx="6" fill="#10b981" fill-opacity="0.1"/>
+  <text x="1175" y="560" font-family="Inter, sans-serif" font-size="12" font-weight="500" fill="#f1f5f9">Security Scan</text>
+  <text x="1175" y="575" font-family="Inter, sans-serif" font-size="11" fill="#94a3b8">Enable dependency vulnerability checks</text>
+  <rect x="1380" y="555" width="60" height="20" rx="10" fill="#10b981"/>
+  <text x="1400" y="567" font-family="Inter, sans-serif" font-size="10" font-weight="500" fill="white">Enable</text>
+  
+  <rect x="1160" y="610" width="300" height="60" rx="6" fill="#f59e0b" fill-opacity="0.1"/>
+  <text x="1175" y="630" font-family="Inter, sans-serif" font-size="12" font-weight="500" fill="#f1f5f9">CDN Setup</text>
+  <text x="1175" y="645" font-family="Inter, sans-serif" font-size="11" fill="#94a3b8">Configure global CDN for faster loading</text>
+  <rect x="1380" y="625" width="60" height="20" rx="10" fill="#f59e0b"/>
+  <text x="1395" y="637" font-family="Inter, sans-serif" font-size="10" font-weight="500" fill="white">Setup</text>
+  
+  <!-- Navigation Buttons -->
+  <rect x="440" y="850" width="100" height="40" rx="6" fill="#374151"/>
+  <text x="475" y="873" font-family="Inter, sans-serif" font-size="14" font-weight="500" fill="#94a3b8">← Back</text>
+  
+  <rect x="1380" y="850" width="140" height="40" rx="6" fill="#3b82f6"/>
+  <text x="1430" y="873" font-family="Inter, sans-serif" font-size="14" font-weight="500" fill="white">Continue →</text>
+</svg>

@@ -1,0 +1,467 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Repository Analysis - CodeFlowOps</title>
+    <link rel="stylesheet" href="assets/css/main.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="container">
+        <header class="header">
+            <div class="logo">
+                <h1>CodeFlowOps</h1>
+                <p>Repository Analysis in Progress</p>
+            </div>
+            <div class="session-display">
+                Session: <span id="currentSessionId"></span>
+            </div>
+        </header>
+
+        <main class="main">
+            <section class="analysis-progress">
+                <div class="progress-container">
+                    <h2>Analyzing Your Repository</h2>
+                    <p class="repo-url">Repository: <span id="repositoryUrl"></span></p>
+                    
+                    <div class="progress-steps">
+                        <div class="progress-step" id="step-download">
+                            <div class="step-icon">
+                                <div class="spinner" id="spinner-download"></div>
+                                <div class="check-icon" id="check-download" style="display: none;">✓</div>
+                            </div>
+                            <div class="step-content">
+                                <h3>Downloading Repository</h3>
+                                <p>Cloning your GitHub repository for analysis...</p>
+                                <div class="step-details" id="details-download"></div>
+                            </div>
+                        </div>
+
+                        <div class="progress-step" id="step-analyze">
+                            <div class="step-icon">
+                                <div class="spinner" id="spinner-analyze" style="display: none;"></div>
+                                <div class="check-icon" id="check-analyze" style="display: none;">✓</div>
+                            </div>
+                            <div class="step-content">
+                                <h3>Project Analysis</h3>
+                                <p>Detecting project type and analyzing dependencies...</p>
+                                <div class="step-details" id="details-analyze"></div>
+                            </div>
+                        </div>
+
+                        <div class="progress-step" id="step-build">
+                            <div class="step-icon">
+                                <div class="spinner" id="spinner-build" style="display: none;"></div>
+                                <div class="check-icon" id="check-build" style="display: none;">✓</div>
+                            </div>
+                            <div class="step-content">
+                                <h3>Build Process</h3>
+                                <p>Running npm install and build (for React apps)...</p>
+                                <div class="step-details" id="details-build"></div>
+                            </div>
+                        </div>
+
+                        <div class="progress-step" id="step-complete">
+                            <div class="step-icon">
+                                <div class="spinner" id="spinner-complete" style="display: none;"></div>
+                                <div class="check-icon" id="check-complete" style="display: none;">✓</div>
+                            </div>
+                            <div class="step-content">
+                                <h3>Analysis Complete</h3>
+                                <p>Preparing deployment stack recommendations...</p>
+                                <div class="step-details" id="details-complete"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <section class="analysis-results" id="analysisResults" style="display: none;">
+                <div class="results-container">
+                    <h2>Analysis Results</h2>
+                    
+                    <div class="result-card">
+                        <div class="result-header">
+                            <div class="project-type-icon" id="projectTypeIcon">REACT</div>
+                            <div class="project-info">
+                                <h3 id="projectType">React Application</h3>
+                                <p id="projectDescription">Modern React app with build pipeline</p>
+                            </div>
+                            <div class="confidence-badge" id="confidenceBadge">95% Confidence</div>
+                        </div>
+                        
+                        <div class="result-details">
+                            <div class="detail-group">
+                                <h4>Detected Features</h4>
+                                <ul id="detectedFeatures">
+                                    <li>✓ React & React DOM dependencies</li>
+                                    <li>✓ Modern build pipeline (npm scripts)</li>
+                                    <li>✓ Standard project structure</li>
+                                </ul>
+                            </div>
+                            
+                            <div class="detail-group" id="buildInfo" style="display: none;">
+                                <h4>Build Configuration</h4>
+                                <div class="build-details">
+                                    <div class="build-item">
+                                        <span class="label">Build Command:</span>
+                                        <span class="value" id="buildCommand">npm run build</span>
+                                    </div>
+                                    <div class="build-item">
+                                        <span class="label">Output Directory:</span>
+                                        <span class="value" id="buildOutput">build/</span>
+                                    </div>
+                                    <div class="build-item">
+                                        <span class="label">Dependencies:</span>
+                                        <span class="value" id="dependencyCount">24 packages</span>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="detail-group">
+                                <h4>Recommended Stack</h4>
+                                <div class="stack-recommendation" id="stackRecommendation">
+                                    <div class="stack-name">React App Stack</div>
+                                    <div class="stack-description">S3 + CloudFront + CodeBuild + IAM</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="action-buttons">
+                        <button class="btn btn-secondary" onclick="startOver()">Start Over</button>
+                        <button class="btn btn-primary" id="proceedBtn" onclick="proceedToStackSelection()">
+                            Continue to Stack Selection
+                        </button>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Error State -->
+            <section class="error-state" id="errorState" style="display: none;">
+                <div class="error-container">
+                    <div class="error-icon">ERROR</div>
+                    <h2>Analysis Failed</h2>
+                    <p id="errorMessage">An error occurred during repository analysis.</p>
+                    <div class="error-details" id="errorDetails"></div>
+                    <button class="btn btn-primary" onclick="startOver()">Try Again</button>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <!-- Live Log Display (Optional) -->
+    <div class="log-panel" id="logPanel" style="display: none;">
+        <div class="log-header">
+            <h4>Live Analysis Logs</h4>
+            <button class="log-toggle" onclick="toggleLogs()">Hide</button>
+        </div>
+        <div class="log-content" id="logContent"></div>
+    </div>
+
+    <script src="assets/js/session-manager.js"></script>
+    <script src="assets/js/websocket-client.js"></script>
+    <script>
+        // Repository Analysis Page Logic
+        class RepositoryAnalysis {
+            constructor() {
+                this.sessionId = SessionManager.getSessionId();
+                this.websocket = null;
+                this.currentStep = 0;
+                this.analysisData = null;
+                
+                this.init();
+            }
+
+            init() {
+                this.displaySessionId();
+                this.getRepositoryUrl();
+                this.connectWebSocket();
+                this.startAnalysis();
+            }
+
+            displaySessionId() {
+                document.getElementById('currentSessionId').textContent = this.sessionId.slice(0, 8);
+            }
+
+            getRepositoryUrl() {
+                const urlParams = new URLSearchParams(window.location.search);
+                const repoUrl = urlParams.get('repo') || sessionStorage.getItem('githubUrl');
+                document.getElementById('repositoryUrl').textContent = repoUrl;
+            }
+
+            connectWebSocket() {
+                this.websocket = new WebSocketClient();
+                this.websocket.connect(this.sessionId);
+                
+                this.websocket.onMessage = (data) => {
+                    this.handleWebSocketMessage(data);
+                };
+            }
+
+            handleWebSocketMessage(data) {
+                switch (data.type) {
+                    case 'analysis_progress':
+                        this.updateProgress(data.step, data.status, data.details);
+                        break;
+                    case 'analysis_complete':
+                        this.showResults(data.results);
+                        break;
+                    case 'analysis_error':
+                        this.showError(data.error, data.details);
+                        break;
+                    case 'log':
+                        this.addLog(data.message);
+                        break;
+                }
+            }
+
+            async startAnalysis() {
+                try {
+                    const response = await fetch('/api/analyze-repo', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            repository_url: sessionStorage.getItem('githubUrl'),
+                            branch: 'main'
+                        })
+                    });
+
+                    if (!response.ok) {
+                        throw new Error('Failed to start analysis');
+                    }
+
+                    const result = await response.json();
+                    console.log('Analysis started:', result);
+                } catch (error) {
+                    this.showError('Failed to start analysis', error.message);
+                }
+            }
+
+            updateProgress(step, status, details) {
+                const steps = ['download', 'analyze', 'build', 'complete'];
+                const currentStepIndex = steps.indexOf(step);
+                
+                // Update current step
+                if (status === 'started') {
+                    this.showSpinner(step);
+                    this.updateStepDetails(step, details);
+                } else if (status === 'completed') {
+                    this.showCheck(step);
+                    this.updateStepDetails(step, details);
+                    // Start next step if available
+                    if (currentStepIndex < steps.length - 1) {
+                        setTimeout(() => {
+                            this.showSpinner(steps[currentStepIndex + 1]);
+                        }, 500);
+                    }
+                } else if (status === 'error') {
+                    this.showError(details.message, details.error);
+                }
+            }
+
+            showSpinner(step) {
+                document.getElementById(`spinner-${step}`).style.display = 'block';
+                document.getElementById(`check-${step}`).style.display = 'none';
+            }
+
+            showCheck(step) {
+                document.getElementById(`spinner-${step}`).style.display = 'none';
+                document.getElementById(`check-${step}`).style.display = 'block';
+                document.getElementById(`step-${step}`).classList.add('completed');
+            }
+
+            updateStepDetails(step, details) {
+                const detailsElement = document.getElementById(`details-${step}`);
+                if (details) {
+                    detailsElement.textContent = details;
+                }
+            }
+
+            showResults(results) {
+                this.analysisData = results;
+                
+                // Hide progress section
+                document.querySelector('.analysis-progress').style.display = 'none';
+                
+                // Show results section
+                document.getElementById('analysisResults').style.display = 'block';
+                
+                // Update result display
+                this.updateResultDisplay(results);
+            }
+
+            updateResultDisplay(results) {
+                // Project type - enhanced
+                let projectTypeText, projectTypeIcon, projectDescription;
+                
+                switch(results.projectType) {
+                    case 'react':
+                        projectTypeText = 'React Application';
+                        projectTypeIcon = 'REACT';
+                        projectDescription = results.recommended_stack?.description || 'Modern React app with build pipeline';
+                        break;
+                    case 'vue':
+                        projectTypeText = 'Vue.js Application';
+                        projectTypeIcon = 'VUE';
+                        projectDescription = results.recommended_stack?.description || 'Vue.js app with build pipeline';
+                        break;
+                    case 'angular':
+                        projectTypeText = 'Angular Application';
+                        projectTypeIcon = 'ANGULAR';
+                        projectDescription = results.recommended_stack?.description || 'Angular app with build pipeline';
+                        break;
+                    default:
+                        projectTypeText = 'Static Website';
+                        projectTypeIcon = 'STATIC';
+                        projectDescription = results.recommended_stack?.description || 'Static HTML/CSS/JS website';
+                }
+                
+                document.getElementById('projectType').textContent = projectTypeText;
+                document.getElementById('projectTypeIcon').textContent = projectTypeIcon;
+                document.getElementById('projectDescription').textContent = projectDescription;
+                
+                // Confidence
+                document.getElementById('confidenceBadge').textContent = 
+                    `${Math.round(results.confidence * 100)}% Confidence`;
+                
+                // Features - enhanced for all stack types
+                const featuresElement = document.getElementById('detectedFeatures');
+                featuresElement.innerHTML = '';
+                
+                // Show export warnings for Next.js
+                let warningsHtml = '';
+                if (results.plugin_detection?.export_warnings?.length > 0) {
+                    warningsHtml = `
+                        <div style="background: #fff3cd; border: 1px solid #ffeaa7; padding: 8px; border-radius: 4px; margin-bottom: 10px;">
+                            <strong>⚠️ Export Warnings:</strong>
+                            <ul style="margin: 5px 0 0 20px; color: #856404;">
+                                ${results.plugin_detection.export_warnings.map(warning => `<li>${warning}</li>`).join('')}
+                            </ul>
+                        </div>
+                    `;
+                }
+                
+                switch(results.projectType) {
+                    case 'react':
+                        featuresElement.innerHTML = `
+                            <li>React & React DOM dependencies</li>
+                            <li>Modern build pipeline (npm scripts)</li>
+                            <li>Standard project structure</li>
+                            <li>Production build capability</li>
+                        `;
+                        break;
+                    case 'vue':
+                        featuresElement.innerHTML = `
+                            <li>Vue.js framework detected</li>
+                            <li>Component-based architecture</li>
+                            <li>Build pipeline configured</li>
+                            <li>Production optimization ready</li>
+                        `;
+                        break;
+                    case 'angular':
+                        featuresElement.innerHTML = `
+                            <li>Angular framework detected</li>
+                            <li>TypeScript support</li>
+                            <li>CLI build system</li>
+                            <li>Production build capability</li>
+                        `;
+                        break;
+                    default:
+                        featuresElement.innerHTML = `
+                            <li>HTML/CSS/JS files detected</li>
+                            <li>Static file structure</li>
+                            <li>Ready for direct deployment</li>
+                        `;
+                }
+                
+                // Build info - show for frameworks that need building
+                const buildFrameworks = ['react', 'vue', 'angular'];
+                if (buildFrameworks.includes(results.projectType)) {
+                    document.getElementById('buildInfo').style.display = 'block';
+                    document.getElementById('buildCommand').textContent = results.buildCommand || 
+                        (results.buildCommands ? results.buildCommands.join(' && ') : 'npm run build');
+                    document.getElementById('buildOutput').textContent = results.buildOutputDir || 'build/';
+                    
+                    const depCount = results.plugin_detection?.stack_config?.dependencies_count || 
+                                   Object.keys(results.dependencies?.dependencies || {}).length;
+                    document.getElementById('dependencyCount').textContent = `${depCount} packages`;
+                }
+                
+                // Stack recommendation - enhanced for all stack types including Python
+                const stackElement = document.getElementById('stackRecommendation');
+                let stackName, stackDescription;
+                
+                switch(results.projectType) {
+                    case 'react':
+                        stackName = 'React App Stack';
+                        stackDescription = results.recommended_stack?.description || 'S3 + CloudFront + Build Pipeline';
+                        break;
+                    case 'vue':
+                        stackName = 'Vue.js App Stack';
+                        stackDescription = results.recommended_stack?.description || 'S3 + CloudFront + Build Pipeline';
+                        break;
+                    case 'angular':
+                        stackName = 'Angular App Stack';
+                        stackDescription = results.recommended_stack?.description || 'S3 + CloudFront + Build Pipeline';
+                        break;
+                    default:
+                        stackName = 'Static Site Stack';
+                        stackDescription = results.recommended_stack?.description || 'S3 + CloudFront + IAM';
+                }
+                
+                stackElement.innerHTML = `
+                    <div class="stack-name">${stackName}</div>
+                    <div class="stack-description">${stackDescription}</div>
+                `;
+                
+                // Store analysis data for next step
+                sessionStorage.setItem('analysisResults', JSON.stringify(results));
+            }
+
+            showError(message, details) {
+                document.querySelector('.analysis-progress').style.display = 'none';
+                document.getElementById('errorState').style.display = 'block';
+                document.getElementById('errorMessage').textContent = message;
+                if (details) {
+                    document.getElementById('errorDetails').textContent = details;
+                }
+            }
+
+            addLog(message) {
+                const logContent = document.getElementById('logContent');
+                const logEntry = document.createElement('div');
+                logEntry.className = 'log-entry';
+                logEntry.textContent = `${new Date().toLocaleTimeString()}: ${message}`;
+                logContent.appendChild(logEntry);
+                logContent.scrollTop = logContent.scrollHeight;
+            }
+        }
+
+        // Global functions
+        function proceedToStackSelection() {
+            window.location.href = 'stack-selection.html';
+        }
+
+        function startOver() {
+            window.location.href = 'index.html';
+        }
+
+        function toggleLogs() {
+            const logPanel = document.getElementById('logPanel');
+            const isVisible = logPanel.style.display !== 'none';
+            logPanel.style.display = isVisible ? 'none' : 'block';
+        }
+
+        // Initialize when page loads
+        document.addEventListener('DOMContentLoaded', () => {
+            new RepositoryAnalysis();
+        });
+    </script>
+</body>
+</html>

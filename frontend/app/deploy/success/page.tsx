@@ -4,9 +4,6 @@ import { useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 // Using simple emoji icons instead of heroicons for compatibility
 
-// Force dynamic rendering
-export const dynamic = 'force-dynamic'
-
 interface DeploymentResult {
   success: boolean
   deploymentId: string

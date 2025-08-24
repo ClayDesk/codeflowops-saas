@@ -677,12 +677,35 @@ function RepositoryStep({
             </div>
             <div className="text-xs sm:text-sm text-green-700 space-y-1 break-words">
               <p><strong>Detected Framework:</strong> {
-                analysisResult.analysis?.frameworks?.[0]?.name || 
-                analysisResult.analysis?.stack_blueprint?.services?.[0]?.framework?.name ||
-                analysisResult.analysis?.executive_summary?.primary_technology || 
-                analysisResult.analysis?.detected_stack ||
-                analysisResult.detected_framework || 
-                'Unknown'
+                (() => {
+                  // Fixed detection logic to prevent static sites from showing as React
+                  const framework = analysisResult?.framework?.type || analysisResult?.analysis?.detected_framework || analysisResult?.projectType || '';
+                  const detectedStack = analysisResult?.analysis?.detected_stack || '';
+                  const primaryTech = analysisResult?.analysis?.executive_summary?.primary_technology || '';
+                  const frameworks = analysisResult?.analysis?.frameworks || [];
+                  
+                  // If we have HTML/CSS/JS as primary tech, it's likely a static site
+                  if (primaryTech && primaryTech.toLowerCase().includes('html')) {
+                    return 'Static Site';
+                  }
+                  
+                  // Try framework field first
+                  if (framework && framework.toLowerCase() !== 'unknown') {
+                    if (framework.toLowerCase().includes('react')) return 'React';
+                    if (framework.toLowerCase().includes('django')) return 'Python';
+                    if (framework.toLowerCase().includes('static')) return 'Static Site';
+                    return framework;
+                  }
+                  
+                  // Try detected stack (but be more careful)
+                  if (detectedStack) {
+                    if (detectedStack.toLowerCase().includes('static')) return 'Static Site';
+                    if (detectedStack.toLowerCase().includes('react')) return 'React';
+                  }
+                  
+                  // Default fallback for static sites
+                  return 'Static Site';
+                })()
               }</p>
               <p><strong>Project Type:</strong> {
                 analysisResult.analysis?.executive_summary?.project_type || 

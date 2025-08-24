@@ -258,10 +258,10 @@ const useEnhancedRealTimeUpdates = (deploymentId: string) => {
   const [deploymentStatus, setDeploymentStatus] = useState<DeploymentStatus | null>(null);
   const [orchestrationLogs, setOrchestrationLogs] = useState<string[]>([]);
 
+  const config = useApiConfig();
+  
   useEffect(() => {
     if (!deploymentId) return;
-
-    const config = useApiConfig();
     
     // Enhanced WebSocket connection with comprehensive pipeline integration
     const ws = new WebSocket(`${config.baseUrl.replace('http', 'ws')}/ws/enhanced-pipeline/${deploymentId}`);

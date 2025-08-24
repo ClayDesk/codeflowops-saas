@@ -1,11 +1,8 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  // Disable static export for Amplify deployment - use SSR instead
-  // ...(process.env.NODE_ENV === 'production' && process.env.BUILD_MODE === 'export' ? {
-  //   output: 'export',
-  //   distDir: 'out',
-  //   trailingSlash: true,
-  // } : {}),
+  // Configure for Amplify deployment
+  output: 'standalone',
+  trailingSlash: true,
   basePath: '',
   assetPrefix: '',
   images: {

@@ -81,7 +81,7 @@ export function useInvalidateQueries() {
         queryKey: ['deployment', id],
         queryFn: async () => {
           // Using the actual backend endpoint
-          const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api'}/v1/smart-deploy/status/${id}`)
+          const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'https://api.codeflowops.com'}/api/v1/smart-deploy/status/${id}`)
           if (!response.ok) throw new Error('Failed to fetch deployment')
           return response.json()
         },

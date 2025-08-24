@@ -188,7 +188,7 @@ export function LoginForm({ redirectTo = '/deploy' }: LoginFormProps) {
                 variant="outline"
                 className="w-full"
                 onClick={() => {
-                  const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
+                  const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'https://api.codeflowops.com'
                   window.location.href = `${API_BASE}/auth/github`
                 }}
                 disabled={isLoading}

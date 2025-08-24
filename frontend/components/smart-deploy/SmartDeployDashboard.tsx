@@ -843,7 +843,7 @@ export function SmartDeployDashboard() {
   const fetchDeployments = async () => {
     try {
       // Try to fetch from real backend API
-      const response = await fetch('http://localhost:8000/api/v1/smart-deploy/deployments', {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'https://api.codeflowops.com'}/api/v1/smart-deploy/deployments`, {
         headers: getAuthHeaders()
       });
       
@@ -903,7 +903,7 @@ export function SmartDeployDashboard() {
   const fetchStats = async () => {
     try {
       // Try to fetch real stats from backend
-      const response = await fetch('http://localhost:8000/api/v1/smart-deploy/stats', {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'https://api.codeflowops.com'}/api/v1/smart-deploy/stats`, {
         headers: getAuthHeaders()
       });
       
@@ -936,7 +936,7 @@ export function SmartDeployDashboard() {
   const startStatusPolling = (deploymentId: string) => {
     const interval = setInterval(async () => {
       try {
-        const response = await fetch(`http://localhost:8000/api/v1/smart-deploy/status/${deploymentId}`, {
+        const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'https://api.codeflowops.com'}/api/v1/smart-deploy/status/${deploymentId}`, {
           headers: getAuthHeaders()
         });
         

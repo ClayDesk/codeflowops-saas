@@ -56,7 +56,7 @@ function DeploymentSuccessPageContent() {
 
   const fetchDeploymentResult = async (deploymentId: string) => {
     try {
-      const response = await fetch(`http://localhost:8000/api/deployment/${deploymentId}/result`)
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'https://api.codeflowops.com'}/api/deployment/${deploymentId}/result`)
       if (response.ok) {
         const result = await response.json()
         setDeploymentResult(result)

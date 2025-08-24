@@ -46,7 +46,7 @@ class MultiTenantApiClient {
   private currentSession: UserSession | null = null;
   private userContext: any = null;
 
-  constructor(baseUrl: string = 'http://localhost:8000') {
+  constructor(baseUrl: string = process.env.NEXT_PUBLIC_API_URL || 'https://api.codeflowops.com') {
     this.baseUrl = baseUrl;
     this.initializeUserContext();
   }

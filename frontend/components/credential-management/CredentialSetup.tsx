@@ -77,7 +77,7 @@ const CredentialSetup: React.FC<CredentialSetupProps> = ({ onComplete, onCancel 
   const validateCredentials = async () => {
     setIsValidating(true);
     try {
-      const response = await fetch('http://localhost:8000/api/validate-credentials', {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'https://api.codeflowops.com'}/api/validate-credentials`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'

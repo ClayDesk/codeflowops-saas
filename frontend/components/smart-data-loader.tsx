@@ -308,7 +308,7 @@ export function SmartDeploymentLoader({ children, className }: {
       queryKey={['deployments']}
       queryFn={async () => {
         // Using the actual backend endpoint
-        const response = await fetch('http://localhost:8000/api/v1/smart-deploy/deployments')
+        const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'https://api.codeflowops.com'}/api/v1/smart-deploy/deployments`)
         if (!response.ok) throw new Error('Failed to fetch deployments')
         return response.json()
       }}
@@ -331,7 +331,7 @@ export function SmartAnalyticsLoader({ children, className }: {
       queryKey={['analytics']}
       queryFn={async () => {
         // Using the actual backend endpoint
-        const response = await fetch('http://localhost:8000/api/v1/smart-deploy/stats')
+        const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'https://api.codeflowops.com'}/api/v1/smart-deploy/stats`)
         if (!response.ok) throw new Error('Failed to fetch analytics')
         return response.json()
       }}

@@ -181,8 +181,10 @@ app = FastAPI(
 
 # Configure CORS dynamically
 allowed_origins = getattr(settings, 'ALLOWED_ORIGINS', '').split(",") if getattr(settings, 'ALLOWED_ORIGINS', '') else [
-    "http://localhost:3000",  # React dev server
-    "http://localhost:5173",  # Vite dev server
+    "https://www.codeflowops.com",  # Production frontend
+    "https://codeflowops.com",      # Production frontend (without www)
+    "http://localhost:3000",        # React dev server
+    "http://localhost:5173",        # Vite dev server
     "http://127.0.0.1:3000",
     "http://127.0.0.1:5173"
 ]
@@ -201,7 +203,7 @@ app.add_middleware(GZipMiddleware, minimum_size=1000)
 if getattr(settings, 'ENVIRONMENT', 'development') == "production":
     app.add_middleware(
         TrustedHostMiddleware,
-        allowed_hosts=["yourdomain.com", "*.yourdomain.com"]
+        allowed_hosts=["api.codeflowops.com", "*.codeflowops.com", "codeflowops.com"]
     )
 
 # TODO: Add rate limiting middleware

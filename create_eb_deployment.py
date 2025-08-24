@@ -27,17 +27,49 @@ def create_eb_deployment_package():
     # Create deployment directory
     deployment_dir.mkdir(exist_ok=True)
     
-    # Copy backend source files
-    shutil.copytree(backend_dir / "src", deployment_dir, dirs_exist_ok=True)
+    # Copy the working simple_api.py as main.py
+    shutil.copy2(backend_dir / "simple_api.py", deployment_dir / "main.py")
+    
+    # Copy all support files from backend directory
+    support_files = [
+        "repository_enhancer.py",
+        "cleanup_service.py", 
+        "enhanced_repository_analyzer.py"
+    ]
+    
+    for file in support_files:
+        src_file = backend_dir / file
+        if src_file.exists():
+            shutil.copy2(src_file, deployment_dir / file)
+            print(f"  Copied: {file}")
     
     # Copy requirements.txt
     shutil.copy2(backend_dir / "requirements.txt", deployment_dir / "requirements.txt")
+    
+    # Copy core utilities if they exist
+    core_dir = backend_dir / "core"
+    if core_dir.exists():
+        shutil.copytree(core_dir, deployment_dir / "core", dirs_exist_ok=True)
+        print("  Copied: core/ directory")
+    
+    # Copy detectors if they exist
+    detectors_dir = backend_dir / "src" / "detectors"
+    if detectors_dir.exists():
+        shutil.copytree(detectors_dir, deployment_dir / "detectors", dirs_exist_ok=True)
+        print("  Copied: detectors/ directory")
+    
+    # Copy routers if they exist
+    routers_dir = backend_dir / "src" / "routers"
+    if routers_dir.exists():
+        shutil.copytree(routers_dir, deployment_dir / "routers", dirs_exist_ok=True)
+        print("  Copied: routers/ directory")
     
     # Create application.py (EB entry point)
     application_py = deployment_dir / "application.py"
     application_py.write_text("""#!/usr/bin/env python3
 '''
 Elastic Beanstalk entry point for CodeFlowOps Backend
+Uses the working simple_api.py with full endpoint support
 '''
 import sys
 import os
@@ -47,12 +79,20 @@ from pathlib import Path
 current_dir = Path(__file__).parent
 sys.path.insert(0, str(current_dir))
 
-# Import the FastAPI app from main.py
+# Import the FastAPI app from main.py (which is simple_api.py)
 try:
     from main import app as application
-    print("CodeFlowOps backend loaded successfully")
+    print("✅ CodeFlowOps Simple API loaded successfully")
+    print("Available endpoints:")
+    print("  POST /api/analyze-repo - Repository analysis")
+    print("  POST /api/validate-credentials - AWS credential validation")
+    print("  POST /api/deploy - Full deployment pipeline")
+    print("  GET /api/deployment/{id}/status - Deployment status")
+    print("  GET /api/deployment/{id}/result - Deployment results")
+    print("  POST /api/v1/auth/login - Authentication")
+    print("  GET /api/stacks/available - Available stacks")
 except ImportError as e:
-    print(f"Failed to import application: {e}")
+    print(f"❌ Failed to import application: {e}")
     # Create a minimal fallback app
     from fastapi import FastAPI
     application = FastAPI(title="CodeFlowOps Backend - Fallback")
@@ -60,8 +100,8 @@ except ImportError as e:
     @application.get("/")
     async def root():
         return {
-            "message": "CodeFlowOps Backend - Fallback Mode",
-            "status": "error",
+            "message": "CodeFlowOps Backend - Import Failed",
+            "status": "error", 
             "error": f"Failed to load main application: {e}"
         }
     

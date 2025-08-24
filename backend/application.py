@@ -1,23 +1,23 @@
 """
 AWS Elastic Beanstalk Entry Point for CodeFlowOps SaaS Backend
-This file imports the main FastAPI application from src/main.py
+This file imports the main FastAPI application from simple_api.py
 """
 
 try:
-    # Try to import the FastAPI app from src.main
-    from src.main import app
+    # Import the FastAPI app from simple_api.py
+    from simple_api import app
     
     # This is the WSGI/ASGI application that Elastic Beanstalk will use
     application = app
     
-    print("✅ Successfully imported FastAPI app from src.main")
+    print("✅ Successfully imported FastAPI app from simple_api")
     
 except ImportError as e:
-    print(f"❌ Failed to import from src.main: {e}")
+    print(f"❌ Failed to import from simple_api: {e}")
     
-    # Fallback: try to import from simple_api.py
+    # Fallback: try to import from src.main
     try:
-        from simple_api import app
+        from src.main import app
         application = app
         print("✅ Fallback: Successfully imported FastAPI app from simple_api")
     except ImportError as fallback_error:

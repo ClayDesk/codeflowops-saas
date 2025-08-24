@@ -275,7 +275,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       // Check if user is authenticated via GitHub
       if (user?.provider === 'github') {
-        await fetch(`${API_BASE}/auth/github/logout`, {
+        await fetch(`${API_BASE}/api/v1/auth/github/logout`, {
           method: 'POST',
           credentials: 'include', // Include cookies
         })
@@ -540,7 +540,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   // Function to check GitHub authentication
   const checkGitHubAuth = async (): Promise<boolean> => {
     try {
-      const response = await fetch(`${API_BASE}/auth/github/user`, {
+      const response = await fetch(`${API_BASE}/api/v1/auth/github/user`, {
         credentials: 'include', // Include cookies
       })
 

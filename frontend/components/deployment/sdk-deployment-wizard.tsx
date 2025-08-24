@@ -73,6 +73,10 @@ const getFrameworkDisplayInfo = (framework: string) => {
   else if (fw.includes('dotnet') || fw.includes('csharp') || fw.includes('blazor') || fw.includes('asp.net')) {
     return { name: '.NET', color: 'bg-blue-100 text-blue-800', emoji: '🔷' }
   } 
+  // Python/Django frameworks
+  else if (fw.includes('django') || fw.includes('python') || fw.includes('flask') || fw.includes('fastapi')) {
+    return { name: 'Python', color: 'bg-yellow-100 text-yellow-800', emoji: '🐍' }
+  } 
   // Default fallback
   else {
     return { name: framework || 'Web App', color: 'bg-purple-100 text-purple-800', emoji: '🌐' }
@@ -896,7 +900,7 @@ function FrameworkConfigStep({
     if (primaryTech && primaryTech.toLowerCase().includes('react')) {
       return 'react'
     } else if (primaryTech && primaryTech.toLowerCase().includes('django')) {
-      return 'react'
+      return 'django'
     } else if (primaryTech && primaryTech.toLowerCase().includes('static')) {
       return 'static'
     }

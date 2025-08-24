@@ -53,23 +53,40 @@ def create_eb_deployment_package():
         print("  Copied: core/ directory")
     
     # Copy detectors if they exist
-    detectors_dir = backend_dir / "src" / "detectors"
+    detectors_dir = backend_dir / "detectors"
     if detectors_dir.exists():
         shutil.copytree(detectors_dir, deployment_dir / "detectors", dirs_exist_ok=True)
         print("  Copied: detectors/ directory")
     
     # Copy routers if they exist
-    routers_dir = backend_dir / "src" / "routers"
+    routers_dir = backend_dir / "routers"
     if routers_dir.exists():
         shutil.copytree(routers_dir, deployment_dir / "routers", dirs_exist_ok=True)
         print("  Copied: routers/ directory")
     
-    # Create application.py (EB entry point)
+    # Copy src directory if it exists
+    src_dir = backend_dir / "src"
+    if src_dir.exists():
+        shutil.copytree(src_dir, deployment_dir / "src", dirs_exist_ok=True)
+        print("  Copied: src/ directory")
+    
+    # Copy analyzer directory if it exists
+    analyzer_dir = backend_dir / "analyzer"
+    if analyzer_dir.exists():
+        shutil.copytree(analyzer_dir, deployment_dir / "analyzer", dirs_exist_ok=True)
+        print("  Copied: analyzer/ directory")
+    
+    # Copy utils directory if it exists
+    utils_dir = backend_dir / "utils"
+    if utils_dir.exists():
+        shutil.copytree(utils_dir, deployment_dir / "utils", dirs_exist_ok=True)
+        print("  Copied: utils/ directory")
+    
+    # Create application.py (EB entry point) - FINAL BULLETPROOF VERSION
     application_py = deployment_dir / "application.py"
     application_py.write_text("""#!/usr/bin/env python3
 '''
-Elastic Beanstalk entry point for CodeFlowOps Backend
-Uses the working simple_api.py with full endpoint support
+BULLETPROOF Elastic Beanstalk entry point - NO MORE VARIABLE SCOPE ERRORS
 '''
 import sys
 import os
@@ -79,35 +96,61 @@ from pathlib import Path
 current_dir = Path(__file__).parent
 sys.path.insert(0, str(current_dir))
 
-# Import the FastAPI app from main.py (which is simple_api.py)
+print("Starting CodeFlowOps Backend - BULLETPROOF VERSION")
+
+# Initialize variables at module level to prevent scope errors
+application = None
+import_error_msg = None
+
 try:
-    from main import app as application
-    print("✅ CodeFlowOps Simple API loaded successfully")
+    from main import app as main_app
+    application = main_app
+    print("SUCCESS: CodeFlowOps Enhanced API loaded")
+    print("Enhanced Repository Analyzer: ACTIVE")
+    print("Static Site Detection: ENABLED")
     print("Available endpoints:")
     print("  POST /api/analyze-repo - Repository analysis")
-    print("  POST /api/validate-credentials - AWS credential validation")
-    print("  POST /api/deploy - Full deployment pipeline")
-    print("  GET /api/deployment/{id}/status - Deployment status")
-    print("  GET /api/deployment/{id}/result - Deployment results")
-    print("  POST /api/v1/auth/login - Authentication")
-    print("  GET /api/stacks/available - Available stacks")
-except ImportError as e:
-    print(f"❌ Failed to import application: {e}")
-    # Create a minimal fallback app
-    from fastapi import FastAPI
-    application = FastAPI(title="CodeFlowOps Backend - Fallback")
+    print("  GET /health - Health check")
     
-    @application.get("/")
-    async def root():
+except Exception as import_error:
+    import_error_msg = str(import_error)
+    print(f"Main import failed: {import_error_msg}")
+    
+    # Create fallback app with NO scope issues
+    from fastapi import FastAPI
+    
+    fallback_app = FastAPI(title="CodeFlowOps Backend - Fallback")
+    
+    @fallback_app.get("/")
+    async def fallback_root():
         return {
-            "message": "CodeFlowOps Backend - Import Failed",
-            "status": "error", 
-            "error": f"Failed to load main application: {e}"
+            "message": "CodeFlowOps Backend - Fallback Mode",
+            "status": "degraded", 
+            "error": import_error_msg,
+            "version": "enhanced-analyzer-fallback"
         }
     
-    @application.get("/health")
-    async def health():
-        return {"status": "unhealthy", "error": str(e)}
+    @fallback_app.get("/health")
+    async def fallback_health():
+        return {
+            "status": "degraded", 
+            "error": import_error_msg,
+            "message": "Running in fallback mode"
+        }
+    
+    application = fallback_app
+    print("Fallback mode activated")
+
+# Final safety check
+if application is None:
+    from fastapi import FastAPI
+    application = FastAPI()
+    
+    @application.get("/")
+    async def emergency():
+        return {"message": "Emergency mode - application was None"}
+
+print(f"Application ready: {type(application).__name__}")
 
 if __name__ == "__main__":
     import uvicorn
@@ -125,10 +168,45 @@ if __name__ == "__main__":
     PYTHONPATH: "/var/app/current:$PYTHONPATH"
     ENVIRONMENT: "production"
     LOG_LEVEL: "INFO"
+    GIT_PYTHON_REFRESH: "quiet"
+    PATH: "/usr/bin:/bin:/usr/local/bin:$PATH"
+    # AWS and Cognito Configuration
+    AWS_REGION: "us-east-1"
+    COGNITO_USER_POOL_ID: "us-east-1_lWcaQdyeZ"
+    COGNITO_CLIENT_ID: "3d0gm6gtv4ia8vonloc38q8nkt"
+    # CORS Configuration
+    ALLOWED_ORIGINS: "https://www.codeflowops.com,https://codeflowops.com"
+    CORS_ALLOW_CREDENTIALS: "true"
   aws:elasticbeanstalk:container:python:
     WSGIPath: "application:application"
   aws:elasticbeanstalk:environment:proxy:staticfiles:
     /static: static
+
+packages:
+  yum:
+    git: []
+    git-all: []
+
+commands:
+  01_install_git:
+    command: |
+      which git || yum install -y git
+      git --version
+    ignoreErrors: false
+  02_configure_git:
+    command: |
+      git config --global user.email "deploy@codeflowops.com"
+      git config --global user.name "CodeFlowOps Deploy" 
+      git config --global init.defaultBranch main
+      git config --global safe.directory '*'
+      git config --global http.sslVerify true
+    ignoreErrors: true
+  03_verify_git:
+    command: |
+      echo "Git location: $(which git)"
+      echo "Git version: $(git --version)"
+      echo "PATH: $PATH"
+    ignoreErrors: true
 """)
     
     # Create 02_cors.config for CORS configuration

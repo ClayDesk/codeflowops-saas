@@ -27,11 +27,13 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
-# GitHub OAuth configuration
+# GitHub OAuth configuration - Production Ready
 GITHUB_CLIENT_ID = os.getenv("GITHUB_CLIENT_ID", "Ov23li4xEOeDgSAMz2rg")
 GITHUB_CLIENT_SECRET = os.getenv("GITHUB_CLIENT_SECRET", "65006527de2a3974af1a804b97fd6bcaac62b732")
-GITHUB_CALLBACK_URL = os.getenv("GITHUB_CALLBACK_URL", "http://localhost:8000/auth/github/callback")
-FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:3000")
+
+# Production callback URL - this must match GitHub OAuth app settings
+GITHUB_CALLBACK_URL = os.getenv("GITHUB_CALLBACK_URL", "https://api.codeflowops.com/api/v1/auth/github/callback")
+FRONTEND_URL = os.getenv("FRONTEND_URL", "https://codeflowops.com")
 
 # In-memory session storage (use Redis/database in production)
 _github_sessions = {}

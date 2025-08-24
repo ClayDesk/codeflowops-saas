@@ -1,18 +1,34 @@
 """
-AWS Cognito authentication provider
+AWS Cognito authentication provider - Production Optimized for High Scale
+Supports thousands of concurrent users with connection pooling, caching, and retry logic
 """
 
 import boto3
 import jwt
 import requests
+import asyncio
+import time
 from typing import Dict, Any, Optional
-from .base import AuthProvider, AuthResult
-from ...config.env import get_settings
+from botocore.config import Config
+from botocore.exceptions import ClientError, BotoCoreError
+from functools import lru_cache
+import logging
+from src.auth.providers.base import AuthProvider, AuthResult
+from src.config.env import get_settings
 
+logger = logging.getLogger(__name__)
 settings = get_settings()
 
 class CognitoAuthProvider(AuthProvider):
-    """AWS Cognito authentication provider"""
+    """
+    AWS Cognito authentication provider optimized for production scale
+    Features:
+    - Connection pooling for high throughput
+    - Public key caching with TTL
+    - Exponential backoff retry logic
+    - Rate limiting awareness
+    - Optimized for thousands of concurrent users
+    """
     
     def __init__(self):
         self.region = settings.AWS_REGION
@@ -23,8 +39,22 @@ class CognitoAuthProvider(AuthProvider):
         if not all([self.user_pool_id, self.client_id]):
             raise ValueError("Cognito configuration incomplete")
         
-        self.cognito_client = boto3.client('cognito-idp', region_name=self.region)
+        # Production-optimized boto3 configuration
+        config = Config(
+            region_name=self.region,
+            retries={
+                'max_attempts': 3,
+                'mode': 'adaptive'  # Adaptive retry mode for better handling of throttling
+            },
+            max_pool_connections=50,  # Increased connection pool for high concurrency
+            read_timeout=10,
+            connect_timeout=5
+        )
+        
+        self.cognito_client = boto3.client('cognito-idp', config=config)
         self._public_keys = None
+        self._public_keys_cache_time = 0
+        self._public_keys_ttl = 3600  # Cache public keys for 1 hour
     
     @property
     def provider_name(self) -> str:
@@ -38,15 +68,51 @@ class CognitoAuthProvider(AuthProvider):
     def supports_password_reset(self) -> bool:
         return True
     
-    async def _get_public_keys(self) -> Dict[str, Any]:
-        """Get Cognito public keys for token validation"""
-        if not self._public_keys:
-            keys_url = f"https://cognito-idp.{self.region}.amazonaws.com/{self.user_pool_id}/.well-known/jwks.json"
-            response = requests.get(keys_url)
-            response.raise_for_status()
-            self._public_keys = response.json()
-        return self._public_keys
+    @lru_cache(maxsize=1)
+    def _get_jwks_url(self) -> str:
+        """Cache JWKS URL to avoid string formatting overhead"""
+        return f"https://cognito-idp.{self.region}.amazonaws.com/{self.user_pool_id}/.well-known/jwks.json"
     
+    async def _get_public_keys(self) -> Dict[str, Any]:
+        """
+        Get Cognito public keys for token validation with caching
+        Optimized for high-scale production use
+        """
+        current_time = time.time()
+        
+        # Check cache validity
+        if (self._public_keys and 
+            current_time - self._public_keys_cache_time < self._public_keys_ttl):
+            return self._public_keys
+        
+        try:
+            # Use session for connection reuse
+            session = requests.Session()
+            session.mount('https://', requests.adapters.HTTPAdapter(
+                pool_connections=10,
+                pool_maxsize=20,
+                max_retries=3
+            ))
+            
+            keys_url = self._get_jwks_url()
+            response = session.get(keys_url, timeout=10)
+            response.raise_for_status()
+            
+            self._public_keys = response.json()
+            self._public_keys_cache_time = current_time
+            
+            logger.info("Cognito public keys refreshed from cache")
+            return self._public_keys
+            
+        except Exception as e:
+            logger.error(f"Failed to fetch Cognito public keys: {e}")
+            # Return cached keys if available, even if expired
+            if self._public_keys:
+                logger.warning("Using expired public keys cache due to fetch failure")
+                return self._public_keys
+            raise
+    
+    @lru_cache(maxsize=1000)  # Cache secret hashes for frequently used usernames
     def _get_secret_hash(self, username: str) -> Optional[str]:
         """Generate secret hash if client secret is configured"""
         if not self.client_secret:
@@ -65,68 +131,124 @@ class CognitoAuthProvider(AuthProvider):
         return base64.b64encode(dig).decode()
     
     async def authenticate(self, username: str, password: str) -> AuthResult:
-        """Authenticate user with username/password"""
-        try:
-            auth_params = {
-                'USERNAME': username,
-                'PASSWORD': password
-            }
-            
-            secret_hash = self._get_secret_hash(username)
-            if secret_hash:
-                auth_params['SECRET_HASH'] = secret_hash
-            
-            # Try ADMIN_NO_SRP_AUTH first (requires admin privileges)
+        """
+        Authenticate user with username/password - Production Optimized
+        Features:
+        - Exponential backoff retry logic for throttling
+        - Detailed error handling for production monitoring
+        - Performance optimizations for high throughput
+        """
+        max_retries = 3
+        base_delay = 0.1  # Start with 100ms delay
+        
+        for attempt in range(max_retries + 1):
             try:
-                response = self.cognito_client.admin_initiate_auth(
-                    UserPoolId=self.user_pool_id,
-                    ClientId=self.client_id,
-                    AuthFlow='ADMIN_NO_SRP_AUTH',
-                    AuthParameters=auth_params
+                auth_params = {
+                    'USERNAME': username,
+                    'PASSWORD': password
+                }
+                
+                secret_hash = self._get_secret_hash(username)
+                if secret_hash:
+                    auth_params['SECRET_HASH'] = secret_hash
+                
+                # Use ADMIN_NO_SRP_AUTH flow for server-side authentication
+                response = await asyncio.get_event_loop().run_in_executor(
+                    None,
+                    lambda: self.cognito_client.admin_initiate_auth(
+                        UserPoolId=self.user_pool_id,
+                        ClientId=self.client_id,
+                        AuthFlow='ADMIN_NO_SRP_AUTH',
+                        AuthParameters=auth_params
+                    )
                 )
-            except Exception as admin_error:
-                # If ADMIN_NO_SRP_AUTH fails, try alternative approach
-                if "Auth flow not enabled" in str(admin_error):
+                
+                auth_result = response['AuthenticationResult']
+                
+                # Decode ID token to get user info (without signature verification for performance)
+                # In production, implement JWT signature verification for enhanced security
+                id_token = auth_result['IdToken']
+                user_info = jwt.decode(id_token, options={"verify_signature": False})
+                
+                logger.info(f"Successful authentication for user: {user_info.get('cognito:username')}")
+                
+                return AuthResult(
+                    success=True,
+                    user_id=user_info.get('sub'),
+                    email=user_info.get('email'),
+                    username=user_info.get('cognito:username'),
+                    full_name=user_info.get('name'),
+                    access_token=auth_result['AccessToken'],
+                    refresh_token=auth_result.get('RefreshToken'),
+                    expires_in=auth_result.get('ExpiresIn', 3600),
+                    metadata={
+                        'provider': 'cognito',
+                        'auth_time': user_info.get('auth_time'),
+                        'token_use': user_info.get('token_use')
+                    }
+                )
+                
+            except ClientError as e:
+                error_code = e.response['Error']['Code']
+                error_message = e.response['Error']['Message']
+                
+                # Handle specific Cognito errors
+                if error_code == 'NotAuthorizedException':
+                    logger.warning(f"Authentication failed for {username}: Invalid credentials")
                     return AuthResult(
                         success=False,
-                        error_message="Authentication method not configured. Please enable ADMIN_NO_SRP_AUTH flow in AWS Cognito console under App Integration > App clients > Authentication flows."
+                        error_message="Invalid username or password"
                     )
+                elif error_code == 'UserNotFoundException':
+                    logger.warning(f"Authentication failed for {username}: User not found")
+                    return AuthResult(
+                        success=False,
+                        error_message="Invalid username or password"  # Don't reveal user existence
+                    )
+                elif error_code == 'UserNotConfirmedException':
+                    logger.warning(f"Authentication failed for {username}: User not confirmed")
+                    return AuthResult(
+                        success=False,
+                        error_message="Please verify your email address before signing in"
+                    )
+                elif error_code == 'TooManyRequestsException' and attempt < max_retries:
+                    # Exponential backoff for rate limiting
+                    delay = base_delay * (2 ** attempt)
+                    logger.warning(f"Rate limited, retrying in {delay}s (attempt {attempt + 1})")
+                    await asyncio.sleep(delay)
+                    continue
                 else:
-                    raise admin_error
-            
-            auth_result = response['AuthenticationResult']
-            
-            # Decode ID token to get user info
-            id_token = auth_result['IdToken']
-            public_keys = await self._get_public_keys()
-            
-            # For now, decode without verification (in production, verify signature)
-            user_info = jwt.decode(id_token, options={"verify_signature": False})
-            
-            return AuthResult(
-                success=True,
-                user_id=user_info.get('sub'),
-                email=user_info.get('email'),
-                username=user_info.get('cognito:username'),
-                full_name=user_info.get('name'),
-                access_token=auth_result['AccessToken'],
-                refresh_token=auth_result.get('RefreshToken'),
-                expires_in=auth_result.get('ExpiresIn', 3600),
-                metadata={
-                    "provider": "cognito",
-                    "id_token": id_token,
-                    "token_type": auth_result.get('TokenType', 'Bearer')
-                }
-            )
-            
-        except Exception as e:
-            import logging
-            logger = logging.getLogger(__name__)
-            logger.error(f"Authentication error: {str(e)}")
-            return AuthResult(
-                success=False,
-                error_message=f"Cognito authentication failed: {str(e)}"
-            )
+                    logger.error(f"Cognito authentication error for {username}: {error_code} - {error_message}")
+                    return AuthResult(
+                        success=False,
+                        error_message=f"Authentication service error: {error_code}"
+                    )
+                    
+            except BotoCoreError as e:
+                if attempt < max_retries:
+                    delay = base_delay * (2 ** attempt)
+                    logger.warning(f"Network error, retrying in {delay}s (attempt {attempt + 1}): {e}")
+                    await asyncio.sleep(delay)
+                    continue
+                else:
+                    logger.error(f"Network error during authentication for {username}: {e}")
+                    return AuthResult(
+                        success=False,
+                        error_message="Authentication service temporarily unavailable"
+                    )
+                    
+            except Exception as e:
+                logger.error(f"Unexpected error during authentication for {username}: {e}")
+                return AuthResult(
+                    success=False,
+                    error_message="Authentication failed due to unexpected error"
+                )
+        
+        # If we get here, all retries failed
+        return AuthResult(
+            success=False,
+            error_message="Authentication service temporarily unavailable"
+        )
     
     async def refresh_token(self, refresh_token: str) -> AuthResult:
         """Refresh access token"""

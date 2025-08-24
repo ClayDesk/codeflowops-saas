@@ -292,6 +292,7 @@ try:
     from .api.github_auth_routes import router as github_auth_router
     app.include_router(
         github_auth_router,
+        prefix="/api/v1",
         tags=["GitHub Authentication"]
     )
     logger.info("✅ GitHub authentication routes loaded successfully")
@@ -300,6 +301,7 @@ except ImportError:
         from api.github_auth_routes import router as github_auth_router
         app.include_router(
             github_auth_router,
+            prefix="/api/v1",
             tags=["GitHub Authentication"]
         )
         logger.info("✅ GitHub authentication routes loaded successfully (fallback)")

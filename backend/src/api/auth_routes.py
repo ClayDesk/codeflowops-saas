@@ -13,40 +13,94 @@ backend_root = os.path.join(os.path.dirname(__file__), '..', '..')
 if backend_root not in sys.path:
     sys.path.insert(0, backend_root)
 
+print("Loading authentication modules...")
+cognito_provider = None
+import_error_msg = "No errors"
+primary_error = None
+fallback_error = None
+
 try:
+    print("Attempting to import CognitoAuthProvider...")
     from src.auth.providers.cognito import CognitoAuthProvider
     from src.models.enhanced_models import User
     from src.config.env import get_settings
     from src.auth.dependencies import get_current_user
-except ImportError:
+    
+    # Try to initialize Cognito provider
+    settings = get_settings()
+    print(f"Settings loaded: AWS_REGION={getattr(settings, 'AWS_REGION', 'None')}")
+    print(f"COGNITO_USER_POOL_ID={getattr(settings, 'COGNITO_USER_POOL_ID', 'None')}")
+    print(f"COGNITO_CLIENT_ID={getattr(settings, 'COGNITO_CLIENT_ID', 'None')}")
+    
+    cognito_provider = CognitoAuthProvider()
+    print("CognitoAuthProvider initialized successfully!")
+    
+except ImportError as e:
+    print(f"Primary import failed: {e}")
+    primary_error = str(e)
     # Fallback imports
     try:
+        print("Trying fallback imports...")
         from auth.providers.cognito import CognitoAuthProvider
         from models.enhanced_models import User
         from config.env import get_settings
         from auth.dependencies import get_current_user
-    except ImportError as e:
-        print(f"Import error in auth_routes: {e}")
+        
+        settings = get_settings()
+        cognito_provider = CognitoAuthProvider()
+        print("Fallback CognitoAuthProvider initialized successfully!")
+        
+    except ImportError as e2:
+        print(f"Fallback import also failed: {e2}")
+        fallback_error = str(e2)
         # Create minimal fallbacks for testing
-        class CognitoAuthProvider:
+        try:
+            print("Attempting basic Cognito provider initialization...")
+            # Import just the base class
+            from src.auth.providers.base import AuthResult
+            
+            settings = None
+            cognito_provider = None
+            
+        except Exception as e3:
+            print(f"Cognito provider initialization failed: {e3}")
+            init_error = str(e3)
+            import_error_msg = f"Primary: {primary_error}, Fallback: {fallback_error}, Init: {init_error}"
+            cognito_provider = None
+
+# If all imports/initialization failed, create minimal fallbacks
+if cognito_provider is None:
+    print("Creating minimal fallback CognitoAuthProvider...")
+    import_error_msg = f"Primary: {primary_error}, Fallback: {fallback_error}"
+    
+    class CognitoAuthProvider:
+        def __init__(self):
+            pass
+        
+        async def authenticate(self, username: str, password: str):
+            from src.auth.providers.base import AuthResult
+            return AuthResult(
+                success=False,
+                error_message=f"Cognito authentication not properly configured. Import errors: {import_error_msg}"
+            )
+    
+    cognito_provider = CognitoAuthProvider()
+    
+    class User:
+        def __init__(self, **kwargs):
+            for k, v in kwargs.items():
+                setattr(self, k, v)
+    
+    def get_settings():
+        class MockSettings:
             def __init__(self):
-                pass
-        
-        class User:
-            def __init__(self, **kwargs):
-                for k, v in kwargs.items():
-                    setattr(self, k, v)
-        
-        def get_settings():
-            class MockSettings:
-                def __init__(self):
-                    self.aws_region = os.getenv('AWS_REGION', 'us-east-1')
-                    self.cognito_user_pool_id = os.getenv('COGNITO_USER_POOL_ID')
-                    self.cognito_client_id = os.getenv('COGNITO_CLIENT_ID')
-            return MockSettings()
-        
-        def get_current_user():
-            return None
+                self.aws_region = os.getenv('AWS_REGION', 'us-east-1')
+                self.cognito_user_pool_id = os.getenv('COGNITO_USER_POOL_ID')
+                self.cognito_client_id = os.getenv('COGNITO_CLIENT_ID')
+        return MockSettings()
+    
+    def get_current_user():
+        return None
 
 router = APIRouter()
 security = HTTPBearer()
@@ -72,14 +126,7 @@ class AuthResponse(BaseModel):
 class LogoutRequest(BaseModel):
     access_token: str = Field(..., description="Access token to invalidate")
 
-# Initialize Cognito provider
-try:
-    settings = get_settings()
-    cognito_provider = CognitoAuthProvider()
-    print("SUCCESS: Cognito provider initialized successfully")
-except Exception as e:
-    print(f"WARNING: Failed to initialize Cognito provider: {e}")
-    cognito_provider = None
+# cognito_provider is already initialized above during import handling
 
 @router.post("/login", response_model=AuthResponse)
 async def login(request: LoginRequest):

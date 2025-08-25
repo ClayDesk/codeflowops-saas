@@ -34,7 +34,9 @@ def create_eb_deployment_package():
     support_files = [
         "repository_enhancer.py",
         "cleanup_service.py", 
-        "enhanced_repository_analyzer.py"
+        "enhanced_repository_analyzer.py",
+        "react_deployer.py",           # Updated React deployer with CodeBuild
+        "aws_codebuild_manager.py"     # New AWS CodeBuild manager
     ]
     
     for file in support_files:

@@ -108,6 +108,8 @@ export const useSmartDeployApi = () => {
     framework?: string;
     projectType?: string;  // Add projectType field
     detected_framework?: string;  // Add detected_framework field
+    repository_url?: string;  // Add repository URL field
+    repo_url?: string;  // Alternative field name
   }) => {
     console.log('🚀 deployWithCredentials called with:', {
       deployment_id: deploymentData.deployment_id,
@@ -154,7 +156,8 @@ export const useSmartDeployApi = () => {
       aws_access_key_id: deploymentData.aws_access_key,
       aws_secret_access_key: deploymentData.aws_secret_key,
       aws_region: deploymentData.aws_region || 'us-east-1',
-      project_name: deploymentData.project_name
+      project_name: deploymentData.project_name,
+      repository_url: deploymentData.repository_url || deploymentData.repo_url  // Add repository URL
     };
     
     console.log('📤 Sending deploy request to:', endpoint);

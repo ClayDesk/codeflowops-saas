@@ -464,8 +464,20 @@ def _run_react_deployment(deployment_id: str, analysis: Dict[str, Any], request:
         # Initialize ReactDeployer
         react_deployer = ReactDeployer()
         
-        # Get repository URL from stored session
-        repo_url = _DEPLOY_STATES[deployment_id]["repository_url"]
+        # Get repository URL - either from stored session or from analysis
+        repo_url = _DEPLOY_STATES[deployment_id].get("repository_url")
+        if not repo_url:
+            # Try to get from analysis data
+            repo_url = analysis.get("repository_url") or analysis.get("repo_url") or analysis.get("github_url")
+        
+        if not repo_url:
+            # Use the React repository detection from the analysis
+            # For the frontend wizard, we'll get the repo URL from the frontend analysis
+            logger.warning(f"⚠️ No repository URL found for deployment {deployment_id}")
+            with _LOCK:
+                _DEPLOY_STATES[deployment_id]["status"] = "failed"
+                _DEPLOY_STATES[deployment_id]["logs"].append("❌ Repository URL not found in deployment request")
+            return
         
         with _LOCK:
             _DEPLOY_STATES[deployment_id]["status"] = "analyzing_react"

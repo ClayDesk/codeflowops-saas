@@ -323,7 +323,8 @@ export function SDKDeploymentWizard({ initialRepo = '', onClose }: { initialRepo
         aws_secret_key: formData.awsSecretKey,
         aws_region: formData.awsRegion,
         project_name: formData.projectName,
-        framework: finalFramework
+        framework: finalFramework,
+        repository_url: formData.repositoryUrl  // Add repository URL
       })
 
       console.log('Deployment started:', deployResult)

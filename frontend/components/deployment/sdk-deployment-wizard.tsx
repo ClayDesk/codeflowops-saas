@@ -307,14 +307,22 @@ export function SDKDeploymentWizard({ initialRepo = '', onClose }: { initialRepo
       setTimeout(() => setDeploymentPhase('building'), 2000)
 
       // Determine framework to use based on config
-      let finalFramework = analysisResult?.framework?.type || analysisResult?.analysis?.detected_framework
+      // Extract framework from the correct location in analysis result
+      const detectedFramework = analysisResult?.analysis?.intelligence_profile?.frameworks?.[0]?.type || 
+                                analysisResult?.analysis?.intelligence_profile?.frameworks?.[0]?.name ||
+                                analysisResult?.framework?.type || 
+                                analysisResult?.analysis?.detected_framework ||
+                                analysisResult?.projectType
+      
+      let finalFramework = detectedFramework
       
       if (frameworkConfig.deploymentType === 'auto') {
-        finalFramework = analysisResult?.framework?.type || analysisResult?.analysis?.detected_framework || analysisResult?.projectType
+        finalFramework = detectedFramework
       }
 
       console.log('🔧 Framework configuration:', frameworkConfig)
       console.log('🎯 Final framework for deployment:', finalFramework)
+      console.log('🔍 Analysis frameworks array:', analysisResult?.analysis?.intelligence_profile?.frameworks)
 
       // Start deployment
       const deployResult = await api.deployWithCredentials({

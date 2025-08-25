@@ -125,6 +125,38 @@ router = APIRouter()
 # Session management (simplified)
 deployment_sessions = {}
 
+@router.get("/")
+async def root():
+    """Root endpoint - API is healthy"""
+    return {
+        "status": "healthy",
+        "service": "CodeFlowOps Streamlined API",
+        "version": "2.0.0",
+        "message": "Welcome to CodeFlowOps API"
+    }
+
+@router.get("/health")
+async def health_check():
+    """Health check endpoint for ELB"""
+    return {
+        "status": "healthy",
+        "service": "CodeFlowOps Streamlined API",
+        "version": "2.0.0"
+    }
+
+@router.get("/favicon.ico")
+async def favicon():
+    """Return empty response for favicon requests to prevent 404s"""
+    return JSONResponse(content="", media_type="image/x-icon", status_code=204)
+
+@router.get("/robots.txt")
+async def robots():
+    """Return robots.txt to prevent 404s"""
+    return JSONResponse(
+        content="User-agent: *\nDisallow: /api/\nAllow: /\n",
+        media_type="text/plain"
+    )
+
 @router.post("/api/analyze-repo")
 async def analyze_repository(request: RepoAnalysisRequest):
     """

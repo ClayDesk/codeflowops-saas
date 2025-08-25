@@ -103,7 +103,7 @@ class CodeBuildManager:
             ]
         }
         
-        # Permissions policy for CodeBuild
+        # Permissions policy for CodeBuild with comprehensive S3 access
         permissions_policy = {
             "Version": "2012-10-17",
             "Statement": [
@@ -119,11 +119,28 @@ class CodeBuildManager:
                 {
                     "Effect": "Allow",
                     "Action": [
+                        "s3:ListBucket",
+                        "s3:GetBucketLocation"
+                    ],
+                    "Resource": [
+                        f"arn:aws:s3:::*{deployment_id}*",
+                        f"arn:aws:s3:::react-*{deployment_id}*",
+                        f"arn:aws:s3:::*codebuild-{deployment_id}*"
+                    ]
+                },
+                {
+                    "Effect": "Allow",
+                    "Action": [
                         "s3:GetObject",
                         "s3:PutObject",
-                        "s3:DeleteObject"
+                        "s3:DeleteObject",
+                        "s3:PutObjectAcl"
                     ],
-                    "Resource": f"arn:aws:s3:::*codebuild-{deployment_id}*/*"
+                    "Resource": [
+                        f"arn:aws:s3:::*{deployment_id}*/*",
+                        f"arn:aws:s3:::react-*{deployment_id}*/*",
+                        f"arn:aws:s3:::*codebuild-{deployment_id}*/*"
+                    ]
                 }
             ]
         }
@@ -171,38 +188,61 @@ class CodeBuildManager:
             raise Exception(f"Failed to get AWS account ID: {e}")
     
     def create_buildspec(self, project_name: str, s3_bucket: str) -> str:
-        """Generate dynamic buildspec.yml for React project"""
-        node_config = self.config['node']
+        """Generate dynamic buildspec.yml for React project with robust error handling"""
         
         buildspec = {
             "version": "0.2",
             "phases": {
                 "pre_build": {
                     "commands": [
-                        "echo Logging in to Amazon ECR...",
                         "echo Build started on `date`",
                         "echo Checking Node.js and package manager versions...",
                         "node --version",
                         "npm --version", 
-                        "yarn --version || echo 'Yarn not available, using npm'"
+                        "which yarn && yarn --version || echo 'Yarn not available, will use npm'",
+                        "echo Current directory: $PWD",
+                        "ls -la",
+                        "echo Checking package files...",
+                        "[ -f package.json ] && echo 'package.json found' || echo 'ERROR: package.json not found'",
+                        "[ -f yarn.lock ] && echo 'yarn.lock found - will use yarn' || echo 'yarn.lock not found - will use npm'"
                     ]
                 },
                 "build": {
                     "commands": [
-                        "echo Build started on `date`",
                         "echo Installing dependencies...",
-                        node_config['build_commands']['install'],
-                        "echo Building React application...",
-                        node_config['build_commands']['build'],
-                        "echo Build completed on `date`"
+                        "if [ -f yarn.lock ] && command -v yarn >/dev/null 2>&1; then",
+                        "  echo 'Using yarn for installation'",
+                        "  yarn install --frozen-lockfile",
+                        "  echo 'Building with yarn'", 
+                        "  yarn build",
+                        "else",
+                        "  echo 'Using npm for installation'",
+                        "  npm ci || npm install",
+                        "  echo 'Building with npm'",
+                        "  npm run build",
+                        "fi",
+                        "echo Build phase completed",
+                        "echo Checking build output...",
+                        "ls -la",
+                        "[ -d build ] && echo 'Build directory created successfully' || [ -d dist ] && echo 'Dist directory created' || echo 'ERROR: No build output directory found'",
+                        "[ -d build ] && ls -la build/ || [ -d dist ] && ls -la dist/ || echo 'No build files to list'"
                     ]
                 },
                 "post_build": {
                     "commands": [
-                        "echo Build completed on `date`",
-                        "echo Uploading to S3...",
-                        f"aws s3 sync build/ s3://{s3_bucket}/build/ --delete",
-                        "echo Upload completed"
+                        "echo Post-build phase started",
+                        "echo Checking for build output directory...",
+                        "if [ -d build ]; then",
+                        "  echo 'Found build directory, syncing to S3...'",
+                        f"  aws s3 sync build/ s3://{s3_bucket}/ --delete",
+                        "elif [ -d dist ]; then",
+                        "  echo 'Found dist directory, syncing to S3...'",
+                        f"  aws s3 sync dist/ s3://{s3_bucket}/ --delete",
+                        "else",
+                        "  echo 'ERROR: No build output directory found (build/ or dist/)'",
+                        "  exit 1",
+                        "fi",
+                        "echo S3 sync completed successfully"
                     ]
                 }
             },
@@ -210,7 +250,7 @@ class CodeBuildManager:
                 "files": [
                     "**/*"
                 ],
-                "base-directory": "build",
+                "base-directory": ".",
                 "name": f"{project_name}-build"
             }
         }

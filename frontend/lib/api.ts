@@ -150,9 +150,9 @@ export const useSmartDeployApi = () => {
     console.log('  final endpoint:', endpoint);
     
     const payload = {
-      deployment_id: deploymentData.deployment_id,
-      aws_access_key: deploymentData.aws_access_key,
-      aws_secret_key: deploymentData.aws_secret_key,
+      analysis_id: deploymentData.deployment_id,
+      aws_access_key_id: deploymentData.aws_access_key,
+      aws_secret_access_key: deploymentData.aws_secret_key,
       aws_region: deploymentData.aws_region || 'us-east-1',
       project_name: deploymentData.project_name
     };
@@ -160,7 +160,7 @@ export const useSmartDeployApi = () => {
     console.log('📤 Sending deploy request to:', endpoint);
     console.log('📤 Framework detected:', JSON.stringify(deploymentData.framework), '-> Endpoint:', endpoint);
     console.log('📤 Payload structure:', JSON.stringify(payload, (key, value) => {
-      if (key === 'aws_access_key' || key === 'aws_secret_key') {
+      if (key === 'aws_access_key_id' || key === 'aws_secret_access_key') {
         return '***REDACTED***';
       }
       return value;

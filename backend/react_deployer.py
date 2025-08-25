@@ -16,6 +16,9 @@ import uuid
 from typing import Dict, Any, Optional, Tuple
 import requests
 
+# Import the existing CloudFront creation utility
+from core.utils import create_cloudfront_distribution
+
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -42,9 +45,14 @@ class ReactDeployer:
             
             # Clone repository
             logger.info("📥 Cloning repository...")
+            
+            # Determine if we're on Windows and use shell=True for commands
+            import platform
+            is_windows = platform.system() == 'Windows'
+            
             clone_result = subprocess.run([
                 "git", "clone", "--depth", "1", repository_url, self.repo_path
-            ], capture_output=True, text=True, timeout=120)
+            ], capture_output=True, text=True, timeout=120, shell=is_windows)
             
             if clone_result.returncode != 0:
                 raise Exception(f"Git clone failed: {clone_result.stderr}")
@@ -163,12 +171,16 @@ class ReactDeployer:
                 'YARN_PROGRESS': 'false'                     # No progress bars
             })
             
+            # Determine if we're on Windows and use shell=True for commands
+            import platform
+            is_windows = platform.system() == 'Windows'
+            
             # Step 1: Install dependencies with yarn
             logger.info("📦 Installing dependencies with yarn...")
             install_result = subprocess.run([
                 "yarn", "install", "--frozen-lockfile", "--non-interactive"
             ], cwd=self.repo_path, capture_output=True, text=True, 
-               timeout=600, env=env)  # 10 minute timeout
+               timeout=600, env=env, shell=is_windows)  # 10 minute timeout
             
             if install_result.returncode != 0:
                 # Fallback to npm if yarn fails
@@ -176,7 +188,7 @@ class ReactDeployer:
                 install_result = subprocess.run([
                     "npm", "install"
                 ], cwd=self.repo_path, capture_output=True, text=True, 
-                   timeout=600, env=env)
+                   timeout=600, env=env, shell=is_windows)
                 
                 if install_result.returncode != 0:
                     raise Exception(f"Both yarn and npm install failed: {install_result.stderr}")
@@ -194,7 +206,7 @@ class ReactDeployer:
             logger.info(f"🏗️ Building React application with {build_tool}...")
             build_result = subprocess.run(
                 build_cmd, cwd=self.repo_path, capture_output=True, text=True,
-                timeout=900, env=env  # 15 minute timeout
+                timeout=900, env=env, shell=is_windows  # 15 minute timeout
             )
             
             if build_result.returncode != 0:
@@ -263,6 +275,16 @@ class ReactDeployer:
             
             if bucket_result.returncode != 0:
                 raise Exception(f"S3 bucket creation failed: {bucket_result.stderr}")
+            
+            # Step 1.5: Disable Block Public Access to allow public bucket policy
+            logger.info("🔓 Disabling Block Public Access settings...")
+            public_access_result = subprocess.run([
+                "aws", "s3api", "delete-public-access-block",
+                "--bucket", bucket_name
+            ], capture_output=True, text=True, env=aws_env, timeout=60)
+            
+            if public_access_result.returncode != 0:
+                logger.warning(f"Public access warning: {public_access_result.stderr}")
             
             # Step 2: Configure bucket for static website hosting
             logger.info("🌐 Configuring static website hosting...")
@@ -376,15 +398,45 @@ class ReactDeployer:
             # Generate website URL
             website_url = f"http://{bucket_name}.s3-website-{region}.amazonaws.com"
             
-            logger.info(f"✅ AWS deployment successful!")
-            logger.info(f"🌐 Website URL: {website_url}")
+            logger.info(f"✅ AWS S3 deployment successful!")
+            logger.info(f"🌐 S3 Website URL: {website_url}")
             
-            return {
-                "success": True,
-                "s3_bucket": bucket_name,
-                "website_url": website_url,
-                "region": region
-            }
+            # Create CloudFront distribution for global CDN
+            logger.info("🌍 Creating CloudFront distribution...")
+            cloudfront_result = create_cloudfront_distribution(
+                bucket_name=bucket_name,
+                region=region,
+                credentials=aws_credentials
+            )
+            
+            if cloudfront_result.get("success"):
+                cloudfront_url = cloudfront_result.get("cloudfront_url")
+                distribution_id = cloudfront_result.get("distribution_id")
+                logger.info(f"✅ CloudFront distribution created: {distribution_id}")
+                logger.info(f"🌐 CloudFront URL: {cloudfront_url}")
+                
+                return {
+                    "success": True,
+                    "s3_bucket": bucket_name,
+                    "website_url": website_url,
+                    "cloudfront_url": cloudfront_url,
+                    "distribution_id": distribution_id,
+                    "region": region
+                }
+            else:
+                # CloudFront failed, but S3 deployment succeeded
+                error = cloudfront_result.get("error", "Unknown CloudFront error")
+                logger.warning(f"⚠️ CloudFront creation failed: {error}")
+                logger.info("✅ Deployment successful with S3 only (no CDN)")
+                
+                return {
+                    "success": True,
+                    "s3_bucket": bucket_name,
+                    "website_url": website_url,
+                    "cloudfront_url": None,
+                    "cloudfront_error": error,
+                    "region": region
+                }
             
         except Exception as e:
             logger.error(f"❌ AWS deployment failed: {e}")

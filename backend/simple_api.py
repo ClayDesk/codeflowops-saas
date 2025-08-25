@@ -313,13 +313,26 @@ async def deploy_to_aws(request: DeployRequest):
         database_info = analysis.get("database_info", {})
         deployment_strategy = analysis.get("deployment_strategy", "frontend_only")
         requires_full_stack = analysis.get("requires_full_stack", False)
-        has_react = any("react" in str(fw).lower() for fw in analysis.get("frameworks", []))
+        
+        # Enhanced React detection - check multiple possible locations
+        has_react = (
+            any("react" in str(fw).lower() for fw in analysis.get("frameworks", [])) or
+            "react" in str(analysis.get("framework", "")).lower() or
+            "react" in str(framework_name).lower() or
+            "react" in str(project_type).lower() or
+            any("react" in str(fw).lower() for fw in frameworks_array) or
+            any("react" in str(service).lower() for service in services)
+        )
         
         logger.info(f"🔍 Deployment Analysis:")
         logger.info(f"   - Has React: {has_react}")
+        logger.info(f"   - Framework name: {framework_name}")
+        logger.info(f"   - Project type: {project_type}")
+        logger.info(f"   - Analysis framework: {analysis.get('framework')}")
         logger.info(f"   - Database detected: {database_info.get('detected', False)}")
         logger.info(f"   - Deployment strategy: {deployment_strategy}")
         logger.info(f"   - Requires full-stack: {requires_full_stack}")
+        logger.info(f"   - ReactDeployer available: {REACT_DEPLOYER_AVAILABLE}")
         
         # 🚀 NEW: Route simple React applications to ReactDeployer
         if has_react and not requires_full_stack and REACT_DEPLOYER_AVAILABLE:
@@ -975,8 +988,14 @@ async def get_deployment_result(deployment_id: str):
     if deployment["status"] == "completed":
         response["deployment_url"] = deployment.get("deployment_url")
         response["cloudfront_url"] = deployment.get("cloudfront_url")
-        response["s3_url"] = deployment.get("s3_url")
-        response["completed_at"] = response["timestamp"]
+        response["website_url"] = deployment.get("website_url")  # Fix: use website_url not s3_url
+        response["s3_bucket"] = deployment.get("s3_bucket")
+        response["deployment_details"] = {
+            "cloudfront_url": deployment.get("cloudfront_url"),
+            "website_url": deployment.get("website_url"),
+            "s3_bucket": deployment.get("s3_bucket")
+        }
+        response["completed_at"] = deployment.get("completed_at") or response["timestamp"]
     elif deployment["status"] == "failed":
         response["error"] = deployment.get("error", "Deployment failed")
         response["failed_at"] = response["timestamp"]

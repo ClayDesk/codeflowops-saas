@@ -35,8 +35,9 @@ def create_eb_deployment_package():
         "repository_enhancer.py",
         "cleanup_service.py", 
         "enhanced_repository_analyzer.py",
-        "react_deployer.py",           # Updated React deployer with CodeBuild
-        "aws_codebuild_manager.py"     # New AWS CodeBuild manager
+        "react_deployer.py",           # Updated React deployer with DirectReactBuilder
+        "direct_react_builder.py",     # New DirectReactBuilder (replaces CodeBuild)
+        "simple_react_deployer.py"     # Simple React deployer if it exists
     ]
     
     for file in support_files:
@@ -83,6 +84,15 @@ def create_eb_deployment_package():
     if utils_dir.exists():
         shutil.copytree(utils_dir, deployment_dir / "utils", dirs_exist_ok=True)
         print("  Copied: utils/ directory")
+    
+    # Copy .ebextensions from backend if it exists (for custom configurations like Node.js)
+    backend_ebextensions_dir = backend_dir / ".ebextensions"
+    if backend_ebextensions_dir.exists():
+        deployment_ebextensions_dir = deployment_dir / ".ebextensions"
+        deployment_ebextensions_dir.mkdir(exist_ok=True)
+        for config_file in backend_ebextensions_dir.glob("*.config"):
+            shutil.copy2(config_file, deployment_ebextensions_dir / config_file.name)
+            print(f"  Copied: .ebextensions/{config_file.name}")
     
     # Create application.py (EB entry point) - FINAL BULLETPROOF VERSION
     application_py = deployment_dir / "application.py"
@@ -159,13 +169,14 @@ if __name__ == "__main__":
     uvicorn.run(application, host="0.0.0.0", port=8000)
 """, encoding='utf-8')
     
-    # Create .ebextensions directory for EB configuration
+    # Create .ebextensions directory for EB configuration (if not already copied from backend)
     ebextensions_dir = deployment_dir / ".ebextensions"
     ebextensions_dir.mkdir(exist_ok=True)
     
-    # Create 01_python.config for EB Python configuration
+    # Create 01_python.config for EB Python configuration (only if not exists)
     python_config = ebextensions_dir / "01_python.config"
-    python_config.write_text("""option_settings:
+    if not python_config.exists():
+        python_config.write_text("""option_settings:
   aws:elasticbeanstalk:application:environment:
     PYTHONPATH: "/var/app/current:$PYTHONPATH"
     ENVIRONMENT: "production"

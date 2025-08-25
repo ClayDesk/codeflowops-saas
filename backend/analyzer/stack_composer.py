@@ -288,14 +288,14 @@ class StackComposer:
         confidence = framework.get('confidence', 0)
         evidence = framework.get('evidence', [])
         
-        # Static Basic Sites
-        if name == 'static-basic':
+        # Static Sites
+        if name == 'static-site':
             return ServiceBlueprint(
                 id="static-site",
                 role=ServiceRole.WEB_FRONTEND.value,
                 framework=FrameworkInfo(
-                    name="static",
-                    variant="basic",
+                    name="static-site",
+                    variant="html",
                     confidence=confidence,
                     rationale=evidence
                 ),
@@ -665,8 +665,8 @@ class StackComposer:
         recipe_parts = [cloud]
         
         # Add compute layer
-        if framework.name == "static" and framework.variant == "basic":
-            recipe_parts.extend(["s3", "cloudfront", "static", "basic"])
+        if framework.name == "static-site":
+            recipe_parts.extend(["s3", "cloudfront", "static-site"])
         elif framework.name == "php" and framework.variant == "laravel":
             recipe_parts.extend(["ecs", "fargate", "php", "laravel"])
         elif framework.name == "nextjs":

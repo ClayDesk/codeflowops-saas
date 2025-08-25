@@ -24,12 +24,14 @@ def classify_static_vs_app(repo_path: Path) -> str:
     Classify repository as static site vs application
     
     Static site criteria:
-    - ≥5 HTML files
+    - ≥1 HTML file (especially index.html)
     - No composer.json (PHP dependency manager)
     - No index.php at root or public/index.php (PHP entrypoint)
     - No PHP files in code directories (app/, src/, routes/, server/, backend/)
+    - CSS/JS files present (styling and interactivity)
     """
     html_files = list(repo_path.rglob("*.html"))
+    has_index_html = (repo_path / "index.html").exists()
     composer_json = (repo_path / "composer.json").exists()
     index_php = (repo_path / "index.php").exists() or (repo_path / "public" / "index.php").exists()
     
@@ -40,11 +42,17 @@ def classify_static_vs_app(repo_path: Path) -> str:
         for p in repo_path.rglob("*.php")
     )
     
-    # Static site: many HTML files, no PHP app structure
-    if len(html_files) >= 5 and not composer_json and not index_php and not php_in_code_dirs:
-        return "static-site"
-    else:
-        return "app"
+    # Check for CSS/JS files (common in static sites)
+    css_files = list(repo_path.rglob("*.css"))
+    js_files = list(repo_path.rglob("*.js"))
+    
+    # Static site: HTML files (especially index.html), CSS/JS present, no PHP app structure
+    if (len(html_files) >= 1 or has_index_html) and not composer_json and not index_php and not php_in_code_dirs:
+        # Extra confidence if CSS/JS are present
+        if css_files or js_files or has_index_html:
+            return "static-site"
+    
+    return "app"
 from detectors.python import detect_python
 
 logger = logging.getLogger(__name__)
@@ -120,22 +128,28 @@ def run_framework_detection(repo_root: Path) -> dict:
                 js_files = list(repo_root.rglob("*.js"))
                 
                 static_hints = []
-                if len(html_files) >= 5:
+                if len(html_files) >= 1:
                     static_hints.append(f"{len(html_files)}_html_files")
                 if css_files:
                     static_hints.append(f"{len(css_files)}_css_files") 
                 if js_files:
                     static_hints.append(f"{len(js_files)}_js_files")
                 
+                # Higher confidence for portfolios with index.html + CSS
+                confidence = 0.9
+                if (repo_root / "index.html").exists() and css_files:
+                    confidence = 0.95
+                
                 candidates.append({
-                    "framework": "static-basic", 
+                    "framework": "static-site", 
                     "runtime": "none",
-                    "confidence": 0.9,
+                    "confidence": confidence,
                     "evidence": static_hints + [
                         f"{len(html_files)} HTML files",
                         f"{len(css_files)} CSS files", 
                         f"{len(js_files)} JS files",
-                        "No PHP application structure"
+                        "No PHP application structure",
+                        "Static portfolio/website"
                     ],
                     "intent": "webapp",
                     "is_deployable": True
@@ -465,14 +479,14 @@ def build_blueprint(repo_root, detection: dict) -> dict:
             }
         }
     
-    elif fw == "static-basic":
+    elif fw == "static-site":
         return {
             "stack_blueprint_version": "1.0.0", 
             "project_kind": "static-website",
             "services": [{
                 "id": "static-site",
                 "role": "web-frontend",
-                "framework": {"name":"static","variant":"basic","confidence":detection.get("confidence",0.8)},
+                "framework": {"name":"static-site","variant":"html","confidence":detection.get("confidence",0.8)},
                 "build": {
                     "tool": "none",
                     "commands": [],
@@ -487,9 +501,9 @@ def build_blueprint(repo_root, detection: dict) -> dict:
             "shared_resources": {},
             "deployment_targets": {"preferred":"aws"},
             "final_recommendation": {
-                "stack_id":"aws.s3.cloudfront.static.v1",
+                "stack_id":"aws.s3.cloudfront.static-site.v1",
                 "confidence": detection.get("confidence", 0.8),
-                "deployment_recipe_id":"aws.s3.cloudfront.static.v1"
+                "deployment_recipe_id":"aws.s3.cloudfront.static-site.v1"
             }
         }
     

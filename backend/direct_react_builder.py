@@ -220,33 +220,70 @@ class DirectReactBuilder:
             # Get platform-specific environment setup
             env, shell = self._setup_environment()
             
+            # First ensure Node.js and npm are available
+            try:
+                node_result = subprocess.run(['node', '--version'], capture_output=True, text=True, timeout=10, env=env, shell=shell)
+                npm_result = subprocess.run(['npm', '--version'], capture_output=True, text=True, timeout=10, env=env, shell=shell)
+                
+                if node_result.returncode == 0 and npm_result.returncode == 0:
+                    logger.info(f"✅ Node.js: {node_result.stdout.strip()}")
+                    logger.info(f"✅ npm: {npm_result.stdout.strip()}")
+                else:
+                    logger.error("❌ Node.js or npm not available")
+                    return False, 'node_not_found'
+            except Exception as e:
+                logger.error(f"❌ Failed to check Node.js/npm: {e}")
+                return False, 'node_not_found'
+            
             try:
                 # Try yarn first (preferred)
                 if package_manager == 'yarn' or package_manager == 'auto':
                     try:
                         # Check if yarn is available
                         logger.debug("🧶 Checking yarn availability...")
-                        subprocess.run(['yarn', '--version'], capture_output=True, check=True, timeout=10, env=env, shell=shell)
-                        logger.info("🧶 Using yarn (preferred package manager)")
+                        yarn_check = subprocess.run(['yarn', '--version'], capture_output=True, text=True, timeout=10, env=env, shell=shell)
                         
-                        # Use yarn install with frozen lockfile if yarn.lock exists
-                        if os.path.exists('yarn.lock'):
-                            logger.info("📦 Installing with yarn (yarn.lock found)")
-                            result = subprocess.run(['yarn', 'install', '--frozen-lockfile'], 
-                                                  capture_output=True, text=True, timeout=300, env=env, shell=shell)
+                        if yarn_check.returncode == 0:
+                            logger.info(f"🧶 Using yarn (version: {yarn_check.stdout.strip()})")
+                            
+                            # Use yarn install with frozen lockfile if yarn.lock exists
+                            if os.path.exists('yarn.lock'):
+                                logger.info("📦 Installing with yarn (yarn.lock found)")
+                                result = subprocess.run(['yarn', 'install', '--frozen-lockfile'], 
+                                                      capture_output=True, text=True, timeout=300, env=env, shell=shell)
+                            else:
+                                logger.info("📦 Installing with yarn (no lock file)")
+                                result = subprocess.run(['yarn', 'install'], 
+                                                      capture_output=True, text=True, timeout=300, env=env, shell=shell)
+                            
+                            if result.returncode == 0:
+                                logger.info("✅ Dependencies installed successfully with yarn")
+                                return True, 'yarn'
+                            else:
+                                logger.warning(f"⚠️ Yarn install failed: {result.stderr}")
+                                logger.info("🔄 Falling back to npm...")
                         else:
-                            logger.info("📦 Installing with yarn (no lock file)")
-                            result = subprocess.run(['yarn', 'install'], 
-                                                  capture_output=True, text=True, timeout=300, env=env, shell=shell)
-                        
-                        if result.returncode == 0:
-                            logger.info("✅ Dependencies installed successfully with yarn")
-                            return True, 'yarn'
-                        else:
-                            logger.warning(f"⚠️ Yarn install failed: {result.stderr}")
+                            logger.info("⚠️ Yarn not available, trying to install it...")
+                            # Try to install yarn globally
+                            yarn_install = subprocess.run(['npm', 'install', '-g', 'yarn'], 
+                                                        capture_output=True, text=True, timeout=60, env=env, shell=shell)
+                            if yarn_install.returncode == 0:
+                                logger.info("✅ Yarn installed globally")
+                                # Retry yarn installation
+                                if os.path.exists('yarn.lock'):
+                                    result = subprocess.run(['yarn', 'install', '--frozen-lockfile'], 
+                                                          capture_output=True, text=True, timeout=300, env=env, shell=shell)
+                                else:
+                                    result = subprocess.run(['yarn', 'install'], 
+                                                          capture_output=True, text=True, timeout=300, env=env, shell=shell)
+                                
+                                if result.returncode == 0:
+                                    logger.info("✅ Dependencies installed successfully with yarn")
+                                    return True, 'yarn'
+                            
                             logger.info("🔄 Falling back to npm...")
-                    except (subprocess.CalledProcessError, FileNotFoundError, subprocess.TimeoutExpired) as e:
-                        logger.warning(f"⚠️ Yarn not available: {e}")
+                    except Exception as e:
+                        logger.warning(f"⚠️ Yarn error: {e}")
                         logger.info("🔄 Falling back to npm...")
                 
                 # Try npm (fallback or primary choice)

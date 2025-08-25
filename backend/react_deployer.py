@@ -366,7 +366,8 @@ class ReactDeployer:
         """Create CloudFront distribution for the S3 bucket"""
         try:
             # Use the existing utility from core.utils
-            result = create_cloudfront_distribution(bucket_name, aws_credentials)
+            region = aws_credentials.get('aws_region', 'us-east-1')
+            result = create_cloudfront_distribution(bucket_name, region, aws_credentials)
             
             if result.get("success"):
                 logger.info(f"✅ CloudFront distribution created: {result.get('cloudfront_url')}")

@@ -91,9 +91,12 @@ class RepoAnalysisRequest(BaseModel):
     analysis_type: str = "full"
 
 class DeployRequest(BaseModel):
-    deployment_id: str
-    aws_access_key: str
-    aws_secret_key: str
+    deployment_id: Optional[str] = None
+    analysis_id: Optional[str] = None  # Alternative field name from frontend
+    aws_access_key: Optional[str] = None
+    aws_secret_key: Optional[str] = None
+    aws_access_key_id: Optional[str] = None  # Alternative field name from frontend
+    aws_secret_access_key: Optional[str] = None  # Alternative field name from frontend
     aws_region: str = "us-east-1"
     project_name: Optional[str] = None
     # Legacy fields for backward compatibility
@@ -222,9 +225,22 @@ async def deploy_to_aws(request: DeployRequest):
     Falls back to basic deployment for supported stacks
     """
     try:
-        deployment_id = request.deployment_id
+        # Normalize field names - support both frontend and backend formats
+        deployment_id = request.deployment_id or request.analysis_id
         if not deployment_id:
-            raise HTTPException(status_code=400, detail="deployment_id is required")
+            raise HTTPException(status_code=400, detail="deployment_id or analysis_id is required")
+        
+        # Normalize AWS credential field names
+        aws_access_key = request.aws_access_key or request.aws_access_key_id
+        aws_secret_key = request.aws_secret_key or request.aws_secret_access_key
+        
+        if not aws_access_key or not aws_secret_key:
+            raise HTTPException(status_code=400, detail="AWS credentials are required for deployment")
+        
+        # Update request object with normalized values for compatibility
+        request.deployment_id = deployment_id
+        request.aws_access_key = aws_access_key
+        request.aws_secret_key = aws_secret_key
         
         # Get analysis data - either from request or from stored sessions
         analysis = request.analysis
@@ -243,10 +259,6 @@ async def deploy_to_aws(request: DeployRequest):
                         status_code=400, 
                         detail=f"No analysis data found for deployment_id {deployment_id}. Please analyze the repository first."
                     )
-        
-        # Validate that we have AWS credentials
-        if not request.aws_access_key or not request.aws_secret_key:
-            raise HTTPException(status_code=400, detail="AWS credentials are required for deployment")
         
         logger.info(f"🚀 Starting deployment {deployment_id} with credentials for region {request.aws_region}")
         

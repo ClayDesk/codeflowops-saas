@@ -24,6 +24,17 @@ import shutil
 from concurrent.futures import ThreadPoolExecutor
 import threading
 
+# Import the ReactDeployer for React-specific deployments
+try:
+    from react_deployer import ReactDeployer
+    REACT_DEPLOYER_AVAILABLE = True
+    logger = logging.getLogger(__name__)
+    logger.info("✅ ReactDeployer imported successfully")
+except ImportError as e:
+    REACT_DEPLOYER_AVAILABLE = False
+    logger = logging.getLogger(__name__)
+    logger.warning(f"⚠️ ReactDeployer not available: {e}")
+
 # Configure logging
 logging.basicConfig(
     level=logging.INFO,
@@ -298,6 +309,27 @@ async def deploy_to_aws(request: DeployRequest):
         logger.info(f"   - Deployment strategy: {deployment_strategy}")
         logger.info(f"   - Requires full-stack: {requires_full_stack}")
         
+        # 🚀 NEW: Route simple React applications to ReactDeployer
+        if has_react and not requires_full_stack and REACT_DEPLOYER_AVAILABLE:
+            logger.info("⚛️ Detected simple React application - routing to ReactDeployer")
+            
+            with _LOCK:
+                _DEPLOY_STATES[deployment_id]["status"] = "routing_react"
+                _DEPLOY_STATES[deployment_id]["logs"].append("⚛️ Routing to ReactDeployer for S3 + CloudFront deployment...")
+                _DEPLOY_STATES[deployment_id]["progress"] = 25
+            
+            # Route to ReactDeployer
+            executor.submit(_run_react_deployment, deployment_id, analysis, request)
+            
+            return {
+                "success": True,
+                "deployment_id": deployment_id,
+                "status": "routed_react",
+                "message": "React deployment routed to ReactDeployer",
+                "strategy": "s3_cloudfront",
+                "using_react_deployer": True
+            }
+        
         # Route React + Database applications to full-stack orchestrator
         if has_react and requires_full_stack:
             # 🔥 Check for BaaS providers (Firebase/Supabase) - route to secure handler
@@ -391,6 +423,87 @@ async def deploy_to_aws(request: DeployRequest):
     except Exception as e:
         logger.error(f"Deployment failed: {e}")
         raise HTTPException(status_code=500, detail=f"Deployment failed: {str(e)}")
+
+def _run_react_deployment(deployment_id: str, analysis: Dict[str, Any], request: DeployRequest):
+    """
+    React deployment using the ReactDeployer class
+    """
+    try:
+        logger.info(f"⚛️ Starting React deployment {deployment_id} with ReactDeployer")
+        
+        with _LOCK:
+            _DEPLOY_STATES[deployment_id]["status"] = "initializing_react"
+            _DEPLOY_STATES[deployment_id]["logs"].append("⚛️ Initializing ReactDeployer...")
+            _DEPLOY_STATES[deployment_id]["progress"] = 30
+        
+        # Initialize ReactDeployer
+        react_deployer = ReactDeployer()
+        
+        # Get repository URL from stored session
+        repo_url = _DEPLOY_STATES[deployment_id]["repository_url"]
+        
+        with _LOCK:
+            _DEPLOY_STATES[deployment_id]["status"] = "analyzing_react"
+            _DEPLOY_STATES[deployment_id]["logs"].append(f"🔍 Analyzing React repository: {repo_url}")
+            _DEPLOY_STATES[deployment_id]["progress"] = 40
+        
+        # Analyze repository
+        analysis_result = react_deployer.analyze_react_repository(repo_url)
+        
+        if analysis_result.get("status") == "error":
+            error_msg = analysis_result.get("error", "Unknown analysis error")
+            with _LOCK:
+                _DEPLOY_STATES[deployment_id]["status"] = "failed"
+                _DEPLOY_STATES[deployment_id]["logs"].append(f"❌ Repository analysis failed: {error_msg}")
+            return
+        
+        with _LOCK:
+            _DEPLOY_STATES[deployment_id]["status"] = "deploying_react"
+            _DEPLOY_STATES[deployment_id]["logs"].append("🚀 Starting React deployment to AWS...")
+            _DEPLOY_STATES[deployment_id]["progress"] = 60
+        
+        # Prepare AWS credentials
+        aws_credentials = {
+            "aws_access_key_id": request.aws_access_key,
+            "aws_secret_access_key": request.aws_secret_key,
+            "aws_region": request.aws_region
+        }
+        
+        # Deploy using ReactDeployer
+        deployment_result = react_deployer.deploy_react_app(deployment_id, aws_credentials)
+        
+        if deployment_result.get("status") == "error":
+            error_msg = deployment_result.get("error", "Unknown deployment error")
+            stage = deployment_result.get("stage", "unknown")
+            with _LOCK:
+                _DEPLOY_STATES[deployment_id]["status"] = "failed"
+                _DEPLOY_STATES[deployment_id]["logs"].append(f"❌ React deployment failed at {stage}: {error_msg}")
+            return
+        
+        # Success!
+        with _LOCK:
+            _DEPLOY_STATES[deployment_id]["status"] = "completed"
+            _DEPLOY_STATES[deployment_id]["logs"].append("✅ React deployment completed successfully!")
+            _DEPLOY_STATES[deployment_id]["progress"] = 100
+            _DEPLOY_STATES[deployment_id]["website_url"] = deployment_result.get("website_url")
+            _DEPLOY_STATES[deployment_id]["s3_bucket"] = deployment_result.get("s3_bucket")
+            _DEPLOY_STATES[deployment_id]["cloudfront_url"] = deployment_result.get("cloudfront_url")
+            _DEPLOY_STATES[deployment_id]["deployment_url"] = deployment_result.get("cloudfront_url") or deployment_result.get("website_url")
+            _DEPLOY_STATES[deployment_id]["completed_at"] = datetime.utcnow().isoformat()
+            
+            # Add CloudFront details to logs
+            if deployment_result.get("cloudfront_url"):
+                _DEPLOY_STATES[deployment_id]["logs"].append(f"🌐 CloudFront URL: {deployment_result['cloudfront_url']}")
+            if deployment_result.get("website_url"):
+                _DEPLOY_STATES[deployment_id]["logs"].append(f"🪣 S3 Website URL: {deployment_result['website_url']}")
+        
+        logger.info(f"✅ React deployment {deployment_id} completed successfully!")
+        
+    except Exception as e:
+        logger.error(f"❌ React deployment {deployment_id} failed: {e}")
+        with _LOCK:
+            _DEPLOY_STATES[deployment_id]["status"] = "failed"
+            _DEPLOY_STATES[deployment_id]["logs"].append(f"❌ React deployment failed: {str(e)}")
 
 def _run_basic_deployment(deployment_id: str, analysis: Dict[str, Any], request: DeployRequest):
     """

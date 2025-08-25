@@ -157,7 +157,10 @@ export const useSmartDeployApi = () => {
       aws_secret_access_key: deploymentData.aws_secret_key,
       aws_region: deploymentData.aws_region || 'us-east-1',
       project_name: deploymentData.project_name,
-      repository_url: deploymentData.repository_url || deploymentData.repo_url  // Add repository URL
+      repository_url: deploymentData.repository_url || deploymentData.repo_url,  // Add repository URL
+      framework: framework,  // Include framework in payload for backend routing
+      project_type: deploymentData.projectType,
+      detected_framework: deploymentData.detected_framework
     };
     
     console.log('📤 Sending deploy request to:', endpoint);

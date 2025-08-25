@@ -99,6 +99,10 @@ class DeployRequest(BaseModel):
     aws_secret_access_key: Optional[str] = None  # Alternative field name from frontend
     aws_region: str = "us-east-1"
     project_name: Optional[str] = None
+    # Framework detection fields for routing
+    framework: Optional[str] = None  # Framework detected by frontend (react, nextjs, etc.)
+    project_type: Optional[str] = None  # Alternative framework field
+    detected_framework: Optional[str] = None  # Additional framework field
     # Legacy fields for backward compatibility
     repository_url: Optional[str] = None
     credential_id: Optional[str] = None
@@ -483,6 +487,17 @@ def _run_react_deployment(deployment_id: str, analysis: Dict[str, Any], request:
                 _DEPLOY_STATES[deployment_id]["status"] = "failed"
                 _DEPLOY_STATES[deployment_id]["error"] = "Repository URL not provided"
                 _DEPLOY_STATES[deployment_id]["logs"].append("❌ Repository URL not found - required for CodeBuild deployment")
+                _DEPLOY_STATES[deployment_id]["failed_at"] = datetime.utcnow().isoformat()
+            return
+        
+        # Validate repository URL format
+        if not (repo_url.startswith('https://github.com/') or repo_url.startswith('https://gitlab.com/')):
+            logger.error(f"❌ Invalid repository URL format: {repo_url}")
+            with _LOCK:
+                _DEPLOY_STATES[deployment_id]["status"] = "failed"
+                _DEPLOY_STATES[deployment_id]["error"] = "Invalid repository URL - must be GitHub or GitLab HTTPS URL"
+                _DEPLOY_STATES[deployment_id]["logs"].append(f"❌ Invalid repository URL format: {repo_url}")
+                _DEPLOY_STATES[deployment_id]["failed_at"] = datetime.utcnow().isoformat()
             return
         
         # Get project name from request or derive from repo URL
@@ -509,8 +524,18 @@ def _run_react_deployment(deployment_id: str, analysis: Dict[str, Any], request:
             with _LOCK:
                 _DEPLOY_STATES[deployment_id]["status"] = "failed"
                 _DEPLOY_STATES[deployment_id]["error"] = "AWS credentials required"
-                _DEPLOY_STATES[deployment_id]["logs"].append("❌ AWS credentials not provided")
+                _DEPLOY_STATES[deployment_id]["logs"].append("❌ AWS credentials not provided - both access key ID and secret access key required")
+                _DEPLOY_STATES[deployment_id]["failed_at"] = datetime.utcnow().isoformat()
             return
+        
+        # Validate AWS region
+        if not aws_creds['aws_region']:
+            aws_creds['aws_region'] = 'us-east-1'  # Default region
+            logger.warning(f"⚠️ No AWS region specified, using default: us-east-1")
+        
+        with _LOCK:
+            _DEPLOY_STATES[deployment_id]["logs"].append(f"🌍 AWS Region: {aws_creds['aws_region']}")
+            _DEPLOY_STATES[deployment_id]["logs"].append(f"🔑 AWS Credentials: Validated")
         
         with _LOCK:
             _DEPLOY_STATES[deployment_id]["status"] = "building_react"
@@ -518,18 +543,28 @@ def _run_react_deployment(deployment_id: str, analysis: Dict[str, Any], request:
             _DEPLOY_STATES[deployment_id]["progress"] = 50
         
         # Initialize ReactDeployer and deploy
-        react_deployer = ReactDeployer()
-        
-        with _LOCK:
-            _DEPLOY_STATES[deployment_id]["logs"].append("☁️ Deploying with AWS CodeBuild + S3 + CloudFront...")
-        
-        # Deploy using CodeBuild
-        deployment_result = react_deployer.deploy_react_app(
-            analysis_id=deployment_id,
-            aws_credentials=aws_creds,
-            repository_url=repo_url,
-            project_name=project_name
-        )
+        try:
+            react_deployer = ReactDeployer()
+            
+            with _LOCK:
+                _DEPLOY_STATES[deployment_id]["logs"].append("☁️ Deploying with AWS CodeBuild + S3 + CloudFront...")
+            
+            # Deploy using CodeBuild
+            deployment_result = react_deployer.deploy_react_app(
+                analysis_id=deployment_id,
+                aws_credentials=aws_creds,
+                repository_url=repo_url,
+                project_name=project_name
+            )
+            
+        except Exception as deploy_error:
+            logger.error(f"❌ ReactDeployer failed for deployment {deployment_id}: {deploy_error}")
+            with _LOCK:
+                _DEPLOY_STATES[deployment_id]["status"] = "failed"
+                _DEPLOY_STATES[deployment_id]["error"] = f"React deployment failed: {str(deploy_error)}"
+                _DEPLOY_STATES[deployment_id]["logs"].append(f"❌ React deployment error: {str(deploy_error)}")
+                _DEPLOY_STATES[deployment_id]["failed_at"] = datetime.utcnow().isoformat()
+            return
         
         if deployment_result.get("status") == "success":
             with _LOCK:
@@ -553,6 +588,7 @@ def _run_react_deployment(deployment_id: str, analysis: Dict[str, Any], request:
                 _DEPLOY_STATES[deployment_id]["status"] = "failed"
                 _DEPLOY_STATES[deployment_id]["error"] = error_msg
                 _DEPLOY_STATES[deployment_id]["logs"].append(f"❌ Deployment failed: {error_msg}")
+                _DEPLOY_STATES[deployment_id]["failed_at"] = datetime.utcnow().isoformat()
                 
             logger.error(f"❌ React deployment {deployment_id} failed: {error_msg}")
             
@@ -562,6 +598,7 @@ def _run_react_deployment(deployment_id: str, analysis: Dict[str, Any], request:
             _DEPLOY_STATES[deployment_id]["status"] = "failed"
             _DEPLOY_STATES[deployment_id]["error"] = str(e)
             _DEPLOY_STATES[deployment_id]["logs"].append(f"❌ Deployment exception: {str(e)}")
+            _DEPLOY_STATES[deployment_id]["failed_at"] = datetime.utcnow().isoformat()
         import traceback
         logger.error(f"Full traceback: {traceback.format_exc()}")
 
@@ -1483,9 +1520,15 @@ def _configure_spa_cloudfront_deployment(deployment_id: str, request: DeployRequ
 # CORS middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=[
+        "https://www.codeflowops.com",
+        "https://codeflowops.com", 
+        "http://localhost:3000",
+        "http://localhost:3001",
+        "http://127.0.0.1:3000"
+    ],
     allow_credentials=True,
-    allow_methods=["*"],
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allow_headers=["*"],
 )
 

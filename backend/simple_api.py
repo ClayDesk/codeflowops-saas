@@ -187,8 +187,24 @@ async def analyze_repository(request: RepoAnalysisRequest):
         }
         
     except Exception as e:
-        logger.error(f"Analysis failed: {e}")
-        raise HTTPException(status_code=500, detail=f"Analysis failed: {str(e)}")
+        error_details = {
+            "error_type": type(e).__name__,
+            "error_message": str(e),
+            "error_args": str(e.args) if hasattr(e, 'args') else "No args",
+            "repo_url": repo_url
+        }
+        logger.error(f"Analysis failed: {error_details}")
+        
+        # Create a more detailed error message
+        error_msg = f"Analysis failed: {type(e).__name__}"
+        if str(e):
+            error_msg += f" - {str(e)}"
+        elif hasattr(e, 'args') and e.args:
+            error_msg += f" - {e.args[0]}"
+        else:
+            error_msg += " - Unknown error occurred"
+            
+        raise HTTPException(status_code=500, detail=error_msg)
 
 @router.post("/api/validate-credentials")
 async def validate_credentials(request: CredentialsRequest):

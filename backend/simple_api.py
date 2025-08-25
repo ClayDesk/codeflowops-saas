@@ -547,14 +547,13 @@ def _run_react_deployment(deployment_id: str, analysis: Dict[str, Any], request:
             react_deployer = ReactDeployer()
             
             with _LOCK:
-                _DEPLOY_STATES[deployment_id]["logs"].append("☁️ Deploying with AWS CodeBuild + S3 + CloudFront...")
+                _DEPLOY_STATES[deployment_id]["logs"].append("⚛️ Deploying with DirectReactBuilder + S3 + CloudFront...")
             
-            # Deploy using CodeBuild
+            # Deploy using DirectReactBuilder (no CodeBuild required)
             deployment_result = react_deployer.deploy_react_app(
-                analysis_id=deployment_id,
+                deployment_id=deployment_id,
                 aws_credentials=aws_creds,
-                repository_url=repo_url,
-                project_name=project_name
+                repository_url=repo_url
             )
             
         except Exception as deploy_error:
@@ -574,7 +573,7 @@ def _run_react_deployment(deployment_id: str, analysis: Dict[str, Any], request:
                 _DEPLOY_STATES[deployment_id]["s3_bucket"] = deployment_result.get("s3_bucket")
                 _DEPLOY_STATES[deployment_id]["cloudfront_url"] = deployment_result.get("cloudfront_url")
                 _DEPLOY_STATES[deployment_id]["distribution_id"] = deployment_result.get("distribution_id")
-                _DEPLOY_STATES[deployment_id]["build_method"] = "aws_codebuild"
+                _DEPLOY_STATES[deployment_id]["build_method"] = "direct_react_builder"
                 _DEPLOY_STATES[deployment_id]["logs"].append("🎉 React deployment completed successfully!")
                 _DEPLOY_STATES[deployment_id]["logs"].append(f"✅ Website URL: {deployment_result.get('website_url')}")
                 

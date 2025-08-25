@@ -103,8 +103,12 @@ async def deploy_react_app(request: ReactDeploymentRequest):
             "aws_region": request.aws_region
         }
         
-        # Deploy the React app
-        deployment_result = deployer.deploy_react_app(request.analysis_id, aws_credentials)
+        # Deploy the React app using correct parameters
+        deployment_result = deployer.deploy_react_app(
+            deployment_id=request.analysis_id,
+            aws_credentials=aws_credentials,
+            repository_url=session.get("repository_url")
+        )
         
         if deployment_result.get("status") == "error":
             raise HTTPException(status_code=500, detail={

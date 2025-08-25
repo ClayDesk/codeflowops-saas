@@ -1,9 +1,10 @@
 """
-Dedicated React Deployment Module
-=================================
+Dedicated React Deployment Module with AWS CodeBuild
+====================================================
 
-Simplified React deployment pipeline specifically for React applications.
-Handles repository analysis, build process, and AWS deployment for React projects.
+Scalable React deployment pipeline using AWS CodeBuild for builds.
+Handles repository analysis, AWS CodeBuild orchestration, and deployment.
+Designed for thousands of concurrent users.
 """
 
 import os
@@ -13,11 +14,17 @@ import subprocess
 import tempfile
 import shutil
 import uuid
+import time
 from typing import Dict, Any, Optional, Tuple
 import requests
+import boto3
+from botocore.exceptions import ClientError
 
 # Import the existing CloudFront creation utility
 from core.utils import create_cloudfront_distribution
+
+# Import the new CodeBuild manager
+from aws_codebuild_manager import CodeBuildManager
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -104,42 +111,222 @@ class ReactDeployer:
                 "error": str(e)
             }
     
-    def deploy_react_app(self, analysis_id: str, aws_credentials: Dict[str, str]) -> Dict[str, Any]:
+    def deploy_react_app(self, analysis_id: str, aws_credentials: Dict[str, str], 
+                        repository_url: str, project_name: str) -> Dict[str, Any]:
         """
-        Deploy a React application to AWS S3 + CloudFront
+        Deploy a React application using AWS CodeBuild + S3 + CloudFront
         """
-        logger.info(f"🚀 Starting React deployment for analysis: {analysis_id}")
+        logger.info(f"🚀 Starting scalable React deployment for: {project_name}")
         
         try:
-            if not self.repo_path or not os.path.exists(self.repo_path):
-                raise Exception("Repository not found - run analysis first")
+            # Generate unique identifiers
+            deployment_id = analysis_id
+            s3_bucket_name = f"{project_name.lower().replace('_', '-')}-{deployment_id[:8]}"
             
-            # Step 1: Build the React application
-            build_result = self._build_react_app()
-            if not build_result["success"]:
+            # Step 1: Initialize CodeBuild manager
+            logger.info("🏗️ Initializing AWS CodeBuild...")
+            codebuild_manager = CodeBuildManager(aws_credentials)
+            
+            # Step 2: Create S3 bucket for build artifacts and hosting
+            logger.info(f"🪣 Creating S3 bucket: {s3_bucket_name}")
+            s3_result = self._create_s3_bucket(s3_bucket_name, aws_credentials)
+            if not s3_result["success"]:
                 return {
                     "status": "error",
-                    "stage": "build",
-                    "error": build_result["error"]
+                    "stage": "s3_setup",
+                    "error": s3_result["error"]
                 }
             
-            # Step 2: Create AWS infrastructure
-            aws_result = self._deploy_to_aws(aws_credentials)
-            if not aws_result["success"]:
+            # Step 3: Create CodeBuild project
+            logger.info("📋 Creating CodeBuild project...")
+            project_name_cb = codebuild_manager.create_codebuild_project(
+                deployment_id=deployment_id,
+                repository_url=repository_url,
+                project_name=project_name,
+                s3_bucket=s3_bucket_name
+            )
+            
+            # Step 4: Start build
+            logger.info("🔨 Starting React build in AWS...")
+            build_id = codebuild_manager.start_build(project_name_cb, deployment_id)
+            
+            # Step 5: Wait for build completion
+            logger.info("⏳ Waiting for build completion...")
+            build_result = codebuild_manager.wait_for_build_completion(build_id, timeout_minutes=30)
+            
+            if build_result['status'] != 'SUCCEEDED':
+                # Cleanup resources on build failure
+                codebuild_manager.cleanup_build_resources(deployment_id, project_name_cb)
                 return {
                     "status": "error",
-                    "stage": "aws_deployment",
-                    "error": aws_result["error"]
+                    "stage": "codebuild",
+                    "error": f"Build failed: {build_result.get('error', build_result['status'])}"
                 }
             
+            logger.info("✅ React build completed successfully!")
+            
+            # Step 6: Configure S3 for web hosting
+            logger.info("🌐 Configuring S3 web hosting...")
+            hosting_result = self._configure_s3_hosting(s3_bucket_name, aws_credentials)
+            if not hosting_result["success"]:
+                codebuild_manager.cleanup_build_resources(deployment_id, project_name_cb)
+                return {
+                    "status": "error", 
+                    "stage": "s3_hosting",
+                    "error": hosting_result["error"]
+                }
+            
+            # Step 7: Create CloudFront distribution
+            logger.info("☁️ Creating CloudFront distribution...")
+            cloudfront_result = self._create_cloudfront_distribution(s3_bucket_name, aws_credentials)
+            
+            # Step 8: Cleanup CodeBuild resources
+            logger.info("🧹 Cleaning up build resources...")
+            codebuild_manager.cleanup_build_resources(deployment_id, project_name_cb)
+            
+            # Final deployment result
             deployment_result = {
-                "deployment_id": str(uuid.uuid4()),
-                "status": "success",
-                "website_url": aws_result["website_url"],
-                "s3_bucket": aws_result["s3_bucket"],
-                "cloudfront_url": aws_result.get("cloudfront_url"),
-                "build_output": build_result["build_path"]
+                "deployment_id": deployment_id,
+                "status": "success", 
+                "website_url": hosting_result["website_url"],
+                "s3_bucket": s3_bucket_name,
+                "cloudfront_url": cloudfront_result.get("cloudfront_url"),
+                "distribution_id": cloudfront_result.get("distribution_id"),
+                "build_method": "aws_codebuild",
+                "build_id": build_id
             }
+            
+            logger.info("🎉 React deployment completed successfully!")
+            return deployment_result
+            
+        except Exception as e:
+            logger.error(f"❌ Deployment failed: {e}")
+            return {
+                "status": "error",
+                "stage": "general",
+                "error": str(e)
+            }
+    
+    def _create_s3_bucket(self, bucket_name: str, aws_credentials: Dict[str, str]) -> Dict[str, Any]:
+        """Create S3 bucket for React app hosting"""
+        try:
+            region = aws_credentials.get('aws_region', 'us-east-1')
+            
+            s3_client = boto3.client(
+                's3',
+                aws_access_key_id=aws_credentials['aws_access_key_id'],
+                aws_secret_access_key=aws_credentials['aws_secret_access_key'],
+                region_name=region
+            )
+            
+            # Create bucket
+            if region == 'us-east-1':
+                s3_client.create_bucket(Bucket=bucket_name)
+            else:
+                s3_client.create_bucket(
+                    Bucket=bucket_name,
+                    CreateBucketConfiguration={'LocationConstraint': region}
+                )
+            
+            logger.info(f"✅ S3 bucket created: {bucket_name}")
+            return {"success": True, "bucket_name": bucket_name}
+            
+        except ClientError as e:
+            if e.response['Error']['Code'] == 'BucketAlreadyOwnedByYou':
+                logger.info(f"✅ S3 bucket already exists: {bucket_name}")
+                return {"success": True, "bucket_name": bucket_name}
+            else:
+                logger.error(f"❌ S3 bucket creation failed: {e}")
+                return {"success": False, "error": str(e)}
+        except Exception as e:
+            logger.error(f"❌ S3 bucket creation failed: {e}")
+            return {"success": False, "error": str(e)}
+    
+    def _configure_s3_hosting(self, bucket_name: str, aws_credentials: Dict[str, str]) -> Dict[str, Any]:
+        """Configure S3 bucket for static website hosting"""
+        try:
+            region = aws_credentials.get('aws_region', 'us-east-1')
+            
+            s3_client = boto3.client(
+                's3',
+                aws_access_key_id=aws_credentials['aws_access_key_id'],
+                aws_secret_access_key=aws_credentials['aws_secret_access_key'],
+                region_name=region
+            )
+            
+            # Configure public access
+            s3_client.delete_public_access_block(Bucket=bucket_name)
+            
+            # Configure website hosting
+            s3_client.put_bucket_website(
+                Bucket=bucket_name,
+                WebsiteConfiguration={
+                    'IndexDocument': {'Suffix': 'index.html'},
+                    'ErrorDocument': {'Key': 'index.html'}  # For SPA routing
+                }
+            )
+            
+            # Set bucket policy for public read
+            bucket_policy = {
+                "Version": "2012-10-17",
+                "Statement": [
+                    {
+                        "Sid": "PublicReadGetObject",
+                        "Effect": "Allow",
+                        "Principal": "*",
+                        "Action": "s3:GetObject",
+                        "Resource": f"arn:aws:s3:::{bucket_name}/*"
+                    }
+                ]
+            }
+            
+            s3_client.put_bucket_policy(
+                Bucket=bucket_name,
+                Policy=json.dumps(bucket_policy)
+            )
+            
+            # Generate website URL
+            website_url = f"http://{bucket_name}.s3-website-{region}.amazonaws.com"
+            
+            logger.info(f"✅ S3 hosting configured: {website_url}")
+            return {
+                "success": True,
+                "website_url": website_url,
+                "bucket_name": bucket_name
+            }
+            
+        except ClientError as e:
+            logger.error(f"❌ S3 hosting configuration failed: {e}")
+            return {"success": False, "error": str(e)}
+        except Exception as e:
+            logger.error(f"❌ S3 hosting configuration failed: {e}")
+            return {"success": False, "error": str(e)}
+    
+    def _create_cloudfront_distribution(self, bucket_name: str, aws_credentials: Dict[str, str]) -> Dict[str, Any]:
+        """Create CloudFront distribution for the S3 bucket"""
+        try:
+            region = aws_credentials.get('aws_region', 'us-east-1')
+            origin_domain = f"{bucket_name}.s3-website-{region}.amazonaws.com"
+            
+            # Use existing CloudFront utility
+            distribution_result = create_cloudfront_distribution(
+                origin_domain=origin_domain,
+                aws_credentials=aws_credentials
+            )
+            
+            if distribution_result.get("success"):
+                logger.info(f"✅ CloudFront created: {distribution_result.get('cloudfront_url')}")
+                return {
+                    "cloudfront_url": distribution_result.get("cloudfront_url"),
+                    "distribution_id": distribution_result.get("distribution_id")
+                }
+            else:
+                logger.warning(f"⚠️ CloudFront creation failed: {distribution_result.get('error')}")
+                return {"cloudfront_error": distribution_result.get("error")}
+                
+        except Exception as e:
+            logger.warning(f"⚠️ CloudFront creation failed: {e}")
+            return {"cloudfront_error": str(e)}
             
             logger.info(f"✅ React deployment successful!")
             logger.info(f"🌐 Website URL: {deployment_result['website_url']}")

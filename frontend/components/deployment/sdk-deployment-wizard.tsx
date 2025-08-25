@@ -1251,6 +1251,13 @@ function DeployStep({
           <Button 
             onClick={() => {
               console.log('🔘 Deploy button clicked')
+              console.log('📋 Current formData:', formData)
+              console.log('📋 Current analysisResult:', analysisResult)
+              console.log('📋 Deploy validation checks:')
+              console.log('  - Has deployment ID:', !!(analysisResult?.deployment_id || analysisResult?.analysis_id))
+              console.log('  - Has AWS credentials:', !!(formData.awsAccessKey && formData.awsSecretKey))
+              console.log('  - Repository URL:', formData.repositoryUrl)
+              console.log('  - Framework:', analysisResult?.analysis?.framework || analysisResult?.framework)
               onDeploy()
             }}
             className="w-full bg-green-600 hover:bg-green-700 text-white"

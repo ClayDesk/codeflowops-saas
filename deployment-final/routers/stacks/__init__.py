@@ -1,3 +1,0 @@
-"""
-Stack-specific routers module
-"""

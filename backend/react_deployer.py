@@ -121,7 +121,19 @@ class ReactDeployer:
         try:
             # Generate unique identifiers
             deployment_id = analysis_id
-            s3_bucket_name = f"{project_name.lower().replace('_', '-')}-{deployment_id[:8]}"
+            
+            # Sanitize project name for S3 bucket naming (lowercase, no special chars, max length)
+            import re
+            safe_project_name = re.sub(r'[^a-z0-9-]', '', project_name.lower().replace('_', '-'))
+            safe_project_name = safe_project_name[:20]  # Limit length
+            if not safe_project_name:
+                safe_project_name = "react-app"  # Fallback if name becomes empty
+            
+            s3_bucket_name = f"{safe_project_name}-{deployment_id[:8]}"
+            
+            # Ensure bucket name is valid (3-63 chars, starts with letter/number)
+            if not s3_bucket_name[0].isalnum():
+                s3_bucket_name = f"react-{s3_bucket_name[1:]}"
             
             # Step 1: Initialize CodeBuild manager
             logger.info("🏗️ Initializing AWS CodeBuild...")
@@ -155,12 +167,28 @@ class ReactDeployer:
             build_result = codebuild_manager.wait_for_build_completion(build_id, timeout_minutes=30)
             
             if build_result['status'] != 'SUCCEEDED':
+                # Get detailed error information
+                error_msg = f"Build failed: {build_result.get('error', build_result['status'])}"
+                
+                # Add detailed error logs if available
+                if 'error_details' in build_result:
+                    error_details = "\n".join(build_result['error_details'])
+                    error_msg += f"\n\nDetailed logs:\n{error_details}"
+                
+                # Add failed phases if available
+                if 'failed_phases' in build_result:
+                    failed_phases = [f"- {phase.get('phaseType', 'Unknown')}: {phase.get('contexts', [{}])[0].get('message', 'No details')}" 
+                                   for phase in build_result['failed_phases']]
+                    error_msg += f"\n\nFailed build phases:\n" + "\n".join(failed_phases)
+                
                 # Cleanup resources on build failure
                 codebuild_manager.cleanup_build_resources(deployment_id, project_name_cb)
                 return {
                     "status": "error",
                     "stage": "codebuild",
-                    "error": f"Build failed: {build_result.get('error', build_result['status'])}"
+                    "error": error_msg,
+                    "build_logs_url": build_result.get('logs_location'),
+                    "build_phase": build_result.get('phase', 'Unknown')
                 }
             
             logger.info("✅ React build completed successfully!")

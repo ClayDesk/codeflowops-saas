@@ -179,7 +179,7 @@ export function PricingDynamic({ hideFreePlan = false }: PricingProps) {
           </p>
 
           {/* Dynamic pricing insights */}
-          {pricing && pricing.personalization.applied.length > 0 && (
+          {pricing && pricing.personalization && pricing.personalization.applied && pricing.personalization.applied.length > 0 && (
             <div className="mt-6 max-w-2xl mx-auto">
               <Alert className="bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800">
                 <Gift className="h-4 w-4 text-green-600" />

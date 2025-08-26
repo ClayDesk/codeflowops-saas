@@ -76,18 +76,8 @@ export function useDynamicPricing(options: UseDynamicPricingOptions = {}) {
       if (options.companySize) params.append('company_size', options.companySize)
       if (options.abVariant) params.append('ab_variant', options.abVariant)
 
-      // Auto-detect country if not provided
-      if (!options.country) {
-        try {
-          const geoResponse = await fetch('https://ipapi.co/json/')
-          const geoData = await geoResponse.json()
-          if (geoData.country_code) {
-            params.append('country', geoData.country_code)
-          }
-        } catch (geoError) {
-          console.warn('Could not detect country:', geoError)
-        }
-      }
+      // Skip auto-detection to avoid CORS issues in production
+      // Country detection will be handled on the backend via request headers
 
       const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'https://api.codeflowops.com'
       const url = `${API_BASE}/api/v1/pricing${params.toString() ? '?' + params.toString() : ''}`
@@ -112,14 +102,27 @@ export function useDynamicPricing(options: UseDynamicPricingOptions = {}) {
 
       const data: PricingResponse = await response.json()
       
+      // Ensure the data has the required structure
+      const safeData = {
+        ...data,
+        personalization: data.personalization || {
+          applied: [],
+          user_segment: 'general'
+        },
+        recommendations: data.recommendations || {
+          recommended_plan: 'starter',
+          reason: 'Most popular choice'
+        }
+      }
+      
       // Process pricing data
       const processedData = {
-        ...data,
-        plans: data.plans.map(plan => ({
+        ...safeData,
+        plans: (safeData.plans || []).map(plan => ({
           ...plan,
           features: typeof plan.features === 'string' 
             ? JSON.parse(plan.features) 
-            : plan.features,
+            : (plan.features || []),
           // Calculate display price (promotional or regular)
           displayPrice: plan.promotional_price || plan.price_monthly,
           hasDiscount: Boolean(plan.promotional_price && plan.promotional_price < plan.price_monthly),

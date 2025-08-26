@@ -128,7 +128,7 @@ export function SubscriptionPricing({ currentPlan = 'free' }: SubscriptionPricin
   return (
     <div className="space-y-6">
       {/* Dynamic pricing insights */}
-      {pricing && pricing.personalization.applied.length > 0 && (
+      {pricing && pricing.personalization && pricing.personalization.applied && pricing.personalization.applied.length > 0 && (
         <Alert className="bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800">
           <Gift className="h-4 w-4 text-green-600" />
           <AlertDescription className="text-green-800 dark:text-green-200">

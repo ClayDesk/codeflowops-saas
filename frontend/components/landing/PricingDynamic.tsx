@@ -5,7 +5,6 @@ import { Check, Star, ArrowRight, Loader2, Info, Gift } from 'lucide-react'
 import { useDynamicPricing } from '@/hooks/use-dynamic-pricing'
 import { Badge } from '@/components/ui/badge'
 import { Alert, AlertDescription } from '@/components/ui/alert'
-import { QuickCheckoutButton } from '@/components/stripe/StripeCheckout'
 
 // Define the plan interface for type safety
 interface PlanDisplay {
@@ -128,7 +127,7 @@ interface PricingProps {
   hideFreePlan?: boolean
 }
 
-export function Pricing({ hideFreePlan = false }: PricingProps) {
+export function PricingDynamic({ hideFreePlan = false }: PricingProps) {
   const { pricing, loading, error, formatPrice, getRecommendedPlan } = useDynamicPricing()
 
   // Transform dynamic pricing data to match component structure
@@ -310,36 +309,16 @@ export function Pricing({ hideFreePlan = false }: PricingProps) {
               </div>
 
               {/* CTA Button */}
-              {plan.name === 'Free' ? (
-                <Link
-                  href={plan.href}
-                  className="block w-full text-center py-3 px-6 rounded-xl font-semibold transition-all bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-white hover:bg-gray-200 dark:hover:bg-gray-600"
-                >
-                  {plan.cta}
-                </Link>
-              ) : plan.name === 'Enterprise' ? (
-                <Link
-                  href={plan.href}
-                  className={`block w-full text-center py-3 px-6 rounded-xl font-semibold transition-all ${
-                    plan.popular
-                      ? 'bg-blue-600 text-white hover:bg-blue-700'
-                      : 'bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-white hover:bg-gray-200 dark:hover:bg-gray-600'
-                  }`}
-                >
-                  {plan.cta}
-                </Link>
-              ) : (
-                <QuickCheckoutButton
-                  planTier={plan.name.toLowerCase()}
-                  planName={plan.name}
-                  planPrice={plan.price}
-                  planFeatures={plan.features}
-                  trialDays={plan.trialDays}
-                  pricingContext={hideFreePlan ? { source: 'pricing_page' } : { source: 'landing_page' }}
-                >
-                  {plan.cta}
-                </QuickCheckoutButton>
-              )}
+              <Link
+                href={plan.href}
+                className={`block w-full text-center py-3 px-6 rounded-xl font-semibold transition-all ${
+                  plan.popular
+                    ? 'bg-blue-600 text-white hover:bg-blue-700'
+                    : 'bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-white hover:bg-gray-200 dark:hover:bg-gray-600'
+                }`}
+              >
+                {plan.cta}
+              </Link>
             </div>
           ))}
         </div>

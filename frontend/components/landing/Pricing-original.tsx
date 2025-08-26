@@ -1,3 +1,4 @@
+import Link from 'next/link'
 import { Check, Star, ArrowRight } from 'lucide-react'
 
 const plans = [
@@ -95,15 +96,15 @@ const plans = [
 
 export function Pricing() {
   return (
-    <section id="pricing" className="py-20 bg-gradient-to-br from-gray-50 to-white">
+    <section id="pricing" className="py-20 bg-gradient-to-br from-gray-50 to-white dark:from-gray-900 dark:to-gray-950">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Header */}
         <div className="text-center mb-16">
-          <span className="inline-block bg-blue-100 text-blue-700 px-3 py-1 rounded-full text-sm font-medium mb-4">Simple Pricing</span>
-          <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-6">
+          <span className="inline-block bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 px-3 py-1 rounded-full text-sm font-medium mb-4">Simple Pricing</span>
+          <h2 className="text-3xl md:text-4xl font-bold text-gray-900 dark:text-white mb-6">
             Deploy React & Static Sites at Any Scale
           </h2>
-          <p className="text-xl text-gray-600 max-w-3xl mx-auto">
+          <p className="text-xl text-gray-600 dark:text-gray-300 max-w-3xl mx-auto">
             Choose the plan that fits your needs. Both services included in all plans.
             No hidden fees, no surprises.
           </p>
@@ -114,9 +115,9 @@ export function Pricing() {
           {plans.map((plan, index) => (
             <div
               key={index}
-              className={`relative bg-white p-8 rounded-2xl border transition-all duration-200 hover:shadow-lg ${
+              className={`relative bg-white dark:bg-gray-800 p-8 rounded-2xl border border-gray-200 dark:border-gray-700 transition-all duration-200 hover:shadow-lg ${
                 plan.popular
-                  ? 'ring-2 ring-blue-500 shadow-lg transform scale-105'
+                  ? 'ring-2 ring-blue-500 dark:ring-blue-400 shadow-lg transform scale-105'
                   : 'hover:ring-1 hover:ring-gray-200'
               }`}
             >
@@ -132,27 +133,27 @@ export function Pricing() {
 
               <div className="text-center mb-8">
                 <div className="mb-4">
-                  <h3 className="text-xl font-bold text-gray-900 mb-2">
+                  <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2">
                     {plan.name}
                   </h3>
                   <div className="flex items-baseline justify-center">
-                    <span className="text-4xl font-bold text-gray-900">
+                    <span className="text-4xl font-bold text-gray-900 dark:text-white">
                       {plan.price}
                     </span>
                     {plan.period !== 'contact us' && (
-                      <span className="text-gray-500 ml-1">/{plan.period}</span>
+                      <span className="text-gray-500 dark:text-gray-400 ml-1">/{plan.period}</span>
                     )}
                   </div>
                 </div>
-                <p className="text-gray-600">{plan.description}</p>
+                <p className="text-gray-600 dark:text-gray-300">{plan.description}</p>
               </div>
 
               {/* Features */}
               <div className="space-y-4 mb-8">
                 {plan.features.map((feature, featureIndex) => (
                   <div key={featureIndex} className="flex items-start">
-                    <Check className="w-5 h-5 text-green-500 mt-0.5 flex-shrink-0" />
-                    <span className="text-gray-600 ml-3">{feature}</span>
+                    <Check className="w-5 h-5 text-green-500 dark:text-green-400 mt-0.5 flex-shrink-0" />
+                    <span className="text-gray-600 dark:text-gray-300 ml-3">{feature}</span>
                   </div>
                 ))}
                 
@@ -160,49 +161,49 @@ export function Pricing() {
                 {plan.notIncluded.map((feature, featureIndex) => (
                   <div key={featureIndex} className="flex items-start opacity-50">
                     <div className="w-5 h-5 mt-0.5 flex-shrink-0">
-                      <div className="w-4 h-4 border-2 border-gray-300 rounded ml-0.5 mt-0.5"></div>
+                      <div className="w-4 h-4 border-2 border-gray-300 dark:border-gray-600 rounded ml-0.5 mt-0.5"></div>
                     </div>
-                    <span className="text-gray-400 line-through ml-3">{feature}</span>
+                    <span className="text-gray-400 dark:text-gray-500 line-through ml-3">{feature}</span>
                   </div>
                 ))}
               </div>
 
               {/* CTA Button */}
-              <a
+              <Link
                 href={plan.href}
                 className={`block w-full text-center py-3 px-6 rounded-xl font-semibold transition-all ${
                   plan.popular
                     ? 'bg-blue-600 text-white hover:bg-blue-700'
-                    : 'bg-gray-100 text-gray-900 hover:bg-gray-200'
+                    : 'bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-white hover:bg-gray-200 dark:hover:bg-gray-600'
                 }`}
               >
                 {plan.cta}
-              </a>
+              </Link>
             </div>
           ))}
         </div>
 
         {/* Bottom section */}
         <div className="mt-20 text-center">
-          <h3 className="text-2xl font-bold text-gray-900 mb-8">
+          <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-8">
             Frequently Asked Questions
           </h3>
           <div className="grid md:grid-cols-2 gap-8 text-left">
             <div>
-              <h4 className="font-semibold text-gray-900 mb-2">Can I change plans anytime?</h4>
-              <p className="text-gray-600">Yes! You can upgrade or downgrade your plan at any time. Changes take effect immediately.</p>
+              <h4 className="font-semibold text-gray-900 dark:text-white mb-2">Can I change plans anytime?</h4>
+              <p className="text-gray-600 dark:text-gray-300">Yes! You can upgrade or downgrade your plan at any time. Changes take effect immediately.</p>
             </div>
             <div>
-              <h4 className="font-semibold text-gray-900 mb-2">Do you offer refunds?</h4>
-              <p className="text-gray-600">We offer a 30-day money-back guarantee for all paid plans, no questions asked.</p>
+              <h4 className="font-semibold text-gray-900 dark:text-white mb-2">Do you offer refunds?</h4>
+              <p className="text-gray-600 dark:text-gray-300">We offer a 30-day money-back guarantee for all paid plans, no questions asked.</p>
             </div>
             <div>
-              <h4 className="font-semibold text-gray-900 mb-2">What payment methods do you accept?</h4>
-              <p className="text-gray-600">We accept all major credit cards, PayPal, and wire transfers for enterprise customers.</p>
+              <h4 className="font-semibold text-gray-900 dark:text-white mb-2">What payment methods do you accept?</h4>
+              <p className="text-gray-600 dark:text-gray-300">We accept all major credit cards, PayPal, and wire transfers for enterprise customers.</p>
             </div>
             <div>
-              <h4 className="font-semibold text-gray-900 mb-2">Is there a free trial?</h4>
-              <p className="text-gray-600">Yes! Pro plan includes a 14-day free trial. No credit card required to start.</p>
+              <h4 className="font-semibold text-gray-900 dark:text-white mb-2">Is there a free trial?</h4>
+              <p className="text-gray-600 dark:text-gray-300">Yes! Pro plan includes a 14-day free trial. No credit card required to start.</p>
             </div>
           </div>
         </div>

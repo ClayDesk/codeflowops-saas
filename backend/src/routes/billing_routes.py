@@ -13,10 +13,50 @@ from ..models.billing_models import (
 from ..models.enhanced_models import Organization, User
 from ..utils.stripe_service import stripe_service
 from ..utils.database import get_db_session
+from ..services.dynamic_pricing_service import dynamic_pricing_service
 from auth.cognito_rbac import verify_token, get_current_user
 
 router = APIRouter(prefix="/billing", tags=["billing"])
 security = HTTPBearer()
+
+@router.get("/pricing")
+async def get_dynamic_pricing(
+    request: Request,
+    country: Optional[str] = None,
+    currency: Optional[str] = None,
+    referral_code: Optional[str] = None,
+    company_size: Optional[str] = None,
+    ab_variant: Optional[str] = None,
+    current_user: Optional[User] = Depends(get_current_user),
+    db: Session = Depends(get_db_session)
+):
+    """
+    Get personalized pricing based on user context
+    """
+    try:
+        # Extract context from request
+        context = {
+            'country': country or request.headers.get('cf-ipcountry', 'US'),
+            'currency': currency or 'USD',
+            'referral_code': referral_code,
+            'company_size': company_size,
+            'ab_variant': ab_variant or 'control',
+            'user_agent': request.headers.get('user-agent', ''),
+            'ip_address': request.client.host if request.client else None
+        }
+        
+        # Get personalized pricing
+        pricing = dynamic_pricing_service.get_personalized_pricing(
+            db=db,
+            user=current_user,
+            context=context
+        )
+        
+        return pricing
+        
+    except Exception as e:
+        # Return fallback pricing on error
+        return dynamic_pricing_service._get_fallback_pricing()
 
 @router.get("/plans")
 async def get_billing_plans(db: Session = Depends(get_db_session)):

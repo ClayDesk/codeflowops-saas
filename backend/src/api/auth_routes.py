@@ -259,6 +259,34 @@ async def get_current_user_info(current_user: User = Depends(get_current_user)):
         "full_name": current_user.full_name
     }
 
+class UpdateProfileRequest(BaseModel):
+    full_name: Optional[str] = None
+
+@router.put("/me")
+async def update_current_user_info(
+    update_data: UpdateProfileRequest,
+    current_user: User = Depends(get_current_user)
+):
+    """Update current authenticated user information"""
+    try:
+        # For now, just return the updated data without persisting
+        # In a real implementation, you would update the user in your database
+        updated_user_data = {
+            "user_id": current_user.user_id,
+            "username": current_user.username,
+            "email": current_user.email,
+            "full_name": update_data.full_name if update_data.full_name is not None else current_user.full_name
+        }
+        
+        return updated_user_data
+        
+    except Exception as e:
+        logging.error(f"Update user profile error: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to update user profile"
+        )
+
 @router.get("/health")
 async def auth_health():
     """Health check for authentication service"""

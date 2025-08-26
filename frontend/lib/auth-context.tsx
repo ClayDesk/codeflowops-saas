@@ -307,19 +307,41 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         throw new Error('No access token found')
       }
 
-      const response = await fetch(`${API_BASE}/api/v1/auth/profile`, {
+      // Fetch user data from /me endpoint
+      const userResponse = await fetch(`${API_BASE}/api/v1/auth/me`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
         },
       })
 
-      if (!response.ok) {
-        throw new Error('Failed to fetch profile')
+      if (!userResponse.ok) {
+        throw new Error('Failed to fetch user profile')
       }
 
-      const data = await response.json()
-      return data
+      const userData = await userResponse.json()
+
+      // Fetch subscription data from billing endpoint
+      let subscriptionData = null
+      try {
+        const subscriptionResponse = await fetch(`${API_BASE}/api/v1/billing/subscription`, {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+        })
+
+        if (subscriptionResponse.ok) {
+          subscriptionData = await subscriptionResponse.json()
+        }
+      } catch (subError) {
+        console.warn('Failed to fetch subscription data:', subError)
+      }
+
+      return {
+        user: userData,
+        subscription: subscriptionData
+      }
     } catch (error) {
       console.error('Error fetching profile:', error)
       throw error
@@ -334,7 +356,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         throw new Error('No access token found')
       }
 
-      const response = await fetch(`${API_BASE}/api/v1/auth/profile`, {
+      const response = await fetch(`${API_BASE}/api/v1/auth/me`, {
         method: 'PUT',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -349,7 +371,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       const data = await response.json()
       // Update local user state
-      setUser(data.user)
+      setUser(data)
       return data
     } catch (error) {
       console.error('Error updating profile:', error)

@@ -51,7 +51,7 @@ interface Deployment {
 interface Subscription {
   plan: 'trial' | 'free' | 'starter' | 'pro' | 'enterprise'
   status: 'active' | 'cancelled' | 'expired'
-  currentPeriodEnd: string
+  currentPeriodEnd: string | null
   deployments: {
     used: number
     limit: number
@@ -98,8 +98,23 @@ function ProfilePageContent() {
             email: profileResponse.user.email || ''
           })
         }
+        
+        // Process subscription data from billing API
         if (profileResponse.subscription) {
-          setSubscription(profileResponse.subscription)
+          const billingData = profileResponse.subscription
+          
+          // Transform billing data to match frontend subscription interface
+          const transformedSubscription = {
+            plan: billingData.plan?.tier || 'free',
+            status: billingData.status || 'active',
+            currentPeriodEnd: billingData.current_period_end || billingData.trial_end,
+            deployments: {
+              used: billingData.usage?.projects_count || 0,
+              limit: billingData.plan?.max_projects || 5
+            }
+          }
+          
+          setSubscription(transformedSubscription)
         }
         
         // Fetch user deployments
@@ -112,15 +127,18 @@ function ProfilePageContent() {
         // Set empty deployments if API fails - don't use hardcoded fallback
         setDeployments([])
         
-        setSubscription({
-          plan: 'trial',
-          status: 'active',
-          currentPeriodEnd: '2025-09-21T00:00:00Z',
-          deployments: {
-            used: 0,
-            limit: 5
-          }
-        })
+        // Only set fallback subscription if no data was fetched at all
+        if (!subscription) {
+          setSubscription({
+            plan: 'free',
+            status: 'active',
+            currentPeriodEnd: null,
+            deployments: {
+              used: 0,
+              limit: 5
+            }
+          })
+        }
       } finally {
         setIsLoading(false)
       }
@@ -577,7 +595,7 @@ function ProfilePageContent() {
                         <Alert>
                           <Calendar className="h-4 w-4" />
                           <AlertDescription>
-                            Your trial expires on {new Date(subscription.currentPeriodEnd).toLocaleDateString()}
+                            Your trial expires on {subscription.currentPeriodEnd ? new Date(subscription.currentPeriodEnd).toLocaleDateString() : 'N/A'}
                           </AlertDescription>
                         </Alert>
                       )}

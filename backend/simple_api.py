@@ -2,6 +2,11 @@
 Simple Core API for CodeFlowOps SaaS Workflow - Streamlined Modular Version
 Core functionality with modular router integration - legacy deployment logic removed
 """
+
+# Fix GitPython issue at the very beginning
+import os
+os.environ['GIT_PYTHON_REFRESH'] = 'quiet'
+
 from fastapi import FastAPI, HTTPException, APIRouter
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse

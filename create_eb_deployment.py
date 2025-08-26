@@ -27,8 +27,18 @@ def create_eb_deployment_package():
     # Create deployment directory
     deployment_dir.mkdir(exist_ok=True)
     
-    # Copy the working simple_api.py as main.py
+    # Copy the working simple_api.py to the deployment (keep original name)
+    shutil.copy2(backend_dir / "simple_api.py", deployment_dir / "simple_api.py")
+    print("  Copied: simple_api.py")
+    
+    # Also copy as main.py for backward compatibility 
     shutil.copy2(backend_dir / "simple_api.py", deployment_dir / "main.py")
+    print("  Copied: simple_api.py as main.py")
+    
+    # Copy the application.py entry point
+    if (backend_dir / "application.py").exists():
+        shutil.copy2(backend_dir / "application.py", deployment_dir / "application.py")
+        print("  Copied: application.py")
     
     # Copy all support files from backend directory
     support_files = [
@@ -219,6 +229,7 @@ commands:
       echo "Git location: $(which git)"
       echo "Git version: $(git --version)"
       echo "PATH: $PATH"
+      echo "GIT_PYTHON_REFRESH: $GIT_PYTHON_REFRESH"
     ignoreErrors: true
 """)
     

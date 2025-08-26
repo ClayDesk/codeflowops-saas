@@ -2,8 +2,12 @@
 Main Intelligence Pipeline
 Orchestrates comprehensive repository analysis
 """
-import asyncio
+
+# Fix GitPython issue at the beginning
 import os
+os.environ['GIT_PYTHON_REFRESH'] = 'quiet'
+
+import asyncio
 import tempfile
 import shutil
 from pathlib import Path

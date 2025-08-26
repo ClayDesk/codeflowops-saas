@@ -2,7 +2,11 @@
 Repository Enhancement Service
 Clones repositories, analyzes files thoroughly, and generates missing files
 """
+
+# Fix GitPython issue at the beginning
 import os
+os.environ['GIT_PYTHON_REFRESH'] = 'quiet'
+
 import shutil
 import tempfile
 import json

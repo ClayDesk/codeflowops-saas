@@ -128,6 +128,7 @@ export function SDKDeploymentWizard({ initialRepo = '', onClose }: { initialRepo
   const [currentStep, setCurrentStep] = useState(0)
   const [formData, setFormData] = useState({
     repositoryUrl: initialRepo,
+    githubToken: '',
     awsAccessKey: '',
     awsSecretKey: '',
     awsRegion: '',
@@ -220,7 +221,13 @@ export function SDKDeploymentWizard({ initialRepo = '', onClose }: { initialRepo
 
     setIsAnalyzing(true)
     try {
-      const result = await api.analyzeRepository(formData.repositoryUrl)
+      // Pass both repository URL and GitHub token if provided
+      const requestData = {
+        repositoryUrl: formData.repositoryUrl,
+        ...(formData.githubToken && { githubToken: formData.githubToken })
+      }
+      
+      const result = await api.analyzeRepository(requestData)
       console.log('Analysis result:', result) // Debug log to see what data is available
       setAnalysisResult(result)
       
@@ -651,9 +658,34 @@ function RepositoryStep({
             onChange={(e) => setFormData({...formData, repositoryUrl: e.target.value})}
           />
           <p className="text-sm text-gray-500">
-            Supports public GitHub repositories. We'll analyze the project structure and build requirements.
+            Supports public and private GitHub repositories. We'll analyze the project structure and build requirements.
           </p>
         </div>
+
+        {/* GitHub Token Field - Only show for GitHub URLs */}
+        {formData.repositoryUrl.toLowerCase().includes('github.com') && (
+          <div className="space-y-2">
+            <Label htmlFor="github-token">GitHub Personal Access Token (Optional)</Label>
+            <Input
+              id="github-token"
+              type="password"
+              placeholder="ghp_xxxxxxxxxxxxxxxxxxxx (for private repositories)"
+              value={formData.githubToken}
+              onChange={(e) => setFormData({...formData, githubToken: e.target.value})}
+            />
+            <p className="text-xs text-gray-500">
+              Required only for private repositories. Create a token at{' '}
+              <a 
+                href="https://github.com/settings/tokens" 
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="text-blue-500 hover:underline"
+              >
+                GitHub Settings
+              </a>
+            </p>
+          </div>
+        )}
 
         <div className="space-y-2">
           <Label htmlFor="project-name">Project Name (Optional)</Label>

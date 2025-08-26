@@ -85,10 +85,24 @@ except ImportError as e:
     logger.error(f"⚠️ Modular router system not available: {e}")
     stack_router_registry = None
 
+def authorize_github_url(repo_url: str, github_token: Optional[str] = None) -> str:
+    """
+    Authorize private GitHub URL by injecting token
+    Returns: Modified URL that works with existing clone logic
+    """
+    if not github_token or 'github.com' not in repo_url:
+        return repo_url
+    
+    if repo_url.startswith('https://github.com/'):
+        return repo_url.replace('https://github.com/', f'https://{github_token}@github.com/')
+    
+    return repo_url
+
 # Pydantic models
 class RepoAnalysisRequest(BaseModel):
     repo_url: str
     analysis_type: str = "full"
+    github_token: Optional[str] = None
 
 class DeployRequest(BaseModel):
     deployment_id: Optional[str] = None
@@ -164,6 +178,10 @@ async def analyze_repository(request: RepoAnalysisRequest):
     Routes to appropriate stack handler when available
     """
     repo_url = request.repo_url.strip()
+    
+    # Authorize private GitHub URL if token provided
+    authorized_url = authorize_github_url(repo_url, request.github_token)
+    
     logger.info(f"🔍 Analyzing repository: {repo_url}")
     
     try:
@@ -175,7 +193,7 @@ async def analyze_repository(request: RepoAnalysisRequest):
         
         # Use enhanced analyzer for comprehensive analysis
         analyzer = EnhancedRepositoryAnalyzer()
-        analysis = await analyzer.analyze_repository_comprehensive(repo_url, deployment_id)
+        analysis = await analyzer.analyze_repository_comprehensive(authorized_url, deployment_id)
         
         if not analysis or analysis.get("error"):
             raise HTTPException(status_code=400, detail=analysis.get("error", "Analysis failed"))

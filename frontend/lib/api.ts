@@ -81,14 +81,33 @@ export const useSmartDeployApi = () => {
   };
 
   // SDK Backend Integration - Repository Analysis
-  const analyzeRepository = async (repositoryUrl: string) => {
+  const analyzeRepository = async (params: string | { repositoryUrl: string; githubToken?: string }) => {
+    // Handle both old string format and new object format for backward compatibility
+    let repositoryUrl: string;
+    let githubToken: string | undefined;
+    
+    if (typeof params === 'string') {
+      repositoryUrl = params;
+      githubToken = undefined;
+    } else {
+      repositoryUrl = params.repositoryUrl;
+      githubToken = params.githubToken;
+    }
+    
+    const requestBody: any = { 
+      repo_url: repositoryUrl,
+      analysis_type: 'full'
+    };
+    
+    // Add GitHub token if provided
+    if (githubToken) {
+      requestBody.github_token = githubToken;
+    }
+    
     const response = await fetch(`${baseUrl}/api/analyze-repo`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ 
-        repo_url: repositoryUrl,
-        analysis_type: 'full'
-      })
+      body: JSON.stringify(requestBody)
     });
 
     if (!response.ok) {

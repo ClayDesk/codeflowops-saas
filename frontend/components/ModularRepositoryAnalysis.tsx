@@ -16,6 +16,7 @@ interface Credentials {
 
 export default function ModularRepositoryAnalysis() {
   const [repoUrl, setRepoUrl] = useState('')
+  const [githubToken, setGithubToken] = useState('')
   const [credentials, setCredentials] = useState<Credentials>({
     aws_access_key: '',
     aws_secret_key: '',
@@ -30,11 +31,17 @@ export default function ModularRepositoryAnalysis() {
   const apiHealth = useApiHealth()
   const availableStacks = useAvailableStacks()
 
+  // Check if URL is a GitHub URL
+  const isGitHubUrl = repoUrl.toLowerCase().includes('github.com')
+
   const handleAnalyze = async () => {
     if (!repoUrl) return
     
     try {
-      const result = await analyzeRepo.mutateAsync(repoUrl)
+      const result = await analyzeRepo.mutateAsync({
+        repositoryUrl: repoUrl,
+        githubToken: githubToken || undefined
+      })
       setAnalysis(result)
       
       // Auto-generate project name if not provided
@@ -117,6 +124,33 @@ export default function ModularRepositoryAnalysis() {
             placeholder="https://github.com/username/repo-name"
             className="w-full p-2 border border-gray-300 rounded"
           />
+          
+          {/* GitHub Token Field - Only show for GitHub URLs */}
+          {isGitHubUrl && (
+            <div className="mt-3">
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                GitHub Personal Access Token (Optional)
+              </label>
+              <input
+                type="password"
+                value={githubToken}
+                onChange={(e) => setGithubToken(e.target.value)}
+                placeholder="ghp_xxxxxxxxxxxxxxxxxxxx (for private repositories)"
+                className="w-full p-2 border border-gray-300 rounded"
+              />
+              <p className="text-xs text-gray-500 mt-1">
+                Required only for private repositories. Create a token at{' '}
+                <a 
+                  href="https://github.com/settings/tokens" 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className="text-blue-500 hover:underline"
+                >
+                  GitHub Settings
+                </a>
+              </p>
+            </div>
+          )}
           
           <button
             onClick={handleAnalyze}

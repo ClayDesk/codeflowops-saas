@@ -152,9 +152,52 @@ export function SDKDeploymentWizard({ initialRepo = '', onClose }: { initialRepo
 
   // Repository validation for CodeFlowOps (React + Static sites only)
   const validateRepositoryForCodeFlowOps = (repoUrl: string, analysis?: any): { valid: boolean; message?: string; warning?: string } => {
+    console.log('🔍 Starting validation for:', repoUrl)
+    
     // Only validate GitHub repositories
     if (!repoUrl.includes('github.com')) {
       return { valid: false, message: "Only GitHub repositories are currently supported" }
+    }
+
+    // Enhanced repository name checking for backend and unsupported frameworks
+    const repoName = repoUrl.split('/').pop()?.toLowerCase() || ''
+    console.log('🔍 Extracted repo name:', repoName)
+    
+    const unsupportedFrameworks = [
+      'codeigniter', 'laravel', 'symfony', 'cakephp', 'django', 'flask',
+      'spring', 'rails', 'express', 'nestjs', 'fastapi', 'gin', 'actix'
+    ]
+    
+    const backendKeywords = [
+      'api', 'backend', 'server', 'ecommerce', 'cms', 'admin', 'dashboard'
+    ]
+    
+    // Check for unsupported frameworks first (hard block)
+    const foundUnsupportedFramework = unsupportedFrameworks.find(framework => 
+      repoName.includes(framework)
+    )
+    
+    console.log('🔍 Found unsupported framework:', foundUnsupportedFramework)
+    
+    if (foundUnsupportedFramework) {
+      return {
+        valid: false,
+        message: `🚀 CodeFlowOps specializes in React and static websites. We detected "${foundUnsupportedFramework.toUpperCase()}" in the repository name, which isn't currently supported. Support for ${foundUnsupportedFramework} applications is coming soon!`
+      }
+    }
+    
+    // Check for backend/ecommerce indicators (hard block)
+    const foundBackendKeyword = backendKeywords.find(keyword => 
+      repoName.includes(keyword)
+    )
+    
+    console.log('🔍 Found backend keyword:', foundBackendKeyword)
+    
+    if (foundBackendKeyword) {
+      return {
+        valid: false,
+        message: `🚀 CodeFlowOps specializes in React and static websites. This appears to be an ${foundBackendKeyword.toUpperCase()} project, which isn't currently supported. Please try a React or static website repository instead.`
+      }
     }
 
     // If we have analysis data, check the detected stack
@@ -173,39 +216,7 @@ export function SDKDeploymentWizard({ initialRepo = '', onClose }: { initialRepo
       }
     }
 
-    // Enhanced repository name checking for backend and unsupported frameworks
-    const repoName = repoUrl.split('/').pop()?.toLowerCase() || ''
-    const backendKeywords = [
-      'api', 'backend', 'server', 'django', 'flask', 'spring', 'laravel',
-      'codeigniter', 'symfony', 'express', 'fastapi', 'rails', 'ecommerce',
-      'cms', 'admin', 'dashboard', 'php', 'java', 'python', 'golang', 'rust'
-    ]
-    
-    const unsupportedFrameworks = [
-      'codeigniter', 'laravel', 'symfony', 'cakephp', 'django', 'flask',
-      'spring', 'rails', 'express', 'nestjs', 'fastapi', 'gin', 'actix'
-    ]
-    
-    // Check for unsupported frameworks first (hard block)
-    const foundUnsupportedFramework = unsupportedFrameworks.find(framework => 
-      repoName.includes(framework)
-    )
-    
-    if (foundUnsupportedFramework) {
-      return {
-        valid: false,
-        message: `CodeFlowOps specializes in React and static websites. We detected "${foundUnsupportedFramework.toUpperCase()}" in the repository name, which isn't currently supported. Support for ${foundUnsupportedFramework} applications is coming soon!`
-      }
-    }
-    
-    // Check for backend indicators (soft warning)
-    if (backendKeywords.some(keyword => repoName.includes(keyword))) {
-      return {
-        valid: false,
-        message: `CodeFlowOps specializes in React and static websites. This repository appears to be a backend/server project, which isn't currently supported. Please try a React or static website repository instead.`
-      }
-    }
-
+    console.log('🔍 Validation passed')
     return { valid: true }
   }
 
@@ -279,10 +290,19 @@ export function SDKDeploymentWizard({ initialRepo = '', onClose }: { initialRepo
     }
 
     // Add frontend validation before analysis
+    console.log('🔍 Validating repository URL:', formData.repositoryUrl)
     const validation = validateRepositoryForCodeFlowOps(formData.repositoryUrl)
+    console.log('🔍 Validation result:', validation)
     
     if (!validation.valid) {
-      toast.error(validation.message || 'Repository validation failed')
+      toast.error(validation.message || 'Repository validation failed', {
+        duration: 8000,
+        style: {
+          background: '#fee2e2',
+          border: '1px solid #fecaca',
+          color: '#991b1b',
+        },
+      })
       return
     }
 

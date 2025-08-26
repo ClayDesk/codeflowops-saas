@@ -90,7 +90,7 @@ export function useDynamicPricing(options: UseDynamicPricingOptions = {}) {
       }
 
       const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'https://api.codeflowops.com'
-      const url = `${API_BASE}/api/v1/billing/pricing${params.toString() ? '?' + params.toString() : ''}`
+      const url = `${API_BASE}/api/v1/pricing${params.toString() ? '?' + params.toString() : ''}`
 
       const headers: HeadersInit = {
         'Content-Type': 'application/json',

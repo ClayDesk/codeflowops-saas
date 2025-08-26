@@ -158,6 +158,63 @@ async def health_check():
         "version": "2.0.0"
     }
 
+@router.get("/api/v1/pricing")
+async def get_public_pricing(
+    country: Optional[str] = None,
+    currency: Optional[str] = None,
+    referral_code: Optional[str] = None,
+    company_size: Optional[str] = None
+):
+    """
+    Public pricing endpoint that doesn't require authentication
+    """
+    # Return fallback static pricing for now
+    return {
+        "plans": [
+            {
+                "id": "free",
+                "name": "Free",
+                "price": 0,
+                "currency": currency or "USD",
+                "interval": "month",
+                "features": ["3 projects", "Public repositories", "Community support"],
+                "recommended": False
+            },
+            {
+                "id": "starter",
+                "name": "Starter", 
+                "price": 19,
+                "currency": currency or "USD",
+                "interval": "month",
+                "trial_days": 14,
+                "features": ["10 projects", "Private repositories", "Email support"],
+                "recommended": True
+            },
+            {
+                "id": "pro",
+                "name": "Pro",
+                "price": 49,
+                "currency": currency or "USD", 
+                "interval": "month",
+                "trial_days": 7,
+                "features": ["Unlimited projects", "Priority support", "Advanced analytics"],
+                "recommended": False
+            },
+            {
+                "id": "enterprise",
+                "name": "Enterprise",
+                "price": 0,
+                "currency": currency or "USD",
+                "interval": "month",
+                "features": ["Everything in Pro", "Custom integrations", "Dedicated support"],
+                "recommended": False,
+                "contact_sales": True
+            }
+        ],
+        "currency": currency or "USD",
+        "personalized": False
+    }
+
 @router.get("/favicon.ico")
 async def favicon():
     """Return empty response for favicon requests to prevent 404s"""
@@ -1632,6 +1689,22 @@ try:
     logger.info("✅ GitHub authentication routes loaded successfully")
 except ImportError as e:
     logger.warning(f"⚠️ GitHub auth routes not available: {e}")
+
+# Add payment routes with Stripe integration
+try:
+    from src.routes.payment_routes import router as payment_router
+    app.include_router(payment_router)
+    logger.info("✅ Payment routes with Stripe integration loaded successfully")
+except ImportError as e:
+    logger.warning(f"⚠️ Payment routes not available: {e}")
+
+# Add billing routes for dynamic pricing
+try:
+    from src.routes.billing_routes import router as billing_router
+    app.include_router(billing_router, prefix="/api/v1")
+    logger.info("✅ Billing routes with dynamic pricing loaded successfully")
+except ImportError as e:
+    logger.warning(f"⚠️ Billing routes not available: {e}")
 
 # Include modular routers if available
 if MODULAR_ROUTERS_AVAILABLE:

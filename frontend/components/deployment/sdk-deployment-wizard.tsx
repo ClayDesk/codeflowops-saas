@@ -162,25 +162,47 @@ export function SDKDeploymentWizard({ initialRepo = '', onClose }: { initialRepo
       const detectedStack = analysis.detected_stack.toLowerCase()
       const unsupportedStacks = [
         'python', 'django', 'flask', 'fastapi', 'java', 'spring', 
-        'dotnet', 'c#', 'ruby', 'rails', 'go', 'rust', 'php-laravel'
+        'dotnet', 'c#', 'ruby', 'rails', 'go', 'rust', 'php', 'laravel', 'codeigniter'
       ]
       
       if (unsupportedStacks.some(stack => detectedStack.includes(stack))) {
         return {
           valid: false,
-          message: `CodeFlowOps currently specializes in React and static websites. Detected: ${detectedStack}. Support for ${detectedStack} is coming soon!`
+          message: `🚀 CodeFlowOps specializes in React and static websites. We detected "${detectedStack}" which isn't currently supported. Support for ${detectedStack} applications is coming soon!`
         }
       }
     }
 
-    // Check repository name for obvious backend indicators
+    // Enhanced repository name checking for backend and unsupported frameworks
     const repoName = repoUrl.split('/').pop()?.toLowerCase() || ''
-    const backendKeywords = ['api', 'backend', 'server', 'django', 'flask', 'spring', 'laravel']
+    const backendKeywords = [
+      'api', 'backend', 'server', 'django', 'flask', 'spring', 'laravel',
+      'codeigniter', 'symfony', 'express', 'fastapi', 'rails', 'ecommerce',
+      'cms', 'admin', 'dashboard', 'php', 'java', 'python', 'golang', 'rust'
+    ]
     
+    const unsupportedFrameworks = [
+      'codeigniter', 'laravel', 'symfony', 'cakephp', 'django', 'flask',
+      'spring', 'rails', 'express', 'nestjs', 'fastapi', 'gin', 'actix'
+    ]
+    
+    // Check for unsupported frameworks first (hard block)
+    const foundUnsupportedFramework = unsupportedFrameworks.find(framework => 
+      repoName.includes(framework)
+    )
+    
+    if (foundUnsupportedFramework) {
+      return {
+        valid: false,
+        message: `CodeFlowOps specializes in React and static websites. We detected "${foundUnsupportedFramework.toUpperCase()}" in the repository name, which isn't currently supported. Support for ${foundUnsupportedFramework} applications is coming soon!`
+      }
+    }
+    
+    // Check for backend indicators (soft warning)
     if (backendKeywords.some(keyword => repoName.includes(keyword))) {
       return {
-        valid: true,
-        warning: `This repository appears to be a backend project (${repoName}). CodeFlowOps works best with React frontends and static sites. Continue anyway?`
+        valid: false,
+        message: `CodeFlowOps specializes in React and static websites. This repository appears to be a backend/server project, which isn't currently supported. Please try a React or static website repository instead.`
       }
     }
 

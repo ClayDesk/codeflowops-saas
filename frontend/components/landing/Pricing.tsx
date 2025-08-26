@@ -73,7 +73,7 @@ const fallbackPlans: PlanDisplay[] = [
     ],
     cta: 'Start 14-Day Trial',
     popular: true,
-    href: '/register?plan=starter',
+    href: '/checkout?plan=starter',
     trialDays: 14
   },
   {
@@ -98,7 +98,7 @@ const fallbackPlans: PlanDisplay[] = [
     ],
     cta: 'Start Pro Trial',
     popular: false,
-    href: '/register?plan=pro',
+    href: '/checkout?plan=pro',
     trialDays: 7
   },
   {

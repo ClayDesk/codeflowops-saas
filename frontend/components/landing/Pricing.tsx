@@ -3,7 +3,6 @@
 import Link from 'next/link'
 import { Check, Star } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
-import { QuickCheckoutButton } from '@/components/stripe/StripeCheckout'
 
 // Define the plan interface for type safety
 interface PlanDisplay {
@@ -50,7 +49,8 @@ const fallbackPlans: PlanDisplay[] = [
     ],
     cta: 'Get Started Free',
     popular: false,
-    href: '/register?plan=free'
+    href: '/register?plan=free',
+    trialDays: 0
   },
   {
     name: 'Starter',
@@ -73,7 +73,8 @@ const fallbackPlans: PlanDisplay[] = [
     ],
     cta: 'Start 14-Day Trial',
     popular: true,
-    href: '/register?plan=starter'
+    href: '/register?plan=starter',
+    trialDays: 14
   },
   {
     name: 'Pro',
@@ -97,7 +98,8 @@ const fallbackPlans: PlanDisplay[] = [
     ],
     cta: 'Start Pro Trial',
     popular: false,
-    href: '/register?plan=pro'
+    href: '/register?plan=pro',
+    trialDays: 7
   },
   {
     name: 'Enterprise',
@@ -118,7 +120,8 @@ const fallbackPlans: PlanDisplay[] = [
     notIncluded: [],
     cta: 'Contact Sales',
     popular: false,
-    href: '/contact?plan=enterprise'
+    href: '/contact?plan=enterprise',
+    trialDays: 0
   }
 ]
 
@@ -234,36 +237,18 @@ export function Pricing({ hideFreePlan = false }: PricingProps) {
               </div>
 
               {/* CTA Button */}
-              {plan.name === 'Free' ? (
-                <Link
-                  href={plan.href}
-                  className="block w-full text-center py-3 px-6 rounded-xl font-semibold transition-all bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-white hover:bg-gray-200 dark:hover:bg-gray-600"
-                >
-                  {plan.cta}
-                </Link>
-              ) : plan.name === 'Enterprise' ? (
-                <Link
-                  href={plan.href}
-                  className={`block w-full text-center py-3 px-6 rounded-xl font-semibold transition-all ${
-                    plan.popular
-                      ? 'bg-blue-600 text-white hover:bg-blue-700'
-                      : 'bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-white hover:bg-gray-200 dark:hover:bg-gray-600'
-                  }`}
-                >
-                  {plan.cta}
-                </Link>
-              ) : (
-                <QuickCheckoutButton
-                  planTier={plan.name.toLowerCase()}
-                  planName={plan.name}
-                  planPrice={plan.price}
-                  planFeatures={plan.features}
-                  trialDays={plan.trialDays}
-                  pricingContext={hideFreePlan ? { source: 'pricing_page' } : { source: 'landing_page' }}
-                >
-                  {plan.cta}
-                </QuickCheckoutButton>
-              )}
+              <Link
+                href={plan.href}
+                className={`block w-full text-center py-3 px-6 rounded-xl font-semibold transition-all ${
+                  plan.popular
+                    ? 'bg-blue-600 text-white hover:bg-blue-700'
+                    : plan.name === 'Free'
+                    ? 'bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-white hover:bg-gray-200 dark:hover:bg-gray-600'
+                    : 'bg-blue-600 text-white hover:bg-blue-700'
+                }`}
+              >
+                {plan.cta}
+              </Link>
             </div>
           ))}
         </div>

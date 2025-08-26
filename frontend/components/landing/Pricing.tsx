@@ -1,10 +1,8 @@
 'use client'
 
 import Link from 'next/link'
-import { Check, Star, ArrowRight, Loader2, Info, Gift } from 'lucide-react'
-import { useDynamicPricing } from '@/hooks/use-dynamic-pricing'
+import { Check, Star } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
-import { Alert, AlertDescription } from '@/components/ui/alert'
 import { QuickCheckoutButton } from '@/components/stripe/StripeCheckout'
 
 // Define the plan interface for type safety
@@ -129,38 +127,8 @@ interface PricingProps {
 }
 
 export function Pricing({ hideFreePlan = false }: PricingProps) {
-  const { pricing, loading, error, formatPrice, getRecommendedPlan } = useDynamicPricing()
-
-  // Transform dynamic pricing data to match component structure
-  const transformPricingData = () => {
-    if (!pricing) return fallbackPlans
-
-    return pricing.plans.map(plan => ({
-      name: plan.name,
-      price: formatPrice(plan.promotional_price || plan.price_monthly),
-      originalPrice: plan.promotional_price ? formatPrice(plan.price_monthly) : null,
-      period: plan.tier === 'enterprise' ? 'contact us' : 'per month',
-      description: plan.description,
-      features: plan.features,
-      notIncluded: [] as string[], // Dynamic pricing doesn't have not included features
-      cta: plan.tier === 'free' ? 'Get Started Free' : 
-           plan.tier === 'enterprise' ? 'Contact Sales' : 
-           plan.trial_days > 0 ? `Start ${plan.trial_days}-Day Trial` : 'Get Started',
-      popular: plan.popular,
-      href: `/register?plan=${plan.tier}`,
-      discounts: {
-        promotional: plan.promotional_price && plan.promotional_price < plan.price_monthly,
-        student: plan.student_discount,
-        geographic: plan.geographic_discount,
-        holiday: plan.holiday_discount
-      },
-      maxProjects: plan.max_projects === -1 ? 'Unlimited' : plan.max_projects,
-      maxTeamMembers: plan.max_team_members === -1 ? 'Unlimited' : plan.max_team_members,
-      trialDays: plan.trial_days
-    }))
-  }
-
-  const plans = transformPricingData()
+  // Use static pricing for landing page - no API calls needed
+  const plans = fallbackPlans
   const filteredPlans = hideFreePlan ? plans.filter(plan => plan.name !== 'Free') : plans
 
   return (
@@ -169,7 +137,7 @@ export function Pricing({ hideFreePlan = false }: PricingProps) {
         {/* Header */}
         <div className="text-center mb-16">
           <span className="inline-block bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 px-3 py-1 rounded-full text-sm font-medium mb-4">
-            {loading ? 'Loading Pricing...' : 'Simple Pricing'}
+            Simple Pricing
           </span>
           <h2 className="text-3xl md:text-4xl font-bold text-gray-900 dark:text-white mb-6">
             Deploy React & Static Sites at Any Scale
@@ -178,51 +146,7 @@ export function Pricing({ hideFreePlan = false }: PricingProps) {
             Choose the plan that fits your needs. Both services included in all plans.
             No hidden fees, no surprises.
           </p>
-
-          {/* Dynamic pricing insights */}
-          {pricing && pricing.personalization.applied.length > 0 && (
-            <div className="mt-6 max-w-2xl mx-auto">
-              <Alert className="bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800">
-                <Gift className="h-4 w-4 text-green-600" />
-                <AlertDescription className="text-green-800 dark:text-green-200">
-                  <strong>Special pricing applied:</strong> {pricing.personalization.applied.map(p => p.description).join(', ')}
-                </AlertDescription>
-              </Alert>
-            </div>
-          )}
-
-          {/* Recommendations */}
-          {pricing?.recommendations && (
-            <div className="mt-4 max-w-xl mx-auto">
-              <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-3">
-                <div className="flex items-center text-blue-800 dark:text-blue-200 text-sm">
-                  <Info className="h-4 w-4 mr-2" />
-                  <span><strong>Recommended:</strong> {pricing.recommendations.reason}</span>
-                </div>
-              </div>
-            </div>
-          )}
         </div>
-
-        {/* Loading state */}
-        {loading && (
-          <div className="text-center py-12">
-            <Loader2 className="h-8 w-8 animate-spin mx-auto text-blue-600" />
-            <p className="text-gray-600 dark:text-gray-300 mt-2">Loading personalized pricing...</p>
-          </div>
-        )}
-
-        {/* Error state */}
-        {error && (
-          <div className="text-center mb-8">
-            <Alert className="max-w-2xl mx-auto bg-yellow-50 dark:bg-yellow-900/20 border-yellow-200 dark:border-yellow-800">
-              <Info className="h-4 w-4 text-yellow-600" />
-              <AlertDescription className="text-yellow-800 dark:text-yellow-200">
-                Unable to load personalized pricing. Showing standard rates.
-              </AlertDescription>
-            </Alert>
-          </div>
-        )}
 
         {/* Pricing Cards */}
         <div className={`grid grid-cols-1 ${filteredPlans.length === 3 ? 'md:grid-cols-3' : 'md:grid-cols-2 lg:grid-cols-4'} gap-8 max-w-7xl mx-auto`}>

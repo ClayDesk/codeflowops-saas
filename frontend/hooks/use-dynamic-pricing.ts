@@ -94,7 +94,16 @@ export function useDynamicPricing(options: UseDynamicPricingOptions = {}) {
         }
       }
 
-      const response = await fetch(url, { headers })
+      // Add timeout to prevent infinite loading
+      const controller = new AbortController()
+      const timeoutId = setTimeout(() => controller.abort(), 10000) // 10 second timeout
+
+      const response = await fetch(url, { 
+        headers,
+        signal: controller.signal
+      })
+
+      clearTimeout(timeoutId)
 
       if (!response.ok) {
         throw new Error(`Failed to fetch pricing: ${response.statusText}`)
@@ -135,11 +144,20 @@ export function useDynamicPricing(options: UseDynamicPricingOptions = {}) {
       setPricing(processedData)
 
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Failed to fetch pricing'
+      let errorMessage = 'Failed to fetch pricing'
+      
+      if (err instanceof Error) {
+        if (err.name === 'AbortError') {
+          errorMessage = 'Request timed out'
+        } else {
+          errorMessage = err.message
+        }
+      }
+      
       setError(errorMessage)
-      console.error('Dynamic pricing error:', err)
+      console.warn('Dynamic pricing error:', errorMessage)
 
-      // Fallback to static pricing
+      // Always fallback to static pricing on error
       setPricing(getFallbackPricing())
 
     } finally {

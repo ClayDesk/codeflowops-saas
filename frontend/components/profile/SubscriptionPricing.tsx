@@ -1,5 +1,6 @@
 'use client'
 
+import { useState, useEffect } from 'react'
 import { useDynamicPricing } from '@/hooks/use-dynamic-pricing'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -13,8 +14,21 @@ interface SubscriptionPricingProps {
 
 export function SubscriptionPricing({ currentPlan = 'free' }: SubscriptionPricingProps) {
   const { pricing, loading, error, formatPrice } = useDynamicPricing()
+  const [showFallback, setShowFallback] = useState(false)
 
-  if (loading) {
+  // Add timeout fallback for subscription page
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (loading && !pricing) {
+        setShowFallback(true)
+      }
+    }, 5000) // 5 second timeout
+
+    return () => clearTimeout(timer)
+  }, [loading, pricing])
+
+  // Show fallback if loading too long or on error
+  if ((loading && !showFallback) && !error) {
     return (
       <div className="text-center py-12">
         <Loader2 className="h-8 w-8 animate-spin mx-auto text-blue-600" />

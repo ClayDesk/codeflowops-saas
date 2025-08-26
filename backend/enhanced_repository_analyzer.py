@@ -72,7 +72,16 @@ class EnhancedRepositoryAnalyzer:
             
             # Phase 1: Intelligence Pipeline - Deep repository analysis
             logger.info("📊 Phase 1: Intelligence Pipeline Analysis")
-            pipeline_result = await self.intelligence_pipeline.analyze_repository(repo_url, deployment_id)
+            
+            # Check if Git is available, if not use fallback
+            try:
+                pipeline_result = await self.intelligence_pipeline.analyze_repository(repo_url, deployment_id)
+            except Exception as git_error:
+                logger.warning(f"Git-based analysis failed: {git_error}")
+                logger.info("🔄 Attempting fallback analysis without Git...")
+                
+                # Use fallback analysis method
+                pipeline_result = await self._fallback_analysis(repo_url, deployment_id)
             
             if not pipeline_result["success"]:
                 return {
@@ -1025,6 +1034,253 @@ class EnhancedRepositoryAnalyzer:
             return "backend_only"
         else:
             return "static_site"
+    
+    async def _fallback_analysis(self, repo_url: str, deployment_id: str) -> Dict[str, Any]:
+        """
+        Fallback analysis method when Git is not available
+        Uses HTTP requests to download repository as ZIP
+        """
+        import asyncio
+        import tempfile
+        import requests
+        import zipfile
+        from pathlib import Path
+        import shutil
+        
+        logger.info(f"🔄 Running fallback analysis for {repo_url}")
+        temp_dir = None
+        start_time = asyncio.get_event_loop().time()
+        
+        try:
+            # Create temp directory
+            temp_dir = tempfile.mkdtemp(prefix=f"fallback_{deployment_id}_")
+            
+            # Convert GitHub URL to ZIP download URL
+            if 'github.com' in repo_url:
+                # Convert https://github.com/user/repo to https://github.com/user/repo/archive/refs/heads/main.zip
+                repo_url_clean = repo_url.rstrip('/')
+                if repo_url_clean.endswith('.git'):
+                    repo_url_clean = repo_url_clean[:-4]
+                
+                # Try main branch first, then master
+                for branch in ['main', 'master']:
+                    zip_url = f"{repo_url_clean}/archive/refs/heads/{branch}.zip"
+                    logger.info(f"📥 Attempting to download {zip_url}")
+                    
+                    try:
+                        response = requests.get(zip_url, timeout=30)
+                        if response.status_code == 200:
+                            # Save and extract ZIP
+                            zip_path = Path(temp_dir) / "repo.zip"
+                            with open(zip_path, 'wb') as f:
+                                f.write(response.content)
+                            
+                            # Extract ZIP
+                            with zipfile.ZipFile(zip_path, 'r') as zip_ref:
+                                zip_ref.extractall(temp_dir)
+                            
+                            # Find the extracted directory (usually repo-name-branch)
+                            extracted_dirs = [d for d in Path(temp_dir).iterdir() if d.is_dir()]
+                            if extracted_dirs:
+                                repo_dir = extracted_dirs[0]
+                                logger.info(f"✅ Repository downloaded and extracted to {repo_dir}")
+                                break
+                            else:
+                                continue
+                        else:
+                            logger.warning(f"Failed to download from {zip_url}: {response.status_code}")
+                            continue
+                    except Exception as e:
+                        logger.warning(f"Error downloading {zip_url}: {e}")
+                        continue
+                else:
+                    raise Exception(f"Could not download repository from {repo_url}")
+            else:
+                raise Exception(f"Fallback analysis only supports GitHub repositories currently")
+            
+            # Create basic intelligence profile using simple file analysis
+            intelligence_profile = await self._create_basic_intelligence_profile(repo_dir, repo_url)
+            
+            # Create basic stack blueprint
+            stack_blueprint = self._create_basic_stack_blueprint(intelligence_profile)
+            
+            end_time = asyncio.get_event_loop().time()
+            analysis_time = end_time - start_time
+            
+            return {
+                "success": True,
+                "intelligence_profile": intelligence_profile,
+                "stack_blueprint": stack_blueprint,
+                "local_repo_path": str(repo_dir),
+                "analysis_time_seconds": analysis_time,
+                "deployment_id": deployment_id,
+                "fallback_mode": True
+            }
+            
+        except Exception as e:
+            logger.error(f"💥 Fallback analysis failed: {e}")
+            
+            # Cleanup on failure
+            if temp_dir and Path(temp_dir).exists():
+                shutil.rmtree(temp_dir, ignore_errors=True)
+            
+            return {
+                "success": False,
+                "error": f"Fallback analysis failed: {str(e)}",
+                "analysis_time_seconds": asyncio.get_event_loop().time() - start_time
+            }
+    
+    async def _create_basic_intelligence_profile(self, repo_dir: Path, repo_url: str) -> Dict[str, Any]:
+        """Create a basic intelligence profile from file analysis"""
+        files = []
+        languages = set()
+        total_size = 0
+        
+        # Analyze files
+        for file_path in repo_dir.rglob('*'):
+            if file_path.is_file():
+                try:
+                    size = file_path.stat().st_size
+                    total_size += size
+                    
+                    # Determine language from extension
+                    ext = file_path.suffix.lower()
+                    language = self._get_language_from_extension(ext)
+                    if language:
+                        languages.add(language)
+                    
+                    files.append({
+                        "path": str(file_path.relative_to(repo_dir)),
+                        "size": size,
+                        "extension": ext,
+                        "language": language
+                    })
+                except Exception:
+                    continue
+        
+        # Detect frameworks based on files
+        frameworks = self._detect_frameworks_from_files(files)
+        
+        return {
+            "file_intelligence": {
+                "crawl_stats": {
+                    "total_items": len(files),
+                    "files_analyzed": len(files),
+                    "total_size_bytes": total_size,
+                    "languages_detected": list(languages)
+                }
+            },
+            "frameworks": frameworks,
+            "repository_url": repo_url,
+            "analysis_mode": "fallback"
+        }
+    
+    def _get_language_from_extension(self, ext: str) -> str:
+        """Map file extension to language"""
+        mapping = {
+            '.js': 'JavaScript',
+            '.jsx': 'React JSX', 
+            '.ts': 'TypeScript',
+            '.tsx': 'React TSX',
+            '.py': 'Python',
+            '.php': 'PHP',
+            '.html': 'HTML',
+            '.css': 'CSS',
+            '.scss': 'SCSS',
+            '.sass': 'SASS',
+            '.json': 'JSON',
+            '.md': 'Markdown',
+            '.yml': 'YAML',
+            '.yaml': 'YAML',
+            '.xml': 'XML'
+        }
+        return mapping.get(ext, 'Unknown')
+    
+    def _detect_frameworks_from_files(self, files: list) -> list:
+        """Detect frameworks based on file patterns"""
+        frameworks = []
+        
+        # Check for React
+        has_jsx = any('.jsx' in f['path'] or '.tsx' in f['path'] for f in files)
+        has_package_json = any('package.json' in f['path'] for f in files)
+        has_react_files = any('react' in f['path'].lower() for f in files)
+        
+        if has_jsx or (has_package_json and has_react_files):
+            frameworks.append({
+                "name": "react",
+                "confidence": 0.9 if has_jsx else 0.7,
+                "evidence": ["JSX files detected" if has_jsx else "React dependencies detected"]
+            })
+        
+        # Check for static site
+        has_html = any('.html' in f['path'] for f in files)
+        has_css = any('.css' in f['path'] for f in files)
+        has_js = any('.js' in f['path'] for f in files)
+        
+        if has_html and not frameworks:
+            frameworks.append({
+                "name": "static-site",
+                "confidence": 0.8,
+                "evidence": ["HTML files detected"]
+            })
+        
+        return frameworks
+    
+    def _create_basic_stack_blueprint(self, intelligence_profile: Dict[str, Any]) -> Dict[str, Any]:
+        """Create a basic stack blueprint"""
+        frameworks = intelligence_profile.get("frameworks", [])
+        
+        if not frameworks:
+            return {
+                "services": [{
+                    "id": "unknown",
+                    "framework": {"name": "unknown"},
+                    "runtime": {"kind": "static"}
+                }]
+            }
+        
+        primary_framework = frameworks[0]
+        framework_name = primary_framework.get("name", "unknown")
+        
+        if framework_name == "react":
+            return {
+                "services": [{
+                    "id": "react-frontend",
+                    "role": "web-frontend",
+                    "framework": {
+                        "name": "react",
+                        "confidence": primary_framework.get("confidence", 0.8)
+                    },
+                    "runtime": {
+                        "kind": "s3+cloudfront",
+                        "static_hosting": True,
+                        "spa_routing": True
+                    }
+                }]
+            }
+        elif framework_name == "static-site":
+            return {
+                "services": [{
+                    "id": "static-site",
+                    "role": "web-frontend", 
+                    "framework": {
+                        "name": "static-site",
+                        "confidence": primary_framework.get("confidence", 0.8)
+                    },
+                    "runtime": {
+                        "kind": "s3+cloudfront",
+                        "static_hosting": True
+                    }
+                }]
+            }
+        
+        return {
+            "services": [{
+                "id": framework_name,
+                "framework": {"name": framework_name},
+                "runtime": {"kind": "static"}
+            }]
+        }
 
     def _requires_full_stack_deployment(self, stack_blueprint: Dict[str, Any], 
                                        database_info: Dict[str, Any]) -> bool:

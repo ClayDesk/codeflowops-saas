@@ -163,40 +163,32 @@ export function SDKDeploymentWizard({ initialRepo = '', onClose }: { initialRepo
     const repoName = repoUrl.split('/').pop()?.toLowerCase() || ''
     console.log('🔍 Extracted repo name:', repoName)
     
-    const unsupportedFrameworks = [
-      'codeigniter', 'laravel', 'symfony', 'cakephp', 'django', 'flask',
-      'spring', 'rails', 'express', 'nestjs', 'fastapi', 'gin', 'actix'
+    // Comprehensive check for any unsupported patterns
+    const unsupportedPatterns = [
+      // PHP Frameworks
+      'codeigniter', 'laravel', 'symfony', 'cakephp', 'yii', 'zend',
+      // Python Frameworks  
+      'django', 'flask', 'fastapi', 'pyramid',
+      // Java Frameworks
+      'spring', 'struts', 'hibernate',
+      // Node.js Backend Frameworks
+      'express', 'nestjs', 'koa', 'hapi',
+      // Other Backend Frameworks
+      'rails', 'gin', 'actix', 'fiber',
+      // Project Types
+      'ecommerce', 'e-commerce', 'cms', 'admin', 'dashboard', 'api', 'backend', 'server',
+      // Languages that indicate backend
+      'php', 'python', 'java', 'golang', 'rust', 'ruby'
     ]
     
-    const backendKeywords = [
-      'api', 'backend', 'server', 'ecommerce', 'cms', 'admin', 'dashboard'
-    ]
-    
-    // Check for unsupported frameworks first (hard block)
-    const foundUnsupportedFramework = unsupportedFrameworks.find(framework => 
-      repoName.includes(framework)
-    )
-    
-    console.log('🔍 Found unsupported framework:', foundUnsupportedFramework)
-    
-    if (foundUnsupportedFramework) {
-      return {
-        valid: false,
-        message: `🚀 CodeFlowOps specializes in React and static websites. We detected "${foundUnsupportedFramework.toUpperCase()}" in the repository name, which isn't currently supported. Support for ${foundUnsupportedFramework} applications is coming soon!`
-      }
-    }
-    
-    // Check for backend/ecommerce indicators (hard block)
-    const foundBackendKeyword = backendKeywords.find(keyword => 
-      repoName.includes(keyword)
-    )
-    
-    console.log('🔍 Found backend keyword:', foundBackendKeyword)
-    
-    if (foundBackendKeyword) {
-      return {
-        valid: false,
-        message: `🚀 CodeFlowOps specializes in React and static websites. This appears to be an ${foundBackendKeyword.toUpperCase()} project, which isn't currently supported. Please try a React or static website repository instead.`
+    // Check each pattern
+    for (const pattern of unsupportedPatterns) {
+      if (repoName.includes(pattern)) {
+        console.log('� Found unsupported pattern:', pattern)
+        return {
+          valid: false,
+          message: `🚀 CodeFlowOps specializes in React and static websites. We detected "${pattern.toUpperCase()}" in your repository, which isn't currently supported. Please try a React, Vue, Angular, or static website repository instead. Support for ${pattern} applications is coming soon!`
+        }
       }
     }
 
@@ -211,12 +203,12 @@ export function SDKDeploymentWizard({ initialRepo = '', onClose }: { initialRepo
       if (unsupportedStacks.some(stack => detectedStack.includes(stack))) {
         return {
           valid: false,
-          message: `🚀 CodeFlowOps specializes in React and static websites. We detected "${detectedStack}" which isn't currently supported. Support for ${detectedStack} applications is coming soon!`
+          message: `🚀 CodeFlowOps specializes in React and static websites. We detected "${detectedStack}" technology which isn't currently supported. Support for ${detectedStack} applications is coming soon!`
         }
       }
     }
 
-    console.log('🔍 Validation passed')
+    console.log('✅ Validation passed for:', repoName)
     return { valid: true }
   }
 
@@ -295,14 +287,23 @@ export function SDKDeploymentWizard({ initialRepo = '', onClose }: { initialRepo
     console.log('🔍 Validation result:', validation)
     
     if (!validation.valid) {
-      toast.error(validation.message || 'Repository validation failed', {
+      const errorMessage = validation.message || 'Repository validation failed'
+      console.log('🚫 Validation failed, showing error:', errorMessage)
+      
+      // Show both toast and alert to ensure message is seen
+      toast.error(errorMessage, {
         duration: 8000,
         style: {
           background: '#fee2e2',
           border: '1px solid #fecaca',
           color: '#991b1b',
+          fontSize: '14px',
+          maxWidth: '500px'
         },
       })
+      
+      // Also show an alert as fallback
+      alert(errorMessage)
       return
     }
 

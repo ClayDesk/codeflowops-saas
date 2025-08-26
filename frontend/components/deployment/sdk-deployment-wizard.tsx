@@ -150,6 +150,43 @@ export function SDKDeploymentWizard({ initialRepo = '', onClose }: { initialRepo
   const [deploymentResult, setDeploymentResult] = useState<any>(null)
   const [deploymentPhase, setDeploymentPhase] = useState('initializing')
 
+  // Repository validation for CodeFlowOps (React + Static sites only)
+  const validateRepositoryForCodeFlowOps = (repoUrl: string, analysis?: any): { valid: boolean; message?: string; warning?: string } => {
+    // Only validate GitHub repositories
+    if (!repoUrl.includes('github.com')) {
+      return { valid: false, message: "Only GitHub repositories are currently supported" }
+    }
+
+    // If we have analysis data, check the detected stack
+    if (analysis?.detected_stack) {
+      const detectedStack = analysis.detected_stack.toLowerCase()
+      const unsupportedStacks = [
+        'python', 'django', 'flask', 'fastapi', 'java', 'spring', 
+        'dotnet', 'c#', 'ruby', 'rails', 'go', 'rust', 'php-laravel'
+      ]
+      
+      if (unsupportedStacks.some(stack => detectedStack.includes(stack))) {
+        return {
+          valid: false,
+          message: `CodeFlowOps currently specializes in React and static websites. Detected: ${detectedStack}. Support for ${detectedStack} is coming soon!`
+        }
+      }
+    }
+
+    // Check repository name for obvious backend indicators
+    const repoName = repoUrl.split('/').pop()?.toLowerCase() || ''
+    const backendKeywords = ['api', 'backend', 'server', 'django', 'flask', 'spring', 'laravel']
+    
+    if (backendKeywords.some(keyword => repoName.includes(keyword))) {
+      return {
+        valid: true,
+        warning: `This repository appears to be a backend project (${repoName}). CodeFlowOps works best with React frontends and static sites. Continue anyway?`
+      }
+    }
+
+    return { valid: true }
+  }
+
   // Progress animation effect for smoother progress bar
   useEffect(() => {
     if (!isDeploying) return
@@ -219,6 +256,45 @@ export function SDKDeploymentWizard({ initialRepo = '', onClose }: { initialRepo
       return
     }
 
+    // Add frontend validation before analysis
+    const validation = validateRepositoryForCodeFlowOps(formData.repositoryUrl)
+    
+    if (!validation.valid) {
+      toast.error(validation.message || 'Repository validation failed')
+      return
+    }
+
+    if (validation.warning) {
+      // Use toast with action for confirmation instead of browser confirm
+      toast((t) => (
+        <div className="flex flex-col gap-2">
+          <div>{validation.warning}</div>
+          <div className="flex gap-2">
+            <button
+              onClick={() => {
+                toast.dismiss(t.id)
+                proceedWithAnalysis()
+              }}
+              className="px-3 py-1 bg-blue-600 text-white rounded text-sm"
+            >
+              Continue
+            </button>
+            <button
+              onClick={() => toast.dismiss(t.id)}
+              className="px-3 py-1 bg-gray-300 text-gray-700 rounded text-sm"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      ), { duration: 10000 })
+      return
+    }
+
+    proceedWithAnalysis()
+  }
+
+  const proceedWithAnalysis = async () => {
     setIsAnalyzing(true)
     try {
       // Pass both repository URL and GitHub token if provided
@@ -229,6 +305,26 @@ export function SDKDeploymentWizard({ initialRepo = '', onClose }: { initialRepo
       
       const result = await api.analyzeRepository(requestData)
       console.log('Analysis result:', result) // Debug log to see what data is available
+      
+      // Validate again with analysis results
+      const postAnalysisValidation = validateRepositoryForCodeFlowOps(
+        formData.repositoryUrl, 
+        result
+      )
+      
+      if (!postAnalysisValidation.valid) {
+        toast.error(postAnalysisValidation.message || 'Repository type not supported')
+        return
+      }
+
+      if (postAnalysisValidation.warning) {
+        toast(postAnalysisValidation.warning, { 
+          icon: '⚠️',
+          duration: 5000 
+        })
+        // Continue anyway since post-analysis warnings are less critical
+      }
+
       setAnalysisResult(result)
       
       // Extract project name from repo URL if not set
@@ -658,7 +754,7 @@ function RepositoryStep({
             onChange={(e) => setFormData({...formData, repositoryUrl: e.target.value})}
           />
           <p className="text-sm text-gray-500">
-            Supports public and private GitHub repositories. We'll analyze the project structure and build requirements.
+            Supports React, Vue, Angular, and static websites. We'll analyze the project structure and build requirements.
           </p>
         </div>
 

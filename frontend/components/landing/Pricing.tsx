@@ -8,8 +8,8 @@ const plans = [
     period: 'forever',
     description: 'Perfect for personal projects and learning',
     features: [
-      '5 React/Static deployments per month',
-      'Public repositories only',
+      '3 projects',
+      'Public repositories',
       'Basic AWS infrastructure',
       'Standard build times',
       'Community support'
@@ -22,24 +22,45 @@ const plans = [
     ],
     cta: 'Get Started Free',
     popular: false,
-    href: '/deploy'
+    href: '/register?plan=free'
   },
   {
-    name: 'Pro',
-    price: '$12',
+    name: 'Starter',
+    price: '$19',
     period: 'per month',
-    description: 'Best for professional developers and small teams',
+    description: 'Great for freelancers and small teams',
     features: [
-      'Unlimited React & Static deployments',
+      '10 projects',
       'Private repositories',
       'Custom domains with SSL',
       'Fast build times',
       'Email support',
+      'API access',
+      'Environment variables'
+    ],
+    notIncluded: [
+      'Priority support',
       'Advanced analytics',
-      'Environment variables',
+      'Team collaboration'
+    ],
+    cta: 'Start 14-Day Trial',
+    popular: true,
+    href: '/register?plan=starter'
+  },
+  {
+    name: 'Pro',
+    price: '$49',
+    period: 'per month',
+    description: 'For professional teams with advanced needs',
+    features: [
+      'Unlimited projects',
+      'Private repositories',
+      'Custom domains with SSL',
+      'Priority support',
+      'Advanced analytics',
+      'Team collaboration (10 members)',
       'Deployment previews',
-      'GitHub integration',
-      'CloudFront CDN'
+      'GitHub integration'
     ],
     notIncluded: [
       'White-label options',
@@ -47,8 +68,8 @@ const plans = [
       'Custom integrations'
     ],
     cta: 'Start Pro Trial',
-    popular: true,
-    href: '/deploy'
+    popular: false,
+    href: '/register?plan=pro'
   },
   {
     name: 'Enterprise',
@@ -57,20 +78,19 @@ const plans = [
     description: 'For large teams and organizations',
     features: [
       'Everything in Pro',
+      'Unlimited team members',
       'White-label solution',
       'Dedicated support manager',
       'Custom integrations & APIs',
       'SLA guarantees (99.9% uptime)',
       'Advanced security & compliance',
-      'Team management & permissions',
-      'Priority builds & deployment',
       'Custom workflows & automation',
       'Multi-region deployments'
     ],
     notIncluded: [],
     cta: 'Contact Sales',
     popular: false,
-    href: '/contact'
+    href: '/contact?plan=enterprise'
   }
 ]
 

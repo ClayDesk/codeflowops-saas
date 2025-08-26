@@ -302,9 +302,7 @@ class StripeService:
         ).first()
         
         if subscription:
-            if event_type == "deployment_minute":
-                subscription.current_month_minutes_used += quantity
-            elif event_type == "project_created":
+            if event_type == "project_created":
                 subscription.current_month_projects_count += quantity
         
         db.commit()
@@ -327,8 +325,6 @@ class StripeService:
             return {
                 "plan_name": "Free",
                 "plan_tier": "free",
-                "minutes_used": 0,
-                "minutes_limit": plan_config["max_minutes_per_month"],
                 "projects_count": 0,
                 "projects_limit": plan_config["max_projects"],
                 "team_members_count": 1,
@@ -340,8 +336,6 @@ class StripeService:
         return {
             "plan_name": plan.name,
             "plan_tier": plan.tier.value,
-            "minutes_used": subscription.current_month_minutes_used,
-            "minutes_limit": plan.max_minutes_per_month,
             "projects_count": subscription.current_month_projects_count,
             "projects_limit": plan.max_projects,
             "team_members_count": 1,  # Would need to calculate from actual team

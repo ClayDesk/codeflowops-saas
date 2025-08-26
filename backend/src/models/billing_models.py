@@ -48,7 +48,6 @@ class BillingPlan(Base):
     
     # Feature Limits
     max_projects = Column(Integer, default=3)
-    max_minutes_per_month = Column(Integer, default=100)
     max_team_members = Column(Integer, default=1)
     max_concurrent_deployments = Column(Integer, default=1)
     
@@ -96,7 +95,6 @@ class OrganizationSubscription(Base):
     trial_end = Column(DateTime)
     
     # Usage Tracking
-    current_month_minutes_used = Column(Integer, default=0)
     current_month_projects_count = Column(Integer, default=0)
     
     # Billing
@@ -245,7 +243,6 @@ PLAN_CONFIGS = {
         "price_monthly": 0,
         "price_yearly": 0,
         "max_projects": 3,
-        "max_minutes_per_month": 100,
         "max_team_members": 1,
         "max_concurrent_deployments": 1,
         "custom_domains": False,
@@ -254,7 +251,7 @@ PLAN_CONFIGS = {
         "sso_integration": False,
         "api_access": False,
         "description": "Perfect for personal projects and getting started",
-        "features_json": '["3 projects", "100 minutes/month", "Community support", "Basic analytics"]'
+        "features_json": '["3 projects", "Public repositories", "Community support", "Basic analytics"]'
     },
     PlanTier.STARTER: {
         "id": "plan_starter",
@@ -263,7 +260,6 @@ PLAN_CONFIGS = {
         "price_monthly": 1900,  # $19.00
         "price_yearly": 19000,  # $190.00 (2 months free)
         "max_projects": 10,
-        "max_minutes_per_month": 400,
         "max_team_members": 3,
         "max_concurrent_deployments": 2,
         "custom_domains": True,
@@ -272,7 +268,7 @@ PLAN_CONFIGS = {
         "sso_integration": False,
         "api_access": True,
         "description": "Great for small teams and growing projects",
-        "features_json": '["10 projects", "400 minutes/month", "3 team members", "Custom domains", "API access", "Email support"]'
+        "features_json": '["10 projects", "Private repositories", "Custom domains", "API access", "Email support"]'
     },
     PlanTier.PRO: {
         "id": "plan_pro",
@@ -281,7 +277,6 @@ PLAN_CONFIGS = {
         "price_monthly": 4900,  # $49.00
         "price_yearly": 49000,  # $490.00 (2 months free)
         "max_projects": -1,  # Unlimited
-        "max_minutes_per_month": 3000,
         "max_team_members": 10,
         "max_concurrent_deployments": 5,
         "custom_domains": True,
@@ -290,7 +285,7 @@ PLAN_CONFIGS = {
         "sso_integration": True,
         "api_access": True,
         "description": "For professional teams with advanced needs",
-        "features_json": '["Unlimited projects", "3000 minutes/month", "10 team members", "Priority support", "Advanced analytics", "SSO integration", "API access"]'
+        "features_json": '["Unlimited projects", "Private repositories", "Priority support", "Advanced analytics", "Team collaboration", "SSO integration"]'
     },
     PlanTier.ENTERPRISE: {
         "id": "plan_enterprise",
@@ -299,7 +294,6 @@ PLAN_CONFIGS = {
         "price_monthly": 0,  # Custom pricing
         "price_yearly": 0,   # Custom pricing
         "max_projects": -1,  # Unlimited
-        "max_minutes_per_month": -1,  # Unlimited
         "max_team_members": -1,  # Unlimited
         "max_concurrent_deployments": -1,  # Unlimited
         "custom_domains": True,

@@ -281,63 +281,6 @@ export function SDKDeploymentWizard({ initialRepo = '', onClose }: { initialRepo
       return
     }
 
-    // Add frontend validation before analysis
-    console.log('🔍 Validating repository URL:', formData.repositoryUrl)
-    const validation = validateRepositoryForCodeFlowOps(formData.repositoryUrl)
-    console.log('🔍 Validation result:', validation)
-    
-    if (!validation.valid) {
-      const errorMessage = validation.message || 'Repository validation failed'
-      console.log('🚫 Validation failed, showing error:', errorMessage)
-      
-      // Show both toast and alert to ensure message is seen
-      toast.error(errorMessage, {
-        duration: 8000,
-        style: {
-          background: '#fee2e2',
-          border: '1px solid #fecaca',
-          color: '#991b1b',
-          fontSize: '14px',
-          maxWidth: '500px'
-        },
-      })
-      
-      // Also show an alert as fallback
-      alert(errorMessage)
-      return
-    }
-
-    if (validation.warning) {
-      // Use toast with action for confirmation instead of browser confirm
-      toast((t) => (
-        <div className="flex flex-col gap-2">
-          <div>{validation.warning}</div>
-          <div className="flex gap-2">
-            <button
-              onClick={() => {
-                toast.dismiss(t.id)
-                proceedWithAnalysis()
-              }}
-              className="px-3 py-1 bg-blue-600 text-white rounded text-sm"
-            >
-              Continue
-            </button>
-            <button
-              onClick={() => toast.dismiss(t.id)}
-              className="px-3 py-1 bg-gray-300 text-gray-700 rounded text-sm"
-            >
-              Cancel
-            </button>
-          </div>
-        </div>
-      ), { duration: 10000 })
-      return
-    }
-
-    proceedWithAnalysis()
-  }
-
-  const proceedWithAnalysis = async () => {
     setIsAnalyzing(true)
     try {
       // Pass both repository URL and GitHub token if provided
@@ -348,26 +291,6 @@ export function SDKDeploymentWizard({ initialRepo = '', onClose }: { initialRepo
       
       const result = await api.analyzeRepository(requestData)
       console.log('Analysis result:', result) // Debug log to see what data is available
-      
-      // Validate again with analysis results
-      const postAnalysisValidation = validateRepositoryForCodeFlowOps(
-        formData.repositoryUrl, 
-        result
-      )
-      
-      if (!postAnalysisValidation.valid) {
-        toast.error(postAnalysisValidation.message || 'Repository type not supported')
-        return
-      }
-
-      if (postAnalysisValidation.warning) {
-        toast(postAnalysisValidation.warning, { 
-          icon: '⚠️',
-          duration: 5000 
-        })
-        // Continue anyway since post-analysis warnings are less critical
-      }
-
       setAnalysisResult(result)
       
       // Extract project name from repo URL if not set
@@ -384,6 +307,8 @@ export function SDKDeploymentWizard({ initialRepo = '', onClose }: { initialRepo
       setIsAnalyzing(false)
     }
   }
+
+
 
   const handleValidateCredentials = async () => {
     if (!formData.awsAccessKey.trim() || !formData.awsSecretKey.trim()) {

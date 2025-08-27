@@ -65,30 +65,81 @@ export function QuotaDisplay({ onUpgrade }: QuotaDisplayProps) {
       setLoading(true)
       const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'https://api.codeflowops.com'
       
-      // Try GitHub OAuth session first, then fallback to token auth
-      let response = await fetch(`${API_BASE}/api/quota/status`, {
-        credentials: 'include', // For GitHub OAuth cookies
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      })
+      const token = localStorage.getItem('codeflowops_access_token')
       
-      // If GitHub OAuth fails, try token-based auth
-      if (!response.ok) {
-        const token = localStorage.getItem('codeflowops_access_token')
-        if (token) {
+      let response
+      if (!token) {
+        // Likely GitHub OAuth user - try GitHub-compatible endpoint first
+        response = await fetch(`${API_BASE}/api/v1/auth/github/quota`, {
+          credentials: 'include',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        })
+        
+        // If GitHub endpoint fails, fallback to regular quota endpoint
+        if (!response.ok) {
           response = await fetch(`${API_BASE}/api/quota/status`, {
+            credentials: 'include',
             headers: {
-              'Authorization': `Bearer ${token}`,
               'Content-Type': 'application/json',
             },
           })
         }
+      } else {
+        // Regular Cognito user - use standard quota endpoint with token
+        response = await fetch(`${API_BASE}/api/quota/status`, {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+        })
       }
       
       if (response.ok) {
         const data = await response.json()
-        setQuota(data.quota)
+        
+        // Handle different response formats
+        if (data.quota) {
+          // GitHub OAuth response format: { quota: { ... } }
+          setQuota(data.quota)
+        } else if (data.quota_used !== undefined) {
+          // Regular endpoint response format: { quota_used: 2, quota_limit: 5, deployments_remaining: 3 }
+          // Convert to expected format
+          const convertedQuota: QuotaStatus = {
+            plan: {
+              tier: "free",
+              name: "Free"
+            },
+            monthly_runs: {
+              used: data.quota_used || 0,
+              limit: data.quota_limit || 5,
+              remaining: (data.quota_limit || 5) - (data.quota_used || 0),
+              percentage: ((data.quota_used || 0) / (data.quota_limit || 5)) * 100,
+              unlimited: false
+            },
+            concurrent_runs: {
+              active: 0,
+              limit: 2,
+              remaining: 2,
+              percentage: 0
+            },
+            deployment_allowed: {
+              can_deploy: (data.deployments_remaining || 0) > 0,
+              monthly_check: {
+                passed: (data.quota_used || 0) < (data.quota_limit || 5),
+                reason: (data.quota_used || 0) < (data.quota_limit || 5) ? "Under monthly limit" : "Monthly limit exceeded"
+              },
+              concurrent_check: {
+                passed: true,
+                reason: "Under concurrent limit"
+              }
+            }
+          }
+          setQuota(convertedQuota)
+        } else {
+          setError('Invalid quota data format')
+        }
       } else {
         setError('Failed to load quota information')
       }

@@ -53,7 +53,19 @@ export function useStripePayment({ onSuccess, onError }: UseStripePaymentOptions
       setLoading(true)
       setError(null)
 
-      const response = await makeAuthenticatedRequest(`${API_BASE}/api/v1/billing/subscribe/${params.planTier}`, {
+      const token = localStorage.getItem('codeflowops_access_token')
+      
+      // Determine if this is a GitHub OAuth user (no token but has session cookies)
+      let endpoint: string
+      if (!token) {
+        // Likely GitHub OAuth user - use GitHub-compatible endpoint
+        endpoint = `${API_BASE}/api/v1/auth/github/subscribe/${params.planTier}`
+      } else {
+        // Regular Cognito user - use standard billing endpoint
+        endpoint = `${API_BASE}/api/v1/billing/subscribe/${params.planTier}`
+      }
+
+      const response = await makeAuthenticatedRequest(endpoint, {
         method: 'POST',
         body: JSON.stringify({
           pricing_context: params.pricingContext || {},

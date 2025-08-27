@@ -36,11 +36,10 @@ export function useStripePayment({ onSuccess, onError }: UseStripePaymentOptions
       setLoading(true)
       setError(null)
 
-      const response = await fetch(`${API_BASE}/api/v1/payments/create-subscription`, {
+      const response = await fetch(`${API_BASE}/api/v1/billing/subscribe/${params.planTier}`, {
         method: 'POST',
         headers: getAuthHeaders(),
         body: JSON.stringify({
-          plan_tier: params.planTier,
           pricing_context: params.pricingContext || {},
           trial_days: params.trialDays
         })

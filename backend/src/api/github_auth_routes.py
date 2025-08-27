@@ -450,3 +450,121 @@ async def test_cognito_integration():
             "error": "cognito_connection_failed",
             "details": str(e)
         }
+
+@router.post("/auth/github/get-tokens")
+async def get_github_cognito_tokens(request: Request):
+    """
+    Exchange GitHub OAuth session for Cognito JWT tokens
+    This allows GitHub OAuth users to access Cognito-protected endpoints
+    """
+    try:
+        session_token = request.cookies.get("codeflowops_session")
+        
+        if not session_token or session_token not in _github_sessions:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="No valid GitHub session found"
+            )
+        
+        session_data = _github_sessions[session_token]
+        user_data = session_data["user"]
+        
+        if not session_data.get("stored_in_cognito"):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="User not stored in Cognito - cannot generate tokens"
+            )
+        
+        if not COGNITO_AVAILABLE:
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="Cognito service not available"
+            )
+        
+        # Initialize Cognito provider
+        from ..auth.providers.cognito import CognitoAuthProvider
+        cognito_provider = CognitoAuthProvider()
+        
+        # Use admin authentication to generate tokens for the GitHub user
+        email = user_data.get("email")
+        if not email:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="User email not found in session"
+            )
+        
+        # Generate a temporary password authentication (admin flow)
+        try:
+            import boto3
+            import uuid
+            import hashlib
+            import hmac
+            import base64
+            
+            # Create a deterministic temporary password based on user info
+            # This is safe because it's only used for admin authentication
+            temp_password = hashlib.sha256(f"{email}:{session_token}".encode()).hexdigest()[:16]
+            
+            # Set temporary password for user
+            cognito_provider.cognito_client.admin_set_user_password(
+                UserPoolId=cognito_provider.user_pool_id,
+                Username=email,
+                Password=temp_password,
+                Permanent=True
+            )
+            
+            # Generate secret hash if needed
+            secret_hash = None
+            if cognito_provider.client_secret:
+                message = f"{email}{cognito_provider.client_id}"
+                secret_hash = base64.b64encode(
+                    hmac.new(
+                        cognito_provider.client_secret.encode(),
+                        message.encode(),
+                        hashlib.sha256
+                    ).digest()
+                ).decode()
+            
+            # Authenticate to get tokens
+            auth_params = {
+                'USERNAME': email,
+                'PASSWORD': temp_password
+            }
+            
+            if secret_hash:
+                auth_params['SECRET_HASH'] = secret_hash
+            
+            auth_response = cognito_provider.cognito_client.admin_initiate_auth(
+                UserPoolId=cognito_provider.user_pool_id,
+                ClientId=cognito_provider.client_id,
+                AuthFlow='ADMIN_NO_SRP_AUTH',
+                AuthParameters=auth_params
+            )
+            
+            auth_result = auth_response['AuthenticationResult']
+            
+            return {
+                "success": True,
+                "access_token": auth_result['AccessToken'],
+                "id_token": auth_result['IdToken'],
+                "refresh_token": auth_result.get('RefreshToken'),
+                "token_type": "Bearer",
+                "expires_in": auth_result.get('ExpiresIn', 3600),
+                "user": user_data
+            }
+            
+        except Exception as auth_error:
+            logger.error(f"Failed to generate Cognito tokens: {auth_error}")
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Failed to generate authentication tokens: {str(auth_error)}"
+            )
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error in GitHub token exchange: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Internal server error during token exchange"
+        )

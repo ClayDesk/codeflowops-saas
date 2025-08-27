@@ -357,13 +357,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         let subscriptionResponse
         
         if (user?.provider === 'github' || !token) {
-          // Use cookies for GitHub OAuth
-          subscriptionResponse = await fetch(`${API_BASE}/api/v1/billing/subscription`, {
-            credentials: 'include',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-          })
+          // Use cookies for GitHub OAuth, but try token first if available
+          const authToken = getStoredToken()
+          if (authToken) {
+            // Use token if available (GitHub user with Cognito tokens)
+            subscriptionResponse = await fetch(`${API_BASE}/api/v1/billing/subscription`, {
+              headers: {
+                'Authorization': `Bearer ${authToken}`,
+                'Content-Type': 'application/json',
+              },
+            })
+          } else {
+            // Fallback to cookies
+            subscriptionResponse = await fetch(`${API_BASE}/api/v1/billing/subscription`, {
+              credentials: 'include',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+            })
+          }
         } else {
           // Use token-based auth
           subscriptionResponse = await fetch(`${API_BASE}/api/v1/billing/subscription`, {
@@ -612,13 +624,47 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (response.ok) {
         const data = await response.json()
         if (data.authenticated && data.user) {
-          setUser({
+          // Set user data from GitHub
+          const githubUser = {
             id: data.user.id,
             email: data.user.email,
             name: data.user.name || data.user.login,
             username: data.user.login,
             provider: 'github'
-          })
+          }
+          setUser(githubUser)
+          
+          // Try to get Cognito tokens for GitHub OAuth user
+          try {
+            const tokenResponse = await fetch(`${API_BASE}/api/v1/auth/github/get-tokens`, {
+              method: 'POST',
+              credentials: 'include',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+            })
+            
+            if (tokenResponse.ok) {
+              const tokenData = await tokenResponse.json()
+              if (tokenData.success && tokenData.access_token) {
+                // Store Cognito tokens for GitHub OAuth user
+                const authData: AuthResponse = {
+                  access_token: tokenData.access_token,
+                  refresh_token: tokenData.refresh_token,
+                  token_type: tokenData.token_type || 'Bearer',
+                  expires_in: tokenData.expires_in || 3600,
+                  user: githubUser
+                }
+                storeAuthData(authData)
+                console.log('✅ Successfully obtained Cognito tokens for GitHub OAuth user')
+              }
+            } else {
+              console.warn('⚠️ Could not get Cognito tokens for GitHub user, using session-only auth')
+            }
+          } catch (tokenError) {
+            console.warn('⚠️ Token exchange failed:', tokenError)
+          }
+          
           return true
         }
       }

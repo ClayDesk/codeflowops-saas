@@ -57,8 +57,23 @@ _LOCK = threading.Lock()
 from repository_enhancer import RepositoryEnhancer, _get_primary_language
 from cleanup_service import cleanup_service
 
-# Import deployment quota manager
-from deployment_quota_manager import deployment_quota_manager
+# Import deployment quota manager with error handling
+try:
+    from deployment_quota_manager import deployment_quota_manager
+    QUOTA_MANAGER_AVAILABLE = True
+    logger.info("✅ Deployment quota manager loaded successfully")
+except ImportError as e:
+    logger.warning(f"⚠️ Deployment quota manager not available: {e}")
+    QUOTA_MANAGER_AVAILABLE = False
+    # Create a mock quota manager for fallback
+    class MockQuotaManager:
+        def get_quota_status(self, *args, **kwargs):
+            return {"error": "Quota manager not available"}
+        def check_monthly_quota(self, *args, **kwargs):
+            return True, "Quota checking disabled"
+        def check_concurrent_quota(self, *args, **kwargs):
+            return True, "Quota checking disabled"
+    deployment_quota_manager = MockQuotaManager()
 
 # Add backend paths to import existing components
 backend_path = Path(__file__).parent
@@ -360,6 +375,17 @@ async def get_quota_status(user_id: Optional[str] = None, plan: Optional[str] = 
     Returns deployment limits and usage information
     """
     try:
+        if not QUOTA_MANAGER_AVAILABLE:
+            return {
+                "success": False,
+                "error": "Quota manager not available",
+                "quota": {
+                    "plan": {"tier": plan or "free", "name": "Free"},
+                    "monthly_runs": {"used": 0, "limit": "unknown", "unlimited": False},
+                    "deployment_allowed": {"can_deploy": True}
+                }
+            }
+        
         # For now, use query parameters or defaults
         # In production, get user_id from auth token and plan from subscription
         user_id = user_id or "demo_user"
@@ -392,6 +418,17 @@ async def check_deployment_quota(user_id: Optional[str] = None, plan: Optional[s
     Returns quota validation before deployment starts
     """
     try:
+        if not QUOTA_MANAGER_AVAILABLE:
+            return {
+                "success": True,
+                "can_deploy": True,
+                "checks": {
+                    "monthly": {"passed": True, "reason": "Quota checking disabled"},
+                    "concurrent": {"passed": True, "reason": "Quota checking disabled"}
+                },
+                "note": "Quota manager not available - allowing all deployments"
+            }
+        
         # For now, use request parameters or defaults
         user_id = user_id or "demo_user"
         plan_tier = plan or "free"
@@ -444,46 +481,49 @@ async def deploy_to_aws(request: DeployRequest):
         if not deployment_id:
             raise HTTPException(status_code=400, detail="deployment_id or analysis_id is required")
         
-        # CHECK QUOTA BEFORE PROCEEDING
-        # For now, use demo values - in production, get from auth token
-        user_id = "demo_user"  # TODO: Get from authenticated user context
-        plan_tier = "free"     # TODO: Get from user subscription
-        current_runs = 2       # TODO: Get from database
-        active_runs = 1        # TODO: Get from database
-        
-        # Validate quota limits
-        can_deploy_monthly, monthly_reason = deployment_quota_manager.check_monthly_quota(
-            user_id, plan_tier, current_runs
-        )
-        can_deploy_concurrent, concurrent_reason = deployment_quota_manager.check_concurrent_quota(
-            user_id, plan_tier, active_runs
-        )
-        
-        if not can_deploy_monthly:
-            logger.warning(f"Deployment blocked - Monthly quota exceeded: {monthly_reason}")
-            raise HTTPException(
-                status_code=403, 
-                detail={
-                    "error": "Monthly deployment limit exceeded",
-                    "reason": monthly_reason,
-                    "quota_type": "monthly",
-                    "upgrade_suggestion": "Consider upgrading your plan for more monthly deployments"
-                }
+        # CHECK QUOTA BEFORE PROCEEDING (if quota manager is available)
+        if QUOTA_MANAGER_AVAILABLE:
+            # For now, use demo values - in production, get from auth token
+            user_id = "demo_user"  # TODO: Get from authenticated user context
+            plan_tier = "free"     # TODO: Get from user subscription
+            current_runs = 2       # TODO: Get from database
+            active_runs = 1        # TODO: Get from database
+            
+            # Validate quota limits
+            can_deploy_monthly, monthly_reason = deployment_quota_manager.check_monthly_quota(
+                user_id, plan_tier, current_runs
             )
-        
-        if not can_deploy_concurrent:
-            logger.warning(f"Deployment blocked - Concurrent quota exceeded: {concurrent_reason}")
-            raise HTTPException(
-                status_code=429,
-                detail={
-                    "error": "Concurrent deployment limit exceeded", 
-                    "reason": concurrent_reason,
-                    "quota_type": "concurrent",
-                    "suggestion": "Wait for existing deployments to complete before starting new ones"
-                }
+            can_deploy_concurrent, concurrent_reason = deployment_quota_manager.check_concurrent_quota(
+                user_id, plan_tier, active_runs
             )
-        
-        logger.info(f"✅ Quota check passed for deployment {deployment_id}")
+            
+            if not can_deploy_monthly:
+                logger.warning(f"Deployment blocked - Monthly quota exceeded: {monthly_reason}")
+                raise HTTPException(
+                    status_code=403, 
+                    detail={
+                        "error": "Monthly deployment limit exceeded",
+                        "reason": monthly_reason,
+                        "quota_type": "monthly",
+                        "upgrade_suggestion": "Consider upgrading your plan for more monthly deployments"
+                    }
+                )
+            
+            if not can_deploy_concurrent:
+                logger.warning(f"Deployment blocked - Concurrent quota exceeded: {concurrent_reason}")
+                raise HTTPException(
+                    status_code=429,
+                    detail={
+                        "error": "Concurrent deployment limit exceeded", 
+                        "reason": concurrent_reason,
+                        "quota_type": "concurrent",
+                        "suggestion": "Wait for existing deployments to complete before starting new ones"
+                    }
+                )
+            
+            logger.info(f"✅ Quota check passed for deployment {deployment_id}")
+        else:
+            logger.info(f"⚠️ Quota checking disabled for deployment {deployment_id}")
         
         # Normalize AWS credential field names
         aws_access_key = request.aws_access_key or request.aws_access_key_id

@@ -178,8 +178,9 @@ async def github_login(request: Request):
             value=session_id,
             max_age=600,  # 10 minutes
             httponly=True,
-            secure=False,  # Set to True in production with HTTPS
-            samesite="lax"
+            secure=True,  # Set to True in production with HTTPS
+            samesite="lax",
+            domain=".codeflowops.com"  # Allow cookie to work across subdomains
         )
         
         return response
@@ -344,8 +345,9 @@ async def github_callback(
             value=session_token,
             max_age=86400,  # 24 hours
             httponly=True,
-            secure=False,  # Set to True in production with HTTPS
-            samesite="lax"
+            secure=True,  # Set to True in production with HTTPS
+            samesite="lax",
+            domain=".codeflowops.com"  # Allow cookie to work across subdomains
         )
         
         return response

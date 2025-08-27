@@ -77,8 +77,7 @@ function ProfilePageContent() {
     removeProfilePicture
   } = useAuth()
   const { 
-    createSubscription, 
-    cancelSubscription,
+    createSubscription,
     loading: stripeLoading 
   } = useStripePayment({
     onSuccess: (result) => {
@@ -106,7 +105,7 @@ function ProfilePageContent() {
   const [activeTab, setActiveTab] = useState('overview')
 
   // Stripe payment management functions
-  const refreshSubscriptionStatus = async () => {
+  const _refreshSubscriptionStatus = async () => {
     try {
       const token = localStorage.getItem('codeflowops_access_token')
       const apiUrl = 'https://api.codeflowops.com'

@@ -383,8 +383,6 @@ export const useSmartDeployApi = () => {
 };
 
 export const useWebSocket = (deploymentId: string | null) => {
-  const [socket, setSocket] = useState<WebSocket | null>(null);
-  const [messages, setMessages] = useState<any[]>([]);
   const [connectionStatus, setConnectionStatus] = useState<'connecting' | 'connected' | 'disconnected'>('disconnected');
 
   useEffect(() => {
@@ -402,7 +400,7 @@ export const useWebSocket = (deploymentId: string | null) => {
 
   return {
     socket: null,
-    messages,
+    messages: [],
     connectionStatus
   };
 };

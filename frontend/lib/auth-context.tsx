@@ -60,9 +60,9 @@ interface AuthContextType extends AuthState {
   refreshToken: () => Promise<void>
   getCognitoConfig: () => Promise<CognitoConfig | null>
   resetPassword: (email: string) => Promise<void>
-  fetchUserProfile: () => Promise<{ user: User; subscription: unknown } | undefined>
+  fetchUserProfile: () => Promise<{ user: User; subscription: Record<string, unknown> } | undefined>
   updateUserProfile: (profileData: Partial<User>) => Promise<User | undefined>
-  fetchUserDeployments: () => Promise<unknown[] | undefined>
+  fetchUserDeployments: () => Promise<Record<string, unknown>[] | undefined>
   clearDeploymentHistory: () => Promise<void>
   profilePicture: string | null
   updateProfilePicture: (imageFile: File) => Promise<void>
@@ -96,7 +96,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
     
     if (error && typeof error === 'object' && 'detail' in error) {
-      const errorObj = error as { detail: unknown }
+      const errorObj = error as { detail: string }
       // Backend error format
       if (typeof errorObj.detail === 'string') {
         // Check for Cognito-specific errors
@@ -314,7 +314,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       // Check if user is authenticated via GitHub OAuth (cookie-based)
       let userResponse
-      let token = getStoredToken()
+      const token = getStoredToken()
       
       if (user?.provider === 'github' || !token) {
         // Try GitHub OAuth endpoint with cookies

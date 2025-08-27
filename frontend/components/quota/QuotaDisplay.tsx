@@ -64,9 +64,27 @@ export function QuotaDisplay({ onUpgrade }: QuotaDisplayProps) {
     try {
       setLoading(true)
       const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'https://api.codeflowops.com'
-      const response = await fetch(`${API_BASE}/api/quota/status`, {
-        credentials: 'include'
+      
+      // Try GitHub OAuth session first, then fallback to token auth
+      let response = await fetch(`${API_BASE}/api/quota/status`, {
+        credentials: 'include', // For GitHub OAuth cookies
+        headers: {
+          'Content-Type': 'application/json',
+        },
       })
+      
+      // If GitHub OAuth fails, try token-based auth
+      if (!response.ok) {
+        const token = localStorage.getItem('codeflowops_access_token')
+        if (token) {
+          response = await fetch(`${API_BASE}/api/quota/status`, {
+            headers: {
+              'Authorization': `Bearer ${token}`,
+              'Content-Type': 'application/json',
+            },
+          })
+        }
+      }
       
       if (response.ok) {
         const data = await response.json()

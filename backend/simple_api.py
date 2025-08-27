@@ -7,7 +7,7 @@ Core functionality with modular router integration - legacy deployment logic rem
 import os
 os.environ['GIT_PYTHON_REFRESH'] = 'quiet'
 
-from fastapi import FastAPI, HTTPException, APIRouter
+from fastapi import FastAPI, HTTPException, APIRouter, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
@@ -392,10 +392,11 @@ async def validate_credentials(request: CredentialsRequest):
         }
 
 @router.get("/api/quota/status")
-async def get_quota_status(user_id: Optional[str] = None, plan: Optional[str] = None):
+async def get_quota_status(request: Request, user_id: Optional[str] = None, plan: Optional[str] = None):
     """
     Get current quota status for user
     Returns deployment limits and usage information
+    Supports GitHub OAuth session authentication
     """
     try:
         if not QUOTA_MANAGER_AVAILABLE:
@@ -409,10 +410,41 @@ async def get_quota_status(user_id: Optional[str] = None, plan: Optional[str] = 
                 }
             }
         
-        # For now, use query parameters or defaults
-        # In production, get user_id from auth token and plan from subscription
+        # Try to get user info from GitHub OAuth session
+        github_user_data = None
+        if GITHUB_AUTH_AVAILABLE:
+            session_token = request.cookies.get("codeflowops_session")
+            if session_token and session_token in _github_sessions:
+                session_data = _github_sessions[session_token]
+                github_user_data = session_data.get("user")
+                user_id = github_user_data.get("id", user_id)
+                logger.info(f"📊 Getting quota for GitHub user: {github_user_data.get('login', 'unknown')}")
+        
+        # Use provided parameters or defaults
         user_id = user_id or "demo_user"
+        
+        # Get trial/plan information if available
         plan_tier = plan or "free"
+        trial_info = None
+        
+        if TRIAL_SERVICE_AVAILABLE and github_user_data:
+            try:
+                # Get trial status for GitHub user
+                user_email = github_user_data.get("email")
+                if user_email:
+                    trial_status = trial_service.get_trial_status(user_email)
+                    trial_info = trial_status
+                    
+                    # Update plan tier based on trial status
+                    if trial_status.get("is_trial_active"):
+                        trial_type = trial_status.get("trial_type", "starter")
+                        plan_tier = trial_type.lower()
+                        logger.info(f"📋 User {user_email} has active {trial_type} trial")
+                    elif trial_status.get("has_subscription"):
+                        plan_tier = trial_status.get("subscription_tier", "free")
+                        logger.info(f"💳 User {user_email} has {plan_tier} subscription")
+            except Exception as e:
+                logger.warning(f"⚠️ Could not get trial info: {e}")
         
         # Mock current usage - in production, get from database
         current_runs = 2  # Example: user has made 2 deployments this month
@@ -427,7 +459,13 @@ async def get_quota_status(user_id: Optional[str] = None, plan: Optional[str] = 
         
         return {
             "success": True,
-            "quota": quota_status
+            "quota": quota_status,
+            "trial_info": trial_info,
+            "user_info": {
+                "authenticated_via": "github_oauth" if github_user_data else "query_params",
+                "user_id": user_id,
+                "plan_tier": plan_tier
+            }
         }
         
     except Exception as e:
@@ -1875,11 +1913,14 @@ except ImportError as e:
 
 # Add GitHub authentication routes
 try:
-    from src.api.github_auth_routes import router as github_auth_router
+    from src.api.github_auth_routes import router as github_auth_router, _github_sessions
     app.include_router(github_auth_router, prefix="/api/v1")
+    GITHUB_AUTH_AVAILABLE = True
     logger.info("✅ GitHub authentication routes loaded successfully")
 except ImportError as e:
     logger.warning(f"⚠️ GitHub auth routes not available: {e}")
+    GITHUB_AUTH_AVAILABLE = False
+    _github_sessions = {}
 
 # Add payment routes with Stripe integration
 try:

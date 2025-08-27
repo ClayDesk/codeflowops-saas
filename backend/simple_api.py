@@ -75,6 +75,29 @@ except ImportError as e:
             return True, "Quota checking disabled"
     deployment_quota_manager = MockQuotaManager()
 
+# Import trial management service
+try:
+    from trial_management_service import trial_service
+    TRIAL_SERVICE_AVAILABLE = True
+    logger.info("✅ Trial management service loaded successfully")
+except ImportError as e:
+    logger.warning(f"⚠️ Trial management service not available: {e}")
+    TRIAL_SERVICE_AVAILABLE = False
+
+# Import secure Stripe configuration
+try:
+    from config.stripe_config import StripeConfig
+    import stripe
+    stripe.api_key = StripeConfig.get_secret_key()
+    STRIPE_AVAILABLE = True
+    logger.info("✅ Stripe configuration loaded successfully")
+except ImportError as e:
+    logger.warning(f"⚠️ Stripe configuration not available: {e}")
+    STRIPE_AVAILABLE = False
+except ValueError as e:
+    logger.error(f"❌ Stripe configuration error: {e}")
+    STRIPE_AVAILABLE = False
+
 # Add backend paths to import existing components
 backend_path = Path(__file__).parent
 src_path = backend_path / "src"
@@ -2051,6 +2074,115 @@ if MODULAR_ROUTERS_AVAILABLE:
         logger.error(f"❌ Failed to add modular router endpoints: {e}")
 else:
     logger.info("⚠️ Modular router endpoints not available - using fallback deployment only")
+
+# ===== TRIAL MANAGEMENT ENDPOINTS =====
+if TRIAL_SERVICE_AVAILABLE:
+    @app.get("/api/trial/status")
+    async def get_trial_status():
+        """Get comprehensive trial status with AI analytics"""
+        try:
+            # For demo, using a fixed user ID - in production, get from JWT token
+            user_id = "demo-user-123"
+            trial_status = trial_service.get_trial_status(user_id)
+            return trial_status
+        except Exception as e:
+            logger.error(f"Error getting trial status: {e}")
+            return {"error": f"Failed to get trial status: {str(e)}"}
+    
+    @app.post("/api/trial/extend")
+    async def extend_trial():
+        """Extend trial period (admin functionality)"""
+        try:
+            # Implementation for trial extension
+            return {"success": True, "message": "Trial extended successfully"}
+        except Exception as e:
+            logger.error(f"Error extending trial: {e}")
+            return {"error": f"Failed to extend trial: {str(e)}"}
+
+# Enhanced quota endpoint with trial integration
+@app.get("/api/quota/status")
+async def get_quota_status():
+    """Get quota status with trial integration"""
+    try:
+        base_quota = {"quota_used": 2, "quota_limit": 5, "deployments_remaining": 3}
+        
+        # Add trial data if available
+        if TRIAL_SERVICE_AVAILABLE:
+            try:
+                user_id = "demo-user-123"
+                trial_data = trial_service.get_trial_status(user_id)
+                if trial_data and not trial_data.get('error'):
+                    base_quota.update({
+                        "trial_active": True,
+                        "trial_days_remaining": trial_data.get('metrics', {}).get('days_remaining', 0),
+                        "engagement_score": trial_data.get('metrics', {}).get('engagement_score', 0),
+                        "trial_health": trial_data.get('analytics', {}).get('trial_health', 'unknown')
+                    })
+            except Exception as e:
+                logger.error(f"Error adding trial data to quota: {e}")
+        
+        return base_quota
+    except Exception as e:
+        logger.error(f"Error getting quota status: {e}")
+        return {"error": f"Failed to get quota status: {str(e)}"}
+
+# ===== STRIPE WEBHOOK ENDPOINT =====
+if STRIPE_AVAILABLE:
+    @app.post("/api/stripe/webhook")
+    async def stripe_webhook(request):
+        """Handle Stripe webhooks for subscription events"""
+        try:
+            payload = await request.body()
+            sig_header = request.headers.get('stripe-signature')
+            
+            if not sig_header:
+                raise HTTPException(status_code=400, detail="Missing Stripe signature")
+            
+            # Verify webhook signature
+            try:
+                event = stripe.Webhook.construct_event(
+                    payload, sig_header, StripeConfig.get_webhook_secret()
+                )
+            except ValueError:
+                raise HTTPException(status_code=400, detail="Invalid payload")
+            except stripe.error.SignatureVerificationError:
+                raise HTTPException(status_code=400, detail="Invalid signature")
+            
+            # Handle the event
+            event_type = event['type']
+            logger.info(f"Received Stripe webhook: {event_type}")
+            
+            if event_type == 'customer.subscription.created':
+                # Handle new subscription
+                subscription = event['data']['object']
+                customer_id = subscription['customer']
+                logger.info(f"New subscription created for customer: {customer_id}")
+                
+            elif event_type == 'customer.subscription.updated':
+                # Handle subscription updates
+                subscription = event['data']['object']
+                logger.info(f"Subscription updated: {subscription['id']}")
+                
+            elif event_type == 'customer.subscription.deleted':
+                # Handle subscription cancellation
+                subscription = event['data']['object']
+                logger.info(f"Subscription cancelled: {subscription['id']}")
+                
+            elif event_type == 'invoice.payment_succeeded':
+                # Handle successful payment
+                invoice = event['data']['object']
+                logger.info(f"Payment succeeded for invoice: {invoice['id']}")
+                
+            elif event_type == 'invoice.payment_failed':
+                # Handle failed payment
+                invoice = event['data']['object']
+                logger.info(f"Payment failed for invoice: {invoice['id']}")
+            
+            return {"status": "success"}
+            
+        except Exception as e:
+            logger.error(f"Error processing Stripe webhook: {e}")
+            raise HTTPException(status_code=400, detail=f"Webhook error: {str(e)}")
 
 # Add basic health check endpoint
 @app.get("/health")

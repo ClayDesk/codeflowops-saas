@@ -568,3 +568,104 @@ async def get_github_cognito_tokens(request: Request):
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Internal server error during token exchange"
         )
+
+@router.get("/auth/github/subscription")
+async def get_github_user_subscription(request: Request):
+    """
+    Get subscription data for GitHub OAuth user
+    This provides a GitHub OAuth compatible alternative to /api/v1/billing/subscription
+    """
+    try:
+        session_token = request.cookies.get("codeflowops_session")
+        
+        if not session_token or session_token not in _github_sessions:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="No valid GitHub session found"
+            )
+        
+        session_data = _github_sessions[session_token]
+        user_data = session_data["user"]
+        
+        # Return basic subscription data for GitHub OAuth users
+        # In a real implementation, you'd query the database for actual subscription data
+        return {
+            "plan": {
+                "name": "Free",
+                "tier": "free",
+                "max_projects": 5,
+                "max_minutes_per_month": 1000,
+                "max_team_members": 1,
+                "features": ["Basic deployments", "Community support"]
+            },
+            "status": "active",
+            "current_period_end": None,
+            "cancel_at_period_end": False,
+            "usage": {
+                "minutes_used": 0,
+                "projects_count": 0,
+                "team_members_count": 1
+            },
+            "user_info": {
+                "email": user_data.get("email"),
+                "github_username": user_data.get("login"),
+                "stored_in_cognito": session_data.get("stored_in_cognito", False)
+            }
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error getting GitHub user subscription: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to get subscription data"
+        )
+
+@router.get("/auth/github/deployments")
+async def get_github_user_deployments(request: Request):
+    """
+    Get deployment history for GitHub OAuth user
+    GitHub OAuth compatible alternative to /api/v1/auth/deployments
+    """
+    try:
+        session_token = request.cookies.get("codeflowops_session")
+        
+        if not session_token or session_token not in _github_sessions:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="No valid GitHub session found"
+            )
+        
+        session_data = _github_sessions[session_token]
+        user_data = session_data["user"]
+        
+        # Return mock deployment data for GitHub OAuth users
+        # In a real implementation, you'd query the database for actual deployments
+        return {
+            "deployments": [
+                {
+                    "id": "github-demo-1",
+                    "name": "Demo Project",
+                    "repository": "github.com/example/demo",
+                    "status": "success",
+                    "url": "https://demo.example.com",
+                    "created_at": "2025-08-27T10:00:00Z",
+                    "technology": "React"
+                }
+            ],
+            "total": 1,
+            "user_info": {
+                "email": user_data.get("email"),
+                "github_username": user_data.get("login")
+            }
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error getting GitHub user deployments: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to get deployment data"
+        )

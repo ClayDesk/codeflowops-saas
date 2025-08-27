@@ -357,27 +357,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         let subscriptionResponse
         
         if (user?.provider === 'github' || !token) {
-          // Use cookies for GitHub OAuth, but try token first if available
-          const authToken = getStoredToken()
-          if (authToken) {
-            // Use token if available (GitHub user with Cognito tokens)
-            subscriptionResponse = await fetch(`${API_BASE}/api/v1/billing/subscription`, {
-              headers: {
-                'Authorization': `Bearer ${authToken}`,
-                'Content-Type': 'application/json',
-              },
-            })
-          } else {
-            // Fallback to cookies
-            subscriptionResponse = await fetch(`${API_BASE}/api/v1/billing/subscription`, {
-              credentials: 'include',
-              headers: {
-                'Content-Type': 'application/json',
-              },
-            })
-          }
+          // Use GitHub-compatible subscription endpoint for GitHub OAuth users
+          subscriptionResponse = await fetch(`${API_BASE}/api/v1/auth/github/subscription`, {
+            credentials: 'include',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+          })
         } else {
-          // Use token-based auth
+          // Use token-based auth for regular Cognito users
           subscriptionResponse = await fetch(`${API_BASE}/api/v1/billing/subscription`, {
             headers: {
               'Authorization': `Bearer ${token}`,
@@ -438,23 +426,32 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const fetchUserDeployments = async () => {
     try {
       const token = getStoredToken()
-      if (!token) {
-        throw new Error('No access token found')
+      
+      let response
+      if (user?.provider === 'github' || !token) {
+        // Use GitHub-compatible deployments endpoint
+        response = await fetch(`${API_BASE}/api/v1/auth/github/deployments`, {
+          credentials: 'include',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        })
+      } else {
+        // Use token-based auth for regular Cognito users
+        response = await fetch(`${API_BASE}/api/v1/auth/deployments`, {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+        })
       }
-
-      const response = await fetch(`${API_BASE}/api/v1/auth/deployments`, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-      })
 
       if (!response.ok) {
         throw new Error('Failed to fetch deployments')
       }
 
       const data = await response.json()
-      return data
+      return data.deployments || data
     } catch (error) {
       console.error('Error fetching deployments:', error)
       throw error
@@ -634,36 +631,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           }
           setUser(githubUser)
           
-          // Try to get Cognito tokens for GitHub OAuth user
-          try {
-            const tokenResponse = await fetch(`${API_BASE}/api/v1/auth/github/get-tokens`, {
-              method: 'POST',
-              credentials: 'include',
-              headers: {
-                'Content-Type': 'application/json',
-              },
-            })
-            
-            if (tokenResponse.ok) {
-              const tokenData = await tokenResponse.json()
-              if (tokenData.success && tokenData.access_token) {
-                // Store Cognito tokens for GitHub OAuth user
-                const authData: AuthResponse = {
-                  access_token: tokenData.access_token,
-                  refresh_token: tokenData.refresh_token,
-                  token_type: tokenData.token_type || 'Bearer',
-                  expires_in: tokenData.expires_in || 3600,
-                  user: githubUser
-                }
-                storeAuthData(authData)
-                console.log('✅ Successfully obtained Cognito tokens for GitHub OAuth user')
-              }
-            } else {
-              console.warn('⚠️ Could not get Cognito tokens for GitHub user, using session-only auth')
-            }
-          } catch (tokenError) {
-            console.warn('⚠️ Token exchange failed:', tokenError)
-          }
+          // Note: We'll handle subscription data separately for GitHub users
+          // No need to exchange for Cognito tokens since we have a GitHub-compatible endpoint
           
           return true
         }

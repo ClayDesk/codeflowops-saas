@@ -47,8 +47,6 @@ except ImportError:
     except ImportError:
         # Fallback to in-memory storage if session_storage is not available
         session_storage = None
-        _github_sessions = {}
-
 class GitHubUser(BaseModel):
     id: str
     login: str
@@ -57,38 +55,27 @@ class GitHubUser(BaseModel):
     avatar_url: Optional[str] = None
     provider: str = "github"
 
-# Session management helper functions
-def set_session(session_id: str, data: Dict[str, Any]) -> bool:
-    """Store session data (database-backed or in-memory fallback)"""
-    if session_storage:
-        return session_storage.set(session_id, data)
-    else:
-        _github_sessions[session_id] = data
-        return True
+# Helper functions for managing GitHub OAuth sessions
+def set_session(session_id: str, data: dict):
+    """Store session data in database"""
+    try:
+        session_storage.set(session_id, data)
+        print(f"Session {session_id} stored in database")
+    except Exception as e:
+        print(f"Error storing session {session_id}: {e}")
+        # No fallback to in-memory sessions - database is required for persistence
 
 def get_session(session_id: str) -> Optional[Dict[str, Any]]:
-    """Retrieve session data (database-backed or in-memory fallback)"""
-    if session_storage:
-        return session_storage.get(session_id)
-    else:
-        return _github_sessions.get(session_id)
+    """Retrieve session data from database"""
+    return session_storage.get(session_id)
 
 def delete_session(session_id: str) -> bool:
-    """Delete session data (database-backed or in-memory fallback)"""
-    if session_storage:
-        return session_storage.delete(session_id)
-    else:
-        if session_id in _github_sessions:
-            del _github_sessions[session_id]
-            return True
-        return False
+    """Delete session data from database"""
+    return session_storage.delete(session_id)
 
 def session_exists(session_id: str) -> bool:
-    """Check if session exists (database-backed or in-memory fallback)"""
-    if session_storage:
-        return session_storage.get(session_id) is not None
-    else:
-        return session_id in _github_sessions
+    """Check if session exists in database"""
+    return session_storage.get(session_id) is not None
 
 async def create_or_update_github_user_in_cognito(github_user: GitHubUser) -> Optional[Dict[str, Any]]:
     """Create or update GitHub user in Cognito and return auth tokens"""
@@ -267,13 +254,13 @@ async def github_callback(
         session_id = request.cookies.get("github_session_id")
         logger.info(f"🔑 Session ID from cookie: {'✅ present' if session_id else '❌ missing'}")
         
-        if not session_id or session_id not in _github_sessions:
+        if not session_id or not session_exists(session_id):
             logger.warning("❌ Invalid or missing session in GitHub callback")
             return RedirectResponse(
                 url=f"{FRONTEND_URL}/login?error=invalid_session"
             )
         
-        session_data = _github_sessions[session_id]
+        session_data = get_session(session_id)
         if session_data["state"] != state:
             logger.warning("❌ State parameter mismatch in GitHub callback")
             return RedirectResponse(
@@ -353,7 +340,7 @@ async def github_callback(
         )
         
         # Clean up OAuth session
-        del _github_sessions[session_id]
+        delete_session(session_id)
         
         # Try to store/update user in Cognito
         logger.info("💾 Attempting to store user in Cognito...")
@@ -375,7 +362,7 @@ async def github_callback(
             "stored_in_cognito": bool(cognito_user_data)
         }
         
-        _github_sessions[session_token] = session_data
+        set_session(session_token, session_data)
         
         if cognito_user_data:
             logger.info(f"🎉 GitHub authentication complete - user {github_user.login} stored in Cognito")
@@ -413,13 +400,13 @@ async def get_github_user(request: Request):
     try:
         session_token = request.cookies.get("codeflowops_session")
         
-        if not session_token or session_token not in _github_sessions:
+        if not session_token or not session_exists(session_token):
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Not authenticated"
             )
         
-        session_data = _github_sessions[session_token]
+        session_data = get_session(session_token)
         user_data = session_data["user"]
         
         return {
@@ -443,8 +430,8 @@ async def github_logout(request: Request):
     try:
         session_token = request.cookies.get("codeflowops_session")
         
-        if session_token and session_token in _github_sessions:
-            del _github_sessions[session_token]
+        if session_token and session_exists(session_token):
+            delete_session(session_token)
         
         response = JSONResponse(content={"message": "Logged out successfully"})
         response.delete_cookie("codeflowops_session")
@@ -477,8 +464,8 @@ async def get_current_user_universal(request: Request):
         # First try GitHub OAuth session
         session_token = request.cookies.get("codeflowops_session")
         
-        if session_token and session_token in _github_sessions:
-            session_data = _github_sessions[session_token]
+        if session_token and session_exists(session_token):
+            session_data = get_session(session_token)
             user_data = session_data["user"]
             
             return {
@@ -552,13 +539,13 @@ async def get_github_cognito_tokens(request: Request):
     try:
         session_token = request.cookies.get("codeflowops_session")
         
-        if not session_token or session_token not in _github_sessions:
+        if not session_token or not session_exists(session_token):
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="No valid GitHub session found"
             )
         
-        session_data = _github_sessions[session_token]
+        session_data = get_session(session_token)
         user_data = session_data["user"]
         
         if not session_data.get("stored_in_cognito"):
@@ -670,13 +657,13 @@ async def get_github_user_subscription(request: Request):
     try:
         session_token = request.cookies.get("codeflowops_session")
         
-        if not session_token or session_token not in _github_sessions:
+        if not session_token or not session_exists(session_token):
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="No valid GitHub session found"
             )
         
-        session_data = _github_sessions[session_token]
+        session_data = get_session(session_token)
         user_data = session_data["user"]
         
         # Return basic subscription data for GitHub OAuth users
@@ -723,13 +710,13 @@ async def get_github_user_deployments(request: Request):
     try:
         session_token = request.cookies.get("codeflowops_session")
         
-        if not session_token or session_token not in _github_sessions:
+        if not session_token or not session_exists(session_token):
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="No valid GitHub session found"
             )
         
-        session_data = _github_sessions[session_token]
+        session_data = get_session(session_token)
         user_data = session_data["user"]
         
         # Return mock deployment data for GitHub OAuth users
@@ -771,13 +758,13 @@ async def get_github_user_quota(request: Request):
     try:
         session_token = request.cookies.get("codeflowops_session")
         
-        if not session_token or session_token not in _github_sessions:
+        if not session_token or not session_exists(session_token):
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="No valid GitHub session found"
             )
         
-        session_data = _github_sessions[session_token]
+        session_data = get_session(session_token)
         user_data = session_data["user"]
         
         # Return quota data for GitHub OAuth users
@@ -840,13 +827,13 @@ async def create_github_subscription(
     try:
         session_token = request.cookies.get("codeflowops_session")
         
-        if not session_token or session_token not in _github_sessions:
+        if not session_token or not session_exists(session_token):
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="No valid GitHub session found"
             )
         
-        session_data = _github_sessions[session_token]
+        session_data = get_session(session_token)
         user_data = session_data["user"]
         
         # Return mock subscription creation response
@@ -881,13 +868,13 @@ async def create_github_user_subscription(plan_tier: str, request: Request):
     try:
         session_token = request.cookies.get("codeflowops_session")
         
-        if not session_token or session_token not in _github_sessions:
+        if not session_token or not session_exists(session_token):
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="No valid GitHub session found"
             )
         
-        session_data = _github_sessions[session_token]
+        session_data = get_session(session_token)
         user_data = session_data["user"]
         
         # Get request body
@@ -981,13 +968,13 @@ async def get_github_user_quota(request: Request):
     try:
         session_token = request.cookies.get("codeflowops_session")
         
-        if not session_token or session_token not in _github_sessions:
+        if not session_token or not session_exists(session_token):
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="No valid GitHub session found"
             )
         
-        session_data = _github_sessions[session_token]
+        session_data = get_session(session_token)
         user_data = session_data["user"]
         
         # Return quota data in the expected format

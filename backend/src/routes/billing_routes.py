@@ -21,6 +21,24 @@ from auth.cognito_rbac import verify_token, get_current_user
 router = APIRouter(prefix="/billing", tags=["billing"])
 security = HTTPBearer()
 
+# Create a separate router for payments prefix (without /billing prefix)
+def create_payments_router():
+    """Create a router for /payments prefix without the /billing prefix"""
+    payments_router = APIRouter(tags=["payments"])
+    
+    # Copy all the endpoints from the main router but without the /billing prefix
+    @payments_router.get("/billing-history")
+    async def get_billing_history_payments(current_user: User = Depends(get_current_user)):
+        """Get billing history - payments endpoint version"""
+        return {"billing_history": [], "message": "Billing history endpoint (payments version)"}
+    
+    @payments_router.get("/customer-portal")
+    async def get_customer_portal_payments(current_user: User = Depends(get_current_user)):
+        """Get customer portal URL - payments endpoint version"""
+        return {"portal_url": None, "message": "Customer portal endpoint (payments version)"}
+    
+    return payments_router
+
 @router.get("/pricing")
 async def get_dynamic_pricing(
     request: Request,

@@ -1934,11 +1934,18 @@ except ImportError as e:
 try:
     from src.routes.billing_routes import router as billing_router
     app.include_router(billing_router, prefix="/api/v1")
-    # Also include billing routes under /payments prefix for frontend compatibility
-    app.include_router(billing_router, prefix="/api/v1/payments")
     logger.info("✅ Billing routes with dynamic pricing loaded successfully")
 except ImportError as e:
     logger.warning(f"⚠️ Billing routes not available: {e}")
+
+# Add billing routes under /payments prefix for frontend compatibility
+try:
+    from src.routes.billing_routes import create_payments_router
+    payments_billing_router = create_payments_router()
+    app.include_router(payments_billing_router, prefix="/api/v1/payments")
+    logger.info("✅ Payments billing routes for frontend compatibility loaded successfully")
+except ImportError as e:
+    logger.warning(f"⚠️ Payments billing routes not available: {e}")
 
 # Include modular routers if available
 if MODULAR_ROUTERS_AVAILABLE:

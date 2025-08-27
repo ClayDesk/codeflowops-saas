@@ -1,5 +1,6 @@
 'use client'
 
+// Force Amplify rebuild - Fix client-side error Aug 27, 2025
 import { useState, useEffect } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Progress } from '@/components/ui/progress'

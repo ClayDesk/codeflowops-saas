@@ -47,7 +47,9 @@ def create_eb_deployment_package():
         "enhanced_repository_analyzer.py",
         "react_deployer.py",           # Updated React deployer with DirectReactBuilder
         "direct_react_builder.py",     # New DirectReactBuilder (replaces CodeBuild)
-        "simple_react_deployer.py"     # Simple React deployer if it exists
+        "simple_react_deployer.py",    # Simple React deployer if it exists
+        "trial_management_service.py", # Trial management with AI analytics
+        "deployment_quota_manager.py"  # Enhanced quota management with trial integration
     ]
     
     for file in support_files:
@@ -94,6 +96,12 @@ def create_eb_deployment_package():
     if utils_dir.exists():
         shutil.copytree(utils_dir, deployment_dir / "utils", dirs_exist_ok=True)
         print("  Copied: utils/ directory")
+    
+    # Copy config directory if it exists (for secure Stripe configuration)
+    config_dir = backend_dir / "config"
+    if config_dir.exists():
+        shutil.copytree(config_dir, deployment_dir / "config", dirs_exist_ok=True)
+        print("  Copied: config/ directory")
     
     # Copy .ebextensions from backend if it exists (for custom configurations like Node.js)
     backend_ebextensions_dir = backend_dir / ".ebextensions"

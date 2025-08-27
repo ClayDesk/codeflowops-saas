@@ -1,0 +1,112 @@
+<svg width="1920" height="1080" viewBox="0 0 1920 1080" xmlns="http://www.w3.org/2000/svg">
+  <!-- Background -->
+  <rect width="1920" height="1080" fill="#0f172a"/>
+  
+  <!-- Header -->
+  <rect x="0" y="0" width="1920" height="64" fill="#1e293b"/>
+  <rect x="24" y="16" width="32" height="32" rx="8" fill="#3b82f6"/>
+  <text x="72" y="36" font-family="Inter, sans-serif" font-size="20" font-weight="600" fill="#f1f5f9">CodeFlowOps</text>
+  
+  <!-- Navigation -->
+  <text x="300" y="36" font-family="Inter, sans-serif" font-size="14" fill="#94a3b8">Dashboard</text>
+  <text x="380" y="36" font-family="Inter, sans-serif" font-size="14" fill="#64748b">Deployments</text>
+  <text x="470" y="36" font-family="Inter, sans-serif" font-size="14" fill="#64748b">Analytics</text>
+  <text x="540" y="36" font-family="Inter, sans-serif" font-size="14" fill="#64748b">Settings</text>
+  
+  <!-- User Avatar -->
+  <circle cx="1840" cy="32" r="16" fill="#8b5cf6"/>
+  <text x="1836" y="37" font-family="Inter, sans-serif" font-size="12" font-weight="600" fill="white">AK</text>
+  
+  <!-- Sidebar -->
+  <rect x="0" y="64" width="280" height="1016" fill="#1e293b"/>
+  
+  <!-- Sidebar Menu Items -->
+  <rect x="16" y="80" width="248" height="40" rx="8" fill="#3b82f6"/>
+  <circle cx="36" cy="100" r="6" fill="white"/>
+  <text x="56" y="104" font-family="Inter, sans-serif" font-size="14" font-weight="500" fill="white">Overview</text>
+  
+  <circle cx="36" cy="140" r="6" fill="#64748b"/>
+  <text x="56" y="144" font-family="Inter, sans-serif" font-size="14" fill="#94a3b8">Projects</text>
+  
+  <circle cx="36" cy="170" r="6" fill="#64748b"/>
+  <text x="56" y="174" font-family="Inter, sans-serif" font-size="14" fill="#94a3b8">Pipelines</text>
+  
+  <circle cx="36" cy="200" r="6" fill="#64748b"/>
+  <text x="56" y="204" font-family="Inter, sans-serif" font-size="14" fill="#94a3b8">Environments</text>
+  
+  <circle cx="36" cy="230" r="6" fill="#64748b"/>
+  <text x="56" y="234" font-family="Inter, sans-serif" font-size="14" fill="#94a3b8">Monitoring</text>
+  
+  <!-- Main Content -->
+  <rect x="280" y="64" width="1640" height="1016" fill="#0f172a"/>
+  
+  <!-- Page Header -->
+  <text x="320" y="120" font-family="Inter, sans-serif" font-size="32" font-weight="700" fill="#f1f5f9">Dashboard Overview</text>
+  <text x="320" y="150" font-family="Inter, sans-serif" font-size="16" fill="#94a3b8">Monitor your deployments and system health</text>
+  
+  <!-- Stats Cards -->
+  <rect x="320" y="180" width="300" height="120" rx="12" fill="#1e293b" stroke="#334155" stroke-width="1"/>
+  <text x="340" y="210" font-family="Inter, sans-serif" font-size="14" font-weight="500" fill="#94a3b8">Active Deployments</text>
+  <text x="340" y="240" font-family="Inter, sans-serif" font-size="36" font-weight="700" fill="#10b981">142</text>
+  <text x="340" y="270" font-family="Inter, sans-serif" font-size="12" fill="#6b7280">+12% from last week</text>
+  
+  <rect x="640" y="180" width="300" height="120" rx="12" fill="#1e293b" stroke="#334155" stroke-width="1"/>
+  <text x="660" y="210" font-family="Inter, sans-serif" font-size="14" font-weight="500" fill="#94a3b8">Success Rate</text>
+  <text x="660" y="240" font-family="Inter, sans-serif" font-size="36" font-weight="700" fill="#3b82f6">99.2%</text>
+  <text x="660" y="270" font-family="Inter, sans-serif" font-size="12" fill="#6b7280">+0.3% improvement</text>
+  
+  <rect x="960" y="180" width="300" height="120" rx="12" fill="#1e293b" stroke="#334155" stroke-width="1"/>
+  <text x="980" y="210" font-family="Inter, sans-serif" font-size="14" font-weight="500" fill="#94a3b8">Avg Deploy Time</text>
+  <text x="980" y="240" font-family="Inter, sans-serif" font-size="36" font-weight="700" fill="#f59e0b">3.2m</text>
+  <text x="980" y="270" font-family="Inter, sans-serif" font-size="12" fill="#6b7280">-15s faster</text>
+  
+  <rect x="1280" y="180" width="300" height="120" rx="12" fill="#1e293b" stroke="#334155" stroke-width="1"/>
+  <text x="1300" y="210" font-family="Inter, sans-serif" font-size="14" font-weight="500" fill="#94a3b8">Environments</text>
+  <text x="1300" y="240" font-family="Inter, sans-serif" font-size="36" font-weight="700" fill="#8b5cf6">28</text>
+  <text x="1300" y="270" font-family="Inter, sans-serif" font-size="12" fill="#6b7280">Across 5 projects</text>
+  
+  <!-- Recent Deployments -->
+  <rect x="320" y="340" width="800" height="400" rx="12" fill="#1e293b" stroke="#334155" stroke-width="1"/>
+  <text x="340" y="370" font-family="Inter, sans-serif" font-size="18" font-weight="600" fill="#f1f5f9">Recent Deployments</text>
+  
+  <!-- Deployment Items -->
+  <rect x="340" y="390" width="760" height="60" rx="8" fill="#0f172a"/>
+  <circle cx="365" cy="420" r="8" fill="#10b981"/>
+  <text x="385" y="415" font-family="Inter, sans-serif" font-size="14" font-weight="500" fill="#f1f5f9">frontend-app</text>
+  <text x="385" y="430" font-family="Inter, sans-serif" font-size="12" fill="#94a3b8">Production • v2.4.1 • 2 minutes ago</text>
+  <rect x="1000" y="405" width="60" height="24" rx="12" fill="#10b981"/>
+  <text x="1020" y="420" font-family="Inter, sans-serif" font-size="11" font-weight="500" fill="white">Success</text>
+  
+  <rect x="340" y="460" width="760" height="60" rx="8" fill="#0f172a"/>
+  <circle cx="365" cy="490" r="8" fill="#f59e0b"/>
+  <text x="385" y="485" font-family="Inter, sans-serif" font-size="14" font-weight="500" fill="#f1f5f9">api-service</text>
+  <text x="385" y="500" font-family="Inter, sans-serif" font-size="12" fill="#94a3b8">Staging • v1.8.3 • 5 minutes ago</text>
+  <rect x="1000" y="475" width="60" height="24" rx="12" fill="#f59e0b"/>
+  <text x="1015" y="490" font-family="Inter, sans-serif" font-size="11" font-weight="500" fill="white">Running</text>
+  
+  <rect x="340" y="530" width="760" height="60" rx="8" fill="#0f172a"/>
+  <circle cx="365" cy="560" r="8" fill="#10b981"/>
+  <text x="385" y="555" font-family="Inter, sans-serif" font-size="14" font-weight="500" fill="#f1f5f9">worker-queue</text>
+  <text x="385" y="570" font-family="Inter, sans-serif" font-size="12" fill="#94a3b8">Production • v3.1.0 • 12 minutes ago</text>
+  <rect x="1000" y="545" width="60" height="24" rx="12" fill="#10b981"/>
+  <text x="1020" y="560" font-family="Inter, sans-serif" font-size="11" font-weight="500" fill="white">Success</text>
+  
+  <!-- Performance Chart -->
+  <rect x="1140" y="340" width="440" height="400" rx="12" fill="#1e293b" stroke="#334155" stroke-width="1"/>
+  <text x="1160" y="370" font-family="Inter, sans-serif" font-size="18" font-weight="600" fill="#f1f5f9">Performance Metrics</text>
+  
+  <!-- Chart Area -->
+  <rect x="1160" y="390" width="400" height="250" fill="#0f172a" rx="8"/>
+  
+  <!-- Chart Lines -->
+  <polyline points="1180,590 1220,570 1260,550 1300,540 1340,530 1380,520 1420,510 1460,500 1500,490 1540,480" 
+            stroke="#3b82f6" stroke-width="2" fill="none"/>
+  <polyline points="1180,620 1220,610 1260,600 1300,590 1340,580 1380,570 1420,560 1460,550 1500,540 1540,530" 
+            stroke="#10b981" stroke-width="2" fill="none"/>
+  
+  <!-- Chart Legend -->
+  <rect x="1180" y="660" width="12" height="3" fill="#3b82f6"/>
+  <text x="1200" y="668" font-family="Inter, sans-serif" font-size="12" fill="#94a3b8">Deploy Time</text>
+  <rect x="1280" y="660" width="12" height="3" fill="#10b981"/>
+  <text x="1300" y="668" font-family="Inter, sans-serif" font-size="12" fill="#94a3b8">Success Rate</text>
+</svg>

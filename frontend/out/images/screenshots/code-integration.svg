@@ -1,0 +1,223 @@
+<svg width="1920" height="1080" viewBox="0 0 1920 1080" xmlns="http://www.w3.org/2000/svg">
+  <!-- VS Code Background -->
+  <rect width="1920" height="1080" fill="#1e1e1e"/>
+  
+  <!-- Title Bar -->
+  <rect x="0" y="0" width="1920" height="35" fill="#323233"/>
+  <circle cx="20" cy="17.5" r="6" fill="#ff5f57"/>
+  <circle cx="40" cy="17.5" r="6" fill="#ffbd2e"/>
+  <circle cx="60" cy="17.5" r="6" fill="#28ca42"/>
+  <text x="960" y="24" font-family="SF Pro Display, -apple-system, sans-serif" font-size="13" fill="#cccccc" text-anchor="middle">my-app — Visual Studio Code</text>
+  
+  <!-- Menu Bar -->
+  <rect x="0" y="35" width="1920" height="30" fill="#2d2d30"/>
+  <text x="20" y="54" font-family="SF Pro Display, -apple-system, sans-serif" font-size="12" fill="#cccccc">File</text>
+  <text x="60" y="54" font-family="SF Pro Display, -apple-system, sans-serif" font-size="12" fill="#cccccc">Edit</text>
+  <text x="100" y="54" font-family="SF Pro Display, -apple-system, sans-serif" font-size="12" fill="#cccccc">View</text>
+  <text x="140" y="54" font-family="SF Pro Display, -apple-system, sans-serif" font-size="12" fill="#cccccc">Go</text>
+  <text x="170" y="54" font-family="SF Pro Display, -apple-system, sans-serif" font-size="12" fill="#cccccc">Run</text>
+  <text x="200" y="54" font-family="SF Pro Display, -apple-system, sans-serif" font-size="12" fill="#cccccc">Terminal</text>
+  <text x="260" y="54" font-family="SF Pro Display, -apple-system, sans-serif" font-size="12" fill="#cccccc">Help</text>
+  
+  <!-- Activity Bar -->
+  <rect x="0" y="65" width="50" height="1015" fill="#333333"/>
+  <rect x="10" y="80" width="30" height="30" rx="4" fill="#007acc"/>
+  <text x="25" y="100" font-family="SF Pro Display, -apple-system, sans-serif" font-size="16" fill="white" text-anchor="middle">📁</text>
+  
+  <rect x="10" y="120" width="30" height="30" rx="4" fill="transparent"/>
+  <text x="25" y="140" font-family="SF Pro Display, -apple-system, sans-serif" font-size="16" fill="#cccccc" text-anchor="middle">🔍</text>
+  
+  <rect x="10" y="160" width="30" height="30" rx="4" fill="transparent"/>
+  <text x="25" y="180" font-family="SF Pro Display, -apple-system, sans-serif" font-size="16" fill="#cccccc" text-anchor="middle">🔗</text>
+  
+  <!-- Sidebar -->
+  <rect x="50" y="65" width="300" height="1015" fill="#252526"/>
+  
+  <!-- Sidebar Header -->
+  <text x="70" y="90" font-family="SF Pro Display, -apple-system, sans-serif" font-size="11" font-weight="600" fill="#cccccc">EXPLORER</text>
+  <text x="320" y="90" font-family="SF Pro Display, -apple-system, sans-serif" font-size="16" fill="#cccccc" text-anchor="end">⋯</text>
+  
+  <!-- File Tree -->
+  <text x="70" y="120" font-family="Menlo, Monaco, 'Courier New', monospace" font-size="13" fill="#cccccc">▼ my-app</text>
+  <text x="90" y="145" font-family="Menlo, Monaco, 'Courier New', monospace" font-size="13" fill="#cccccc">▼ src</text>
+  <text x="110" y="170" font-family="Menlo, Monaco, 'Courier New', monospace" font-size="13" fill="#cccccc">▼ components</text>
+  <rect x="110" y="175" width="200" height="20" fill="#094771"/>
+  <text x="130" y="190" font-family="Menlo, Monaco, 'Courier New', monospace" font-size="13" fill="#ffffff">DeployButton.tsx</text>
+  <text x="130" y="215" font-family="Menlo, Monaco, 'Courier New', monospace" font-size="13" fill="#cccccc">Header.tsx</text>
+  <text x="130" y="240" font-family="Menlo, Monaco, 'Courier New', monospace" font-size="13" fill="#cccccc">Sidebar.tsx</text>
+  <text x="110" y="265" font-family="Menlo, Monaco, 'Courier New', monospace" font-size="13" fill="#cccccc">▼ hooks</text>
+  <text x="130" y="290" font-family="Menlo, Monaco, 'Courier New', monospace" font-size="13" fill="#cccccc">useDeployment.ts</text>
+  <text x="130" y="315" font-family="Menlo, Monaco, 'Courier New', monospace" font-size="13" fill="#cccccc">useAuth.ts</text>
+  <text x="90" y="340" font-family="Menlo, Monaco, 'Courier New', monospace" font-size="13" fill="#cccccc">▼ pages</text>
+  <text x="110" y="365" font-family="Menlo, Monaco, 'Courier New', monospace" font-size="13" fill="#cccccc">dashboard.tsx</text>
+  <text x="110" y="390" font-family="Menlo, Monaco, 'Courier New', monospace" font-size="13" fill="#cccccc">deploy.tsx</text>
+  <text x="90" y="415" font-family="Menlo, Monaco, 'Courier New', monospace" font-size="13" fill="#cccccc">App.tsx</text>
+  <text x="90" y="440" font-family="Menlo, Monaco, 'Courier New', monospace" font-size="13" fill="#cccccc">index.ts</text>
+  <text x="70" y="465" font-family="Menlo, Monaco, 'Courier New', monospace" font-size="13" fill="#cccccc">package.json</text>
+  <text x="70" y="490" font-family="Menlo, Monaco, 'Courier New', monospace" font-size="13" fill="#cccccc">README.md</text>
+  <text x="70" y="515" font-family="Menlo, Monaco, 'Courier New', monospace" font-size="13" fill="#cccccc">codeflowops.config.js</text>
+  
+  <!-- Main Editor -->
+  <rect x="350" y="65" width="1570" height="1015" fill="#1e1e1e"/>
+  
+  <!-- Tab Bar -->
+  <rect x="350" y="65" width="1570" height="35" fill="#2d2d30"/>
+  <rect x="350" y="65" width="200" height="35" fill="#1e1e1e"/>
+  <text x="370" y="87" font-family="SF Pro Display, -apple-system, sans-serif" font-size="13" fill="#ffffff">DeployButton.tsx</text>
+  <text x="530" y="87" font-family="SF Pro Display, -apple-system, sans-serif" font-size="16" fill="#cccccc">×</text>
+  
+  <rect x="550" y="65" width="150" height="35" fill="#2d2d30"/>
+  <text x="570" y="87" font-family="SF Pro Display, -apple-system, sans-serif" font-size="13" fill="#cccccc">useDeployment.ts</text>
+  <text x="680" y="87" font-family="SF Pro Display, -apple-system, sans-serif" font-size="16" fill="#cccccc">×</text>
+  
+  <!-- Editor Content -->
+  <rect x="350" y="100" width="1570" height="980" fill="#1e1e1e"/>
+  
+  <!-- Line Numbers -->
+  <rect x="350" y="100" width="50" height="980" fill="#1e1e1e"/>
+  <text x="370" y="125" font-family="Menlo, Monaco, 'Courier New', monospace" font-size="13" fill="#858585" text-anchor="end">1</text>
+  <text x="370" y="145" font-family="Menlo, Monaco, 'Courier New', monospace" font-size="13" fill="#858585" text-anchor="end">2</text>
+  <text x="370" y="165" font-family="Menlo, Monaco, 'Courier New', monospace" font-size="13" fill="#858585" text-anchor="end">3</text>
+  <text x="370" y="185" font-family="Menlo, Monaco, 'Courier New', monospace" font-size="13" fill="#858585" text-anchor="end">4</text>
+  <text x="370" y="205" font-family="Menlo, Monaco, 'Courier New', monospace" font-size="13" fill="#858585" text-anchor="end">5</text>
+  <text x="370" y="225" font-family="Menlo, Monaco, 'Courier New', monospace" font-size="13" fill="#858585" text-anchor="end">6</text>
+  <text x="370" y="245" font-family="Menlo, Monaco, 'Courier New', monospace" font-size="13" fill="#858585" text-anchor="end">7</text>
+  <text x="370" y="265" font-family="Menlo, Monaco, 'Courier New', monospace" font-size="13" fill="#858585" text-anchor="end">8</text>
+  <text x="370" y="285" font-family="Menlo, Monaco, 'Courier New', monospace" font-size="13" fill="#858585" text-anchor="end">9</text>
+  <text x="370" y="305" font-family="Menlo, Monaco, 'Courier New', monospace" font-size="13" fill="#858585" text-anchor="end">10</text>
+  
+  <!-- Code Content -->
+  <text x="420" y="125" font-family="Menlo, Monaco, 'Courier New', monospace" font-size="13" fill="#569cd6">import</text>
+  <text x="470" y="125" font-family="Menlo, Monaco, 'Courier New', monospace" font-size="13" fill="#ce9178"> React </text>
+  <text x="520" y="125" font-family="Menlo, Monaco, 'Courier New', monospace" font-size="13" fill="#569cd6">from</text>
+  <text x="560" y="125" font-family="Menlo, Monaco, 'Courier New', monospace" font-size="13" fill="#ce9178"> 'react'</text>
+  
+  <text x="420" y="145" font-family="Menlo, Monaco, 'Courier New', monospace" font-size="13" fill="#569cd6">import</text>
+  <text x="470" y="145" font-family="Menlo, Monaco, 'Courier New', monospace" font-size="13" fill="#4ec9b0"> { useDeployment } </text>
+  <text x="620" y="145" font-family="Menlo, Monaco, 'Courier New', monospace" font-size="13" fill="#569cd6">from</text>
+  <text x="660" y="145" font-family="Menlo, Monaco, 'Courier New', monospace" font-size="13" fill="#ce9178"> '../hooks/useDeployment'</text>
+  
+  <text x="420" y="165" font-family="Menlo, Monaco, 'Courier New', monospace" font-size="13" fill="#569cd6">import</text>
+  <text x="470" y="165" font-family="Menlo, Monaco, 'Courier New', monospace" font-size="13" fill="#4ec9b0"> { CodeFlowOpsAPI } </text>
+  <text x="620" y="165" font-family="Menlo, Monaco, 'Courier New', monospace" font-size="13" fill="#569cd6">from</text>
+  <text x="660" y="165" font-family="Menlo, Monaco, 'Courier New', monospace" font-size="13" fill="#ce9178"> 'codeflowops-sdk'</text>
+  
+  <text x="420" y="205" font-family="Menlo, Monaco, 'Courier New', monospace" font-size="13" fill="#569cd6">interface</text>
+  <text x="490" y="205" font-family="Menlo, Monaco, 'Courier New', monospace" font-size="13" fill="#4ec9b0"> DeployButtonProps </text>
+  <text x="650" y="205" font-family="Menlo, Monaco, 'Courier New', monospace" font-size="13" fill="#cccccc">{</text>
+  
+  <text x="440" y="225" font-family="Menlo, Monaco, 'Courier New', monospace" font-size="13" fill="#9cdcfe">projectId</text>
+  <text x="520" y="225" font-family="Menlo, Monaco, 'Courier New', monospace" font-size="13" fill="#cccccc">:</text>
+  <text x="540" y="225" font-family="Menlo, Monaco, 'Courier New', monospace" font-size="13" fill="#569cd6"> string</text>
+  
+  <text x="440" y="245" font-family="Menlo, Monaco, 'Courier New', monospace" font-size="13" fill="#9cdcfe">branch</text>
+  <text x="490" y="245" font-family="Menlo, Monaco, 'Courier New', monospace" font-size="13" fill="#cccccc">:</text>
+  <text x="510" y="245" font-family="Menlo, Monaco, 'Courier New', monospace" font-size="13" fill="#569cd6"> string</text>
+  
+  <text x="440" y="265" font-family="Menlo, Monaco, 'Courier New', monospace" font-size="13" fill="#9cdcfe">environment</text>
+  <text x="540" y="265" font-family="Menlo, Monaco, 'Courier New', monospace" font-size="13" fill="#cccccc">:</text>
+  <text x="560" y="265" font-family="Menlo, Monaco, 'Courier New', monospace" font-size="13" fill="#ce9178"> 'production' </text>
+  <text x="660" y="265" font-family="Menlo, Monaco, 'Courier New', monospace" font-size="13" fill="#cccccc">|</text>
+  <text x="680" y="265" font-family="Menlo, Monaco, 'Courier New', monospace" font-size="13" fill="#ce9178"> 'staging' </text>
+  <text x="760" y="265" font-family="Menlo, Monaco, 'Courier New', monospace" font-size="13" fill="#cccccc">|</text>
+  <text x="780" y="265" font-family="Menlo, Monaco, 'Courier New', monospace" font-size="13" fill="#ce9178"> 'development'</text>
+  
+  <text x="420" y="285" font-family="Menlo, Monaco, 'Courier New', monospace" font-size="13" fill="#cccccc">}</text>
+  
+  <text x="420" y="325" font-family="Menlo, Monaco, 'Courier New', monospace" font-size="13" fill="#569cd6">export</text>
+  <text x="470" y="325" font-family="Menlo, Monaco, 'Courier New', monospace" font-size="13" fill="#569cd6"> const </text>
+  <text x="520" y="325" font-family="Menlo, Monaco, 'Courier New', monospace" font-size="13" fill="#dcdcaa">DeployButton</text>
+  <text x="620" y="325" font-family="Menlo, Monaco, 'Courier New', monospace" font-size="13" fill="#cccccc">:</text>
+  <text x="640" y="325" font-family="Menlo, Monaco, 'Courier New', monospace" font-size="13" fill="#4ec9b0"> React.FC</text>
+  <text x="720" y="325" font-family="Menlo, Monaco, 'Courier New', monospace" font-size="13" fill="#cccccc">&lt;</text>
+  <text x="740" y="325" font-family="Menlo, Monaco, 'Courier New', monospace" font-size="13" fill="#4ec9b0">DeployButtonProps</text>
+  <text x="880" y="325" font-family="Menlo, Monaco, 'Courier New', monospace" font-size="13" fill="#cccccc">&gt;</text>
+  <text x="900" y="325" font-family="Menlo, Monaco, 'Courier New', monospace" font-size="13" fill="#cccccc"> = ({</text>
+  
+  <text x="440" y="345" font-family="Menlo, Monaco, 'Courier New', monospace" font-size="13" fill="#9cdcfe">projectId</text>
+  <text x="520" y="345" font-family="Menlo, Monaco, 'Courier New', monospace" font-size="13" fill="#cccccc">,</text>
+  
+  <text x="440" y="365" font-family="Menlo, Monaco, 'Courier New', monospace" font-size="13" fill="#9cdcfe">branch</text>
+  <text x="490" y="365" font-family="Menlo, Monaco, 'Courier New', monospace" font-size="13" fill="#cccccc">,</text>
+  
+  <text x="440" y="385" font-family="Menlo, Monaco, 'Courier New', monospace" font-size="13" fill="#9cdcfe">environment</text>
+  
+  <text x="420" y="405" font-family="Menlo, Monaco, 'Courier New', monospace" font-size="13" fill="#cccccc">}) =&gt; {</text>
+  
+  <text x="440" y="425" font-family="Menlo, Monaco, 'Courier New', monospace" font-size="13" fill="#569cd6">const</text>
+  <text x="480" y="425" font-family="Menlo, Monaco, 'Courier New', monospace" font-size="13" fill="#cccccc"> { </text>
+  <text x="500" y="425" font-family="Menlo, Monaco, 'Courier New', monospace" font-size="13" fill="#9cdcfe">deploy</text>
+  <text x="550" y="425" font-family="Menlo, Monaco, 'Courier New', monospace" font-size="13" fill="#cccccc">, </text>
+  <text x="570" y="425" font-family="Menlo, Monaco, 'Courier New', monospace" font-size="13" fill="#9cdcfe">isLoading</text>
+  <text x="650" y="425" font-family="Menlo, Monaco, 'Courier New', monospace" font-size="13" fill="#cccccc">, </text>
+  <text x="670" y="425" font-family="Menlo, Monaco, 'Courier New', monospace" font-size="13" fill="#9cdcfe">error</text>
+  <text x="710" y="425" font-family="Menlo, Monaco, 'Courier New', monospace" font-size="13" fill="#cccccc"> } = </text>
+  <text x="760" y="425" font-family="Menlo, Monaco, 'Courier New', monospace" font-size="13" fill="#dcdcaa">useDeployment</text>
+  <text x="870" y="425" font-family="Menlo, Monaco, 'Courier New', monospace" font-size="13" fill="#cccccc">()</text>
+  
+  <text x="440" y="465" font-family="Menlo, Monaco, 'Courier New', monospace" font-size="13" fill="#569cd6">const</text>
+  <text x="480" y="465" font-family="Menlo, Monaco, 'Courier New', monospace" font-size="13" fill="#dcdcaa"> handleDeploy </text>
+  <text x="590" y="465" font-family="Menlo, Monaco, 'Courier New', monospace" font-size="13" fill="#cccccc">= </text>
+  <text x="610" y="465" font-family="Menlo, Monaco, 'Courier New', monospace" font-size="13" fill="#569cd6">async </text>
+  <text x="660" y="465" font-family="Menlo, Monaco, 'Courier New', monospace" font-size="13" fill="#cccccc">() =&gt; {</text>
+  
+  <text x="460" y="485" font-family="Menlo, Monaco, 'Courier New', monospace" font-size="13" fill="#569cd6">try</text>
+  <text x="490" y="485" font-family="Menlo, Monaco, 'Courier New', monospace" font-size="13" fill="#cccccc"> {</text>
+  
+  <text x="480" y="505" font-family="Menlo, Monaco, 'Courier New', monospace" font-size="13" fill="#569cd6">await</text>
+  <text x="520" y="505" font-family="Menlo, Monaco, 'Courier New', monospace" font-size="13" fill="#dcdcaa"> deploy</text>
+  <text x="570" y="505" font-family="Menlo, Monaco, 'Courier New', monospace" font-size="13" fill="#cccccc">({</text>
+  
+  <text x="500" y="525" font-family="Menlo, Monaco, 'Courier New', monospace" font-size="13" fill="#9cdcfe">projectId</text>
+  <text x="580" y="525" font-family="Menlo, Monaco, 'Courier New', monospace" font-size="13" fill="#cccccc">,</text>
+  
+  <text x="500" y="545" font-family="Menlo, Monaco, 'Courier New', monospace" font-size="13" fill="#9cdcfe">branch</text>
+  <text x="550" y="545" font-family="Menlo, Monaco, 'Courier New', monospace" font-size="13" fill="#cccccc">,</text>
+  
+  <text x="500" y="565" font-family="Menlo, Monaco, 'Courier New', monospace" font-size="13" fill="#9cdcfe">environment</text>
+  
+  <text x="480" y="585" font-family="Menlo, Monaco, 'Courier New', monospace" font-size="13" fill="#cccccc">})</text>
+  
+  <text x="460" y="605" font-family="Menlo, Monaco, 'Courier New', monospace" font-size="13" fill="#cccccc">}</text>
+  <text x="480" y="605" font-family="Menlo, Monaco, 'Courier New', monospace" font-size="13" fill="#569cd6"> catch </text>
+  <text x="530" y="605" font-family="Menlo, Monaco, 'Courier New', monospace" font-size="13" fill="#cccccc">(</text>
+  <text x="540" y="605" font-family="Menlo, Monaco, 'Courier New', monospace" font-size="13" fill="#9cdcfe">err</text>
+  <text x="570" y="605" font-family="Menlo, Monaco, 'Courier New', monospace" font-size="13" fill="#cccccc">) {</text>
+  
+  <text x="480" y="625" font-family="Menlo, Monaco, 'Courier New', monospace" font-size="13" fill="#9cdcfe">console</text>
+  <text x="540" y="625" font-family="Menlo, Monaco, 'Courier New', monospace" font-size="13" fill="#cccccc">.</text>
+  <text x="550" y="625" font-family="Menlo, Monaco, 'Courier New', monospace" font-size="13" fill="#dcdcaa">error</text>
+  <text x="590" y="625" font-family="Menlo, Monaco, 'Courier New', monospace" font-size="13" fill="#cccccc">(</text>
+  <text x="600" y="625" font-family="Menlo, Monaco, 'Courier New', monospace" font-size="13" fill="#ce9178">'Deployment failed:'</text>
+  <text x="740" y="625" font-family="Menlo, Monaco, 'Courier New', monospace" font-size="13" fill="#cccccc">, </text>
+  <text x="760" y="625" font-family="Menlo, Monaco, 'Courier New', monospace" font-size="13" fill="#9cdcfe">err</text>
+  <text x="790" y="625" font-family="Menlo, Monaco, 'Courier New', monospace" font-size="13" fill="#cccccc">)</text>
+  
+  <text x="460" y="645" font-family="Menlo, Monaco, 'Courier New', monospace" font-size="13" fill="#cccccc">}</text>
+  
+  <text x="440" y="665" font-family="Menlo, Monaco, 'Courier New', monospace" font-size="13" fill="#cccccc">}</text>
+  
+  <!-- CodeFlowOps Integration Highlight -->
+  <rect x="420" y="695" width="600" height="100" rx="8" fill="#1a365d" stroke="#3182ce" stroke-width="2"/>
+  <text x="440" y="720" font-family="SF Pro Display, -apple-system, sans-serif" font-size="14" font-weight="600" fill="#90cdf4">🚀 CodeFlowOps Integration</text>
+  <text x="440" y="740" font-family="Menlo, Monaco, 'Courier New', monospace" font-size="12" fill="#e2e8f0">// Import the CodeFlowOps SDK</text>
+  <text x="440" y="760" font-family="Menlo, Monaco, 'Courier New', monospace" font-size="12" fill="#68d391">npm install codeflowops-sdk</text>
+  <text x="440" y="780" font-family="Menlo, Monaco, 'Courier New', monospace" font-size="12" fill="#e2e8f0">// Zero-config deployment with AI optimization</text>
+  
+  <!-- Terminal -->
+  <rect x="350" y="900" width="1570" height="180" fill="#1e1e1e"/>
+  <rect x="350" y="900" width="1570" height="30" fill="#2d2d30"/>
+  <text x="370" y="920" font-family="SF Pro Display, -apple-system, sans-serif" font-size="13" fill="#cccccc">TERMINAL</text>
+  <text x="1890" y="920" font-family="SF Pro Display, -apple-system, sans-serif" font-size="16" fill="#cccccc" text-anchor="end">×</text>
+  
+  <!-- Terminal Content -->
+  <text x="370" y="950" font-family="Menlo, Monaco, 'Courier New', monospace" font-size="13" fill="#10b981">$ npx codeflowops deploy</text>
+  <text x="370" y="970" font-family="Menlo, Monaco, 'Courier New', monospace" font-size="13" fill="#94a3b8">🔍 Analyzing project structure...</text>
+  <text x="370" y="990" font-family="Menlo, Monaco, 'Courier New', monospace" font-size="13" fill="#94a3b8">🤖 AI optimizing deployment configuration...</text>
+  <text x="370" y="1010" font-family="Menlo, Monaco, 'Courier New', monospace" font-size="13" fill="#94a3b8">📦 Building and deploying to production...</text>
+  <text x="370" y="1030" font-family="Menlo, Monaco, 'Courier New', monospace" font-size="13" fill="#10b981">✅ Deployment successful!</text>
+  <text x="370" y="1050" font-family="Menlo, Monaco, 'Courier New', monospace" font-size="13" fill="#3b82f6">🌐 https://my-app.codeflowops.app</text>
+  
+  <!-- Cursor -->
+  <rect x="370" y="1055" width="8" height="15" fill="#cccccc"/>
+</svg>

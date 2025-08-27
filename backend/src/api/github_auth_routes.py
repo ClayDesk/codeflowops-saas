@@ -38,8 +38,16 @@ GITHUB_CLIENT_SECRET = os.getenv("GITHUB_CLIENT_SECRET", "65006527de2a3974af1a80
 GITHUB_CALLBACK_URL = os.getenv("GITHUB_CALLBACK_URL", "https://api.codeflowops.com/api/v1/auth/github/callback")
 FRONTEND_URL = os.getenv("FRONTEND_URL", "https://codeflowops.com")
 
-# In-memory session storage (use Redis/database in production)
-_github_sessions = {}
+# Database-backed session storage (persistent across server restarts)
+try:
+    from ..utils.session_storage import session_storage
+except ImportError:
+    try:
+        from src.utils.session_storage import session_storage
+    except ImportError:
+        # Fallback to in-memory storage if session_storage is not available
+        session_storage = None
+        _github_sessions = {}
 
 class GitHubUser(BaseModel):
     id: str
@@ -48,6 +56,39 @@ class GitHubUser(BaseModel):
     name: Optional[str] = None
     avatar_url: Optional[str] = None
     provider: str = "github"
+
+# Session management helper functions
+def set_session(session_id: str, data: Dict[str, Any]) -> bool:
+    """Store session data (database-backed or in-memory fallback)"""
+    if session_storage:
+        return session_storage.set(session_id, data)
+    else:
+        _github_sessions[session_id] = data
+        return True
+
+def get_session(session_id: str) -> Optional[Dict[str, Any]]:
+    """Retrieve session data (database-backed or in-memory fallback)"""
+    if session_storage:
+        return session_storage.get(session_id)
+    else:
+        return _github_sessions.get(session_id)
+
+def delete_session(session_id: str) -> bool:
+    """Delete session data (database-backed or in-memory fallback)"""
+    if session_storage:
+        return session_storage.delete(session_id)
+    else:
+        if session_id in _github_sessions:
+            del _github_sessions[session_id]
+            return True
+        return False
+
+def session_exists(session_id: str) -> bool:
+    """Check if session exists (database-backed or in-memory fallback)"""
+    if session_storage:
+        return session_storage.get(session_id) is not None
+    else:
+        return session_id in _github_sessions
 
 async def create_or_update_github_user_in_cognito(github_user: GitHubUser) -> Optional[Dict[str, Any]]:
     """Create or update GitHub user in Cognito and return auth tokens"""
@@ -155,13 +196,13 @@ async def github_login(request: Request):
         # Generate state parameter for security
         state = str(uuid.uuid4())
         
-        # Store state in session (in production, use secure session storage)
+        # Store state in session (database-backed for persistence)
         session_id = str(uuid.uuid4())
-        _github_sessions[session_id] = {
+        set_session(session_id, {
             "state": state,
-            "created_at": datetime.utcnow(),
+            "created_at": datetime.utcnow().isoformat(),
             "ip": request.client.host if request.client else "unknown"
-        }
+        })
         
         # Build GitHub OAuth URL
         github_url = (

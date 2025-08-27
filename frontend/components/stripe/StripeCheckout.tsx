@@ -10,8 +10,8 @@ import { Badge } from '@/components/ui/badge'
 import { Loader2, CheckCircle, AlertCircle, CreditCard } from 'lucide-react'
 import { useStripePayment } from '@/hooks/use-stripe-payment'
 
-// Initialize Stripe
-const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!)
+// Initialize Stripe with production key
+const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY || 'pk_live_mQw9ZU3awBV35fG4HB8zPWMH')
 
 interface CheckoutFormProps {
   planTier: string
@@ -92,7 +92,7 @@ function CheckoutForm({ planTier, planName, planPrice, planFeatures, trialDays, 
         <CardDescription>
           Subscribe to {planName} for {planPrice}/month
           {trialDays && trialDays > 0 && (
-            <Badge variant="outline" className="ml-2">
+            <Badge>
               {trialDays} days free trial
             </Badge>
           )}
@@ -167,7 +167,7 @@ function CheckoutForm({ planTier, planName, planPrice, planFeatures, trialDays, 
 }
 
 interface StripeCheckoutProps {
-  clientSecret: string
+  clientSecret?: string
   planTier: string
   planName: string
   planPrice: string
@@ -187,8 +187,64 @@ export function StripeCheckout({
   onSuccess,
   onCancel
 }: StripeCheckoutProps) {
+  const [actualClientSecret, setActualClientSecret] = useState<string | null>(clientSecret || null)
+  const [isCreatingSubscription, setIsCreatingSubscription] = useState(false)
+  const { createSubscription } = useStripePayment({
+    onSuccess: (result: any) => {
+      if (result.client_secret) {
+        setActualClientSecret(result.client_secret)
+      }
+    },
+    onError: (error: string) => {
+      console.error('Failed to create subscription:', error)
+    }
+  })
+
+  // If no clientSecret is provided, create a subscription
+  useEffect(() => {
+    if (!clientSecret && !actualClientSecret && !isCreatingSubscription) {
+      setIsCreatingSubscription(true)
+      createSubscription({
+        planTier,
+        trialDays: trialDays || 0,
+        pricingContext: {
+          source: 'checkout_page',
+          current_plan: 'free'
+        }
+      }).finally(() => {
+        setIsCreatingSubscription(false)
+      })
+    }
+  }, [clientSecret, actualClientSecret, isCreatingSubscription, createSubscription, planTier, trialDays])
+
+  if (isCreatingSubscription) {
+    return (
+      <Card className="w-full max-w-2xl mx-auto">
+        <CardContent className="flex items-center justify-center p-8">
+          <Loader2 className="h-6 w-6 animate-spin mr-2" />
+          <span>Setting up your subscription...</span>
+        </CardContent>
+      </Card>
+    )
+  }
+
+  if (!actualClientSecret) {
+    return (
+      <Card className="w-full max-w-2xl mx-auto">
+        <CardContent className="p-8">
+          <Alert>
+            <AlertCircle className="h-4 w-4" />
+            <AlertDescription>
+              Unable to initialize payment. Please try again or contact support.
+            </AlertDescription>
+          </Alert>
+        </CardContent>
+      </Card>
+    )
+  }
+
   const options = {
-    clientSecret,
+    clientSecret: actualClientSecret,
     appearance: {
       theme: 'stripe' as const,
       variables: {

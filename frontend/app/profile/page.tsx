@@ -4,12 +4,14 @@ import React, { useState, useEffect, Suspense } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { useAuth } from '@/lib/auth-context'
 import { useTheme } from 'next-themes'
+import { useStripePayment } from '@/hooks/use-stripe-payment'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Badge } from "@/components/ui/badge"
 import { SubscriptionPricing } from '@/components/profile/SubscriptionPricing'
+import { BillingHistoryModal } from '@/components/profile/BillingHistoryModal'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Alert, AlertDescription } from '@/components/ui/alert'
@@ -34,7 +36,8 @@ import {
   Camera,
   Upload,
   Sun,
-  Moon
+  Moon,
+  RefreshCw
 } from 'lucide-react'
 
 interface Deployment {
@@ -49,6 +52,7 @@ interface Deployment {
 }
 
 interface Subscription {
+  id?: string
   plan: 'trial' | 'free' | 'starter' | 'pro' | 'enterprise'
   status: 'active' | 'cancelled' | 'expired'
   currentPeriodEnd: string | null
@@ -71,6 +75,25 @@ function ProfilePageContent() {
     updateProfilePicture,
     removeProfilePicture
   } = useAuth()
+  const { 
+    createSubscription, 
+    upgradeSubscription, 
+    cancelSubscription,
+    loading: stripeLoading 
+  } = useStripePayment({
+    onSuccess: (result) => {
+      if (result.client_secret) {
+        // Redirect to Stripe checkout
+        window.location.href = `/checkout?client_secret=${result.client_secret}`
+      } else {
+        // Refresh page to show updated subscription
+        window.location.reload()
+      }
+    },
+    onError: (error) => {
+      alert(`Payment operation failed: ${error}`)
+    }
+  })
   const [isLoading, setIsLoading] = useState(true)
   const [isEditing, setIsEditing] = useState(false)
   const [deployments, setDeployments] = useState<Deployment[]>([])
@@ -81,6 +104,134 @@ function ProfilePageContent() {
   })
   const [isUploadingPicture, setIsUploadingPicture] = useState(false)
   const [activeTab, setActiveTab] = useState('overview')
+
+  // Stripe payment management functions
+  const refreshSubscriptionStatus = async () => {
+    try {
+      const token = localStorage.getItem('codeflowops_access_token')
+      const apiUrl = 'https://api.codeflowops.com'
+      const response = await fetch(`${apiUrl}/api/v1/payments/user-subscription-status`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      })
+      
+      if (response.ok) {
+        const data = await response.json()
+        if (data.subscription) {
+          setSubscription({
+            id: data.subscription.subscription_id,
+            plan: data.subscription.plan_tier || 'free',
+            status: data.subscription.status || 'active',
+            currentPeriodEnd: data.subscription.current_period_end,
+            deployments: {
+              used: data.subscription.usage?.projects_count || 0,
+              limit: data.subscription.plan?.max_projects || 5
+            }
+          })
+        }
+      }
+    } catch (error) {
+      console.error('Failed to refresh subscription status:', error)
+    }
+  }
+
+  const handleUpgradeToPro = async () => {
+    try {
+      await createSubscription({
+        planTier: 'pro',
+        trialDays: 14,
+        pricingContext: {
+          source: 'profile_upgrade',
+          current_plan: subscription?.plan
+        }
+      })
+    } catch (error) {
+      console.error('Upgrade failed:', error)
+    }
+  }
+
+  const handleManagePaymentMethod = async () => {
+    try {
+      const token = localStorage.getItem('codeflowops_access_token')
+      const apiUrl = 'https://api.codeflowops.com'
+      const response = await fetch(`${apiUrl}/api/v1/payments/customer-portal`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      })
+      
+      if (response.ok) {
+        const { url } = await response.json()
+        window.location.href = url
+      } else {
+        alert('Unable to access payment management. Please try again.')
+      }
+    } catch (error) {
+      console.error('Payment method management failed:', error)
+      alert('Unable to access payment management. Please try again.')
+    }
+  }
+
+  const handleViewBillingHistory = async () => {
+    const token = localStorage.getItem('codeflowops_access_token')
+    const apiUrl = 'https://api.codeflowops.com'
+    const response = await fetch(`${apiUrl}/api/v1/payments/billing-history`, {
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      }
+    })
+    
+    if (!response.ok) {
+      throw new Error('Failed to fetch billing history')
+    }
+    
+    const billingData = await response.json()
+    return billingData.invoices || []
+  }
+
+  const handleCancelSubscription = async () => {
+    if (!subscription?.plan || subscription.plan === 'free') {
+      alert('No active subscription to cancel.')
+      return
+    }
+
+    const confirmed = confirm('Are you sure you want to cancel your subscription? You will lose access to premium features at the end of your billing period.')
+    if (!confirmed) return
+
+    try {
+      // Call the cancel API directly since the hook expects different parameters
+      const token = localStorage.getItem('codeflowops_access_token')
+      const apiUrl = 'https://api.codeflowops.com'
+      const response = await fetch(`${apiUrl}/api/v1/payments/cancel-subscription`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          subscription_id: subscription.id || 'current',
+          at_period_end: true
+        })
+      })
+
+      if (response.ok) {
+        alert('Subscription cancelled successfully. You will retain access until the end of your billing period.')
+        // Refresh the page to show updated subscription status
+        window.location.reload()
+      } else {
+        const errorData = await response.json()
+        alert(`Failed to cancel subscription: ${errorData.detail || 'Unknown error'}`)
+      }
+    } catch (error) {
+      console.error('Subscription cancellation failed:', error)
+      alert('Failed to cancel subscription. Please contact support.')
+    }
+  }
 
   // Fetch user data from API
   useEffect(() => {
@@ -184,31 +335,16 @@ function ProfilePageContent() {
   }
 
   const getStatusBadge = (status: string) => {
-    const variants = {
-      success: 'default',
-      failed: 'destructive',
-      building: 'secondary',
-      pending: 'outline'
-    } as const
-    
     return (
-      <Badge variant={variants[status as keyof typeof variants] || 'outline'}>
+      <Badge>
         {status.charAt(0).toUpperCase() + status.slice(1)}
       </Badge>
     )
   }
 
   const getPlanBadge = (plan: string) => {
-    const colors = {
-      trial: 'bg-blue-100 text-blue-800',
-      free: 'bg-gray-100 text-gray-800',
-      starter: 'bg-green-100 text-green-800',
-      pro: 'bg-purple-100 text-purple-800',
-      enterprise: 'bg-orange-100 text-orange-800'
-    } as const
-
     return (
-      <Badge className={colors[plan as keyof typeof colors] || colors.trial}>
+      <Badge>
         {plan.toUpperCase()}
       </Badge>
     )
@@ -458,7 +594,7 @@ function ProfilePageContent() {
                           </div>
                         </div>
                         <div className="flex items-center space-x-3">
-                          <Badge variant="outline">{deployment.technology}</Badge>
+                          <Badge>{deployment.technology}</Badge>
                           {getStatusBadge(deployment.status)}
                           <p className="text-sm text-muted-foreground">
                             {new Date(deployment.createdAt || deployment.created_at || '').toLocaleDateString()}
@@ -539,7 +675,7 @@ function ProfilePageContent() {
                           </div>
                         </div>
                         <div className="flex items-center space-x-3">
-                          <Badge variant="outline">{deployment.technology}</Badge>
+                          <Badge>{deployment.technology}</Badge>
                           {getStatusBadge(deployment.status)}
                           <div className="text-right">
                             <p className="text-sm text-muted-foreground">
@@ -577,7 +713,7 @@ function ProfilePageContent() {
                       </div>
                       <div className="flex items-center justify-between">
                         <span className="font-medium">Status:</span>
-                        <Badge variant={subscription.status === 'active' ? 'default' : 'secondary'}>
+                        <Badge>
                           {subscription.status.toUpperCase()}
                         </Badge>
                       </div>
@@ -615,10 +751,25 @@ function ProfilePageContent() {
                       <p className="text-sm text-muted-foreground">
                         Upgrade your plan to unlock more features and deployments.
                       </p>
-                      <Button className="w-full text-white dark:text-white">
-                        Upgrade to Pro
+                      <Button 
+                        className="w-full text-white dark:text-white"
+                        onClick={handleUpgradeToPro}
+                        disabled={stripeLoading}
+                      >
+                        {stripeLoading ? (
+                          <>
+                            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                            Processing...
+                          </>
+                        ) : (
+                          'Upgrade to Pro'
+                        )}
                       </Button>
-                      <Button variant="outline" className="w-full dark:text-white dark:border-gray-600 dark:hover:bg-gray-700">
+                      <Button 
+                        variant="outline" 
+                        className="w-full dark:text-white dark:border-gray-600 dark:hover:bg-gray-700"
+                        onClick={() => setActiveTab('subscription')}
+                      >
                         View All Plans
                       </Button>
                     </div>
@@ -627,14 +778,51 @@ function ProfilePageContent() {
                       <p className="text-sm text-muted-foreground">
                         Manage your subscription and billing.
                       </p>
-                      <Button variant="outline" className="w-full dark:text-white dark:border-gray-600 dark:hover:bg-gray-700">
-                        Update Payment Method
+                      <Button 
+                        variant="outline" 
+                        className="w-full dark:text-white dark:border-gray-600 dark:hover:bg-gray-700"
+                        onClick={handleManagePaymentMethod}
+                        disabled={stripeLoading}
+                      >
+                        {stripeLoading ? (
+                          <>
+                            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                            Loading...
+                          </>
+                        ) : (
+                          'Update Payment Method'
+                        )}
                       </Button>
-                      <Button variant="outline" className="w-full dark:text-white dark:border-gray-600 dark:hover:bg-gray-700">
-                        View Billing History
-                      </Button>
-                      <Button variant="destructive" className="w-full text-white dark:text-white">
-                        Cancel Subscription
+                      <BillingHistoryModal onFetchBillingHistory={handleViewBillingHistory}>
+                        <Button 
+                          variant="outline" 
+                          className="w-full dark:text-white dark:border-gray-600 dark:hover:bg-gray-700"
+                          disabled={stripeLoading}
+                        >
+                          {stripeLoading ? (
+                            <>
+                              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                              Loading...
+                            </>
+                          ) : (
+                            'View Billing History'
+                          )}
+                        </Button>
+                      </BillingHistoryModal>
+                      <Button 
+                        variant="destructive" 
+                        className="w-full text-white dark:text-white"
+                        onClick={handleCancelSubscription}
+                        disabled={stripeLoading}
+                      >
+                        {stripeLoading ? (
+                          <>
+                            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                            Processing...
+                          </>
+                        ) : (
+                          'Cancel Subscription'
+                        )}
                       </Button>
                     </div>
                   )}

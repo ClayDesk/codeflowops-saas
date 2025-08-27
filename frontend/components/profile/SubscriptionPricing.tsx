@@ -1,15 +1,24 @@
 'use client'
 
 import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
-import { CheckCircle } from 'lucide-react'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+
+interface Plan {
+  tier: string
+  name: string
+  price_monthly: number
+  description: string
+  features: string[]
+  max_projects: number
+  popular?: boolean
+  trial_days?: number
+}
 
 interface SubscriptionPricingProps {
   currentPlan?: string
 }
 
 export function SubscriptionPricing({ currentPlan = 'free' }: SubscriptionPricingProps) {
-  // Use static pricing for reliability - no API calls, no loading states
   const formatPrice = (priceInCents: number) => {
     if (priceInCents === 0) return 'Free'
     return new Intl.NumberFormat('en-US', {
@@ -19,7 +28,7 @@ export function SubscriptionPricing({ currentPlan = 'free' }: SubscriptionPricin
     }).format(priceInCents / 100)
   }
 
-  const staticPlans = [
+  const staticPlans: Plan[] = [
     {
       tier: 'free',
       name: 'Free',
@@ -60,7 +69,7 @@ export function SubscriptionPricing({ currentPlan = 'free' }: SubscriptionPricin
     }
   ]
 
-  const getPlanButton = (plan: any) => {
+  const getPlanButton = (plan: Plan) => {
     const isCurrentPlan = currentPlan === plan.tier
     const cta = plan.tier === 'free' ? 'Get Started Free' :
                 plan.tier === 'enterprise' ? 'Contact Sales' :
@@ -72,7 +81,7 @@ export function SubscriptionPricing({ currentPlan = 'free' }: SubscriptionPricin
         <Button 
           variant="secondary"
           className="w-full"
-          disabled
+          disabled={true}
         >
           Current Plan
         </Button>
@@ -103,10 +112,14 @@ export function SubscriptionPricing({ currentPlan = 'free' }: SubscriptionPricin
       )
     }
 
+    const handleSubscribe = () => {
+      window.location.href = `/checkout?plan=${plan.tier}`
+    }
+
     return (
       <Button 
         className="w-full"
-        onClick={() => window.location.href = `/register?plan=${plan.tier}`}
+        onClick={handleSubscribe}
       >
         {cta}
       </Button>
@@ -114,65 +127,73 @@ export function SubscriptionPricing({ currentPlan = 'free' }: SubscriptionPricin
   }
 
   return (
-    <div className="space-y-6">
+    <div className="py-8">
+      <div className="text-center mb-12">
+        <h2 className="text-3xl font-bold mb-4">Choose Your Plan</h2>
+        <p className="text-lg text-muted-foreground">
+          Scale your development workflow with our flexible pricing
+        </p>
+      </div>
+
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        {staticPlans.map((plan) => {
-          const isCurrentPlan = currentPlan === plan.tier
-          const displayPrice = plan.price_monthly
-
-          return (
-            <div
-              key={plan.tier}
-              className={`relative p-6 rounded-lg border transition-all duration-200 ${
-                plan.popular
-                  ? 'border-blue-500 ring-1 ring-blue-500 shadow-lg'
-                  : isCurrentPlan
-                  ? 'border-green-500 ring-1 ring-green-500'
-                  : 'border-gray-200 dark:border-gray-700'
-              }`}
-            >
-              {/* Popular Badge */}
-              {plan.popular && (
-                <div className="absolute -top-3 left-1/2 transform -translate-x-1/2">
-                  <Badge className="bg-blue-600 text-white">Most Popular</Badge>
-                </div>
-              )}
-
-              {/* Current Plan Badge */}
-              {isCurrentPlan && (
-                <div className="absolute -top-3 right-4">
-                  <Badge variant="secondary" className="bg-green-600 text-white">Current Plan</Badge>
-                </div>
-              )}
-
-              <div className="text-center mb-6">
-                <h3 className="text-lg font-semibold mb-2">{plan.name}</h3>
-                <div className="mb-2">
-                  <span className="text-3xl font-bold">
-                    {plan.tier === 'enterprise' ? 'Custom' : formatPrice(displayPrice)}
-                  </span>
-                  {plan.tier !== 'free' && plan.tier !== 'enterprise' && (
-                    <span className="text-gray-500 dark:text-gray-400">/month</span>
-                  )}
-                </div>
-                <p className="text-sm text-gray-600 dark:text-gray-400">{plan.description}</p>
+        {staticPlans.map((plan) => (
+          <Card 
+            key={plan.tier} 
+            className={`relative ${
+              plan.popular 
+                ? 'border-primary shadow-lg scale-105' 
+                : ''
+            }`}
+          >
+            {plan.popular && (
+              <div className="absolute -top-3 left-1/2 transform -translate-x-1/2">
+                <span className="bg-primary text-primary-foreground px-3 py-1 rounded-full text-sm font-medium">
+                  Most Popular
+                </span>
               </div>
-
-              {/* Features */}
-              <div className="space-y-3 mb-6">
+            )}
+            
+            <CardHeader className="text-center">
+              <CardTitle className="text-xl mb-2">{plan.name}</CardTitle>
+              <div className="mb-4">
+                <span className="text-4xl font-bold">
+                  {formatPrice(plan.price_monthly)}
+                </span>
+                {plan.price_monthly > 0 && (
+                  <span className="text-muted-foreground">/month</span>
+                )}
+              </div>
+              <CardDescription>{plan.description}</CardDescription>
+            </CardHeader>
+            
+            <CardContent className="space-y-4">
+              <ul className="space-y-2 mb-6">
                 {plan.features.map((feature, index) => (
-                  <div key={index} className="flex items-start">
-                    <CheckCircle className="h-5 w-5 text-green-500 mt-0.5 mr-3 flex-shrink-0" />
-                    <span className="text-sm">{feature}</span>
-                  </div>
+                  <li key={index} className="flex items-center text-sm">
+                    <span className="mr-2 text-primary">✓</span>
+                    {feature}
+                  </li>
                 ))}
-              </div>
-
-              {/* CTA Button */}
+              </ul>
+              
               {getPlanButton(plan)}
-            </div>
-          )
-        })}
+              
+              {plan.trial_days && plan.trial_days > 0 && (
+                <p className="text-xs text-center text-muted-foreground">
+                  {plan.trial_days}-day free trial • Cancel anytime
+                </p>
+              )}
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+      
+      <div className="mt-12 text-center">
+        <p className="text-sm text-muted-foreground">
+          All plans include our core deployment features. 
+          <br />
+          Need something custom? <a href="/contact" className="text-primary hover:underline">Contact us</a>
+        </p>
       </div>
     </div>
   )

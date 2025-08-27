@@ -21,7 +21,7 @@ export function useStripePayment({ onSuccess, onError }: UseStripePaymentOptions
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'https://api.codeflowops.com'
+  const API_BASE = 'https://api.codeflowops.com'
 
   const getAuthHeaders = () => {
     const token = localStorage.getItem('codeflowops_access_token')
@@ -175,7 +175,8 @@ export function useStripePayment({ onSuccess, onError }: UseStripePaymentOptions
       setError(null)
 
       const params = new URLSearchParams()
-      Object.entries(context).forEach(([key, value]) => {
+      const entries = Object.keys(context).map(key => [key, context[key]])
+      entries.forEach(([key, value]) => {
         if (value) params.append(key, value.toString())
       })
 
@@ -202,6 +203,61 @@ export function useStripePayment({ onSuccess, onError }: UseStripePaymentOptions
     }
   }
 
+  const getCustomerPortalUrl = async () => {
+    try {
+      setLoading(true)
+      setError(null)
+
+      const response = await fetch(`${API_BASE}/api/v1/payments/customer-portal`, {
+        method: 'POST',
+        headers: getAuthHeaders()
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.detail || 'Failed to get customer portal URL')
+      }
+
+      const result = await response.json()
+      return result.url
+
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'An error occurred'
+      setError(errorMessage)
+      onError?.(errorMessage)
+      throw err
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const getBillingHistory = async () => {
+    try {
+      setLoading(true)
+      setError(null)
+
+      const response = await fetch(`${API_BASE}/api/v1/payments/billing-history`, {
+        headers: getAuthHeaders()
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.detail || 'Failed to get billing history')
+      }
+
+      const result = await response.json()
+      return result
+
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'An error occurred'
+      setError(errorMessage)
+      onError?.(errorMessage)
+      throw err
+    } finally {
+      setLoading(false)
+    }
+  }
+
   return {
     loading,
     error,
@@ -210,6 +266,8 @@ export function useStripePayment({ onSuccess, onError }: UseStripePaymentOptions
     cancelSubscription,
     getSubscriptionStatus,
     getPricingWithPaymentInfo,
+    getCustomerPortalUrl,
+    getBillingHistory,
     clearError: () => setError(null)
   }
 }

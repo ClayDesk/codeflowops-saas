@@ -12,7 +12,6 @@ import { Label } from '@/components/ui/label';
 import { useApiConfig, useSmartDeployApi } from '@/lib/api';
 import { CreateDeploymentModal } from './CreateDeploymentModal';
 import { TestFrameworkModal } from '../test/TestFrameworkModal';
-import { QuotaWarning } from '@/components/quota/QuotaWarning';
 import { 
   Cloud, 
   Rocket, 
@@ -1099,11 +1098,6 @@ export function SmartDeployDashboard() {
               </Button>
             </div>
           </div>
-        </div>
-
-        {/* Quota Warning */}
-        <div className="mb-6">
-          <QuotaWarning beforeAction="deploy" />
         </div>
 
         {/* Temporary Test Component */}

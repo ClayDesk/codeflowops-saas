@@ -12,7 +12,6 @@ import { Label } from '@/components/ui/label'
 import { Badge } from "@/components/ui/badge"
 import { SubscriptionPricing } from '@/components/profile/SubscriptionPricing'
 import { BillingHistoryModal } from '@/components/profile/BillingHistoryModal'
-import { QuotaDisplay } from '@/components/quota/QuotaDisplay'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Alert, AlertDescription } from '@/components/ui/alert'
@@ -746,20 +745,6 @@ function ProfilePageContent() {
                 </CardContent>
               </Card>
 
-              {/* Quota & Usage Display */}
-              <QuotaDisplay 
-                onUpgrade={() => {
-                  // Navigate to billing tab and scroll to pricing
-                  setActiveTab('billing')
-                  setTimeout(() => {
-                    const pricingSection = document.querySelector('[data-pricing-section]')
-                    if (pricingSection) {
-                      pricingSection.scrollIntoView({ behavior: 'smooth' })
-                    }
-                  }, 100)
-                }}
-              />
-
               {/* Plan Actions */}
               <Card>
                 <CardHeader>
@@ -1141,23 +1126,6 @@ function ProfilePageContent() {
                         }}
                       >
                         Test GitHub User API
-                      </Button>
-                      
-                      <Button 
-                        variant="outline" 
-                        size="sm"
-                        onClick={async () => {
-                          try {
-                            const response = await fetch('https://api.codeflowops.com/api/quota/status', {
-                              credentials: 'include'
-                            })
-                            console.log('Quota API:', response.status, await response.text())
-                          } catch (e) {
-                            console.error('API Test Error:', e)
-                          }
-                        }}
-                      >
-                        Test Quota API
                       </Button>
                     </div>
                   </div>

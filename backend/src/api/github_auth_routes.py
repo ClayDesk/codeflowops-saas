@@ -814,50 +814,7 @@ async def get_github_user_quota(request: Request):
             detail="Failed to get quota data"
         )
 
-@router.post("/auth/github/subscribe/{plan_tier}")
-async def create_github_subscription(
-    plan_tier: str,
-    request: Request,
-    subscription_data: dict = None
-):
-    """
-    Create subscription for GitHub OAuth user
-    GitHub OAuth compatible alternative to /api/v1/billing/subscribe/{plan_tier}
-    """
-    try:
-        session_token = request.cookies.get("codeflowops_session")
-        
-        if not session_token or not session_exists(session_token):
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="No valid GitHub session found"
-            )
-        
-        session_data = get_session(session_token)
-        user_data = session_data["user"]
-        
-        # Return mock subscription creation response
-        # In a real implementation, you'd integrate with Stripe
-        return {
-            "success": True,
-            "client_secret": f"pi_mock_{plan_tier}_client_secret",
-            "subscription_id": f"sub_mock_{plan_tier}",
-            "plan_tier": plan_tier,
-            "user_info": {
-                "email": user_data.get("email"),
-                "github_username": user_data.get("login")
-            },
-            "message": f"Mock subscription creation for {plan_tier} plan"
-        }
-        
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Error creating GitHub user subscription: {e}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to create subscription"
-        )
+# Duplicate route removed - using the Stripe-integrated version below
 
 @router.post("/auth/github/subscribe/{plan_tier}")
 async def create_github_user_subscription(plan_tier: str, request: Request):

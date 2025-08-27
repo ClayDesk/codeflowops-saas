@@ -743,7 +743,16 @@ function ProfilePageContent() {
 
               {/* Quota & Usage Display */}
               <QuotaDisplay 
-                onUpgrade={() => setActiveTab('subscription')}
+                onUpgrade={() => {
+                  // Navigate to billing tab and scroll to pricing
+                  setActiveTab('billing')
+                  setTimeout(() => {
+                    const pricingSection = document.querySelector('[data-pricing-section]')
+                    if (pricingSection) {
+                      pricingSection.scrollIntoView({ behavior: 'smooth' })
+                    }
+                  }, 100)
+                }}
               />
 
               {/* Plan Actions */}
@@ -837,7 +846,7 @@ function ProfilePageContent() {
             </div>
 
             {/* Pricing Plans */}
-            <Card>
+            <Card data-pricing-section>
               <CardHeader>
                 <CardTitle>Available Plans</CardTitle>
                 <CardDescription>

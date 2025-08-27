@@ -152,24 +152,60 @@ export function QuotaDisplay({ onUpgrade }: QuotaDisplayProps) {
       <CardContent className="space-y-6">
         
         {/* Deployment Status Alert */}
-        {!quota.deployment_allowed.can_deploy && (
+        {!quota.deployment_allowed.can_deploy ? (
           <Alert variant="destructive">
             <AlertTriangle className="h-4 w-4" />
             <AlertDescription>
-              <strong>Deployments blocked:</strong>{' '}
-              {!quota.deployment_allowed.monthly_check.passed 
-                ? quota.deployment_allowed.monthly_check.reason
-                : quota.deployment_allowed.concurrent_check.reason
-              }
+              <div className="space-y-2">
+                <div>
+                  <strong>⚠️ Deployments Blocked!</strong>
+                </div>
+                <div className="text-sm">
+                  {!quota.deployment_allowed.monthly_check.passed 
+                    ? `📅 ${quota.deployment_allowed.monthly_check.reason}`
+                    : `⚡ ${quota.deployment_allowed.concurrent_check.reason}`
+                  }
+                </div>
+                {!quota.deployment_allowed.monthly_check.passed && (
+                  <Button 
+                    size="sm" 
+                    className="mt-2 w-full"
+                    onClick={onUpgrade}
+                  >
+                    🚀 Upgrade for More Deployments
+                  </Button>
+                )}
+              </div>
             </AlertDescription>
           </Alert>
-        )}
-
-        {quota.deployment_allowed.can_deploy && (
+        ) : quota.monthly_runs.percentage >= 80 ? (
+          <Alert variant="destructive">
+            <AlertTriangle className="h-4 w-4" />
+            <AlertDescription>
+              <div className="space-y-2">
+                <div>
+                  <strong>⚠️ Quota Warning!</strong>
+                </div>
+                <div className="text-sm">
+                  You've used {quota.monthly_runs.percentage.toFixed(0)}% of your monthly deployments. 
+                  Consider upgrading to avoid service interruption.
+                </div>
+                <Button 
+                  size="sm" 
+                  variant="outline"
+                  className="mt-2 w-full"
+                  onClick={onUpgrade}
+                >
+                  View Upgrade Options
+                </Button>
+              </div>
+            </AlertDescription>
+          </Alert>
+        ) : (
           <Alert>
             <CheckCircle className="h-4 w-4" />
             <AlertDescription>
-              <strong>Ready to deploy!</strong> All quota limits are within acceptable range.
+              <strong>✅ Ready to deploy!</strong> All quota limits are within acceptable range.
             </AlertDescription>
           </Alert>
         )}
@@ -238,25 +274,61 @@ export function QuotaDisplay({ onUpgrade }: QuotaDisplayProps) {
           </div>
         </div>
 
-        {/* Upgrade Suggestion */}
-        {quota.upgrade_suggestion && (
-          <div className="pt-4 border-t">
-            <div className="flex items-center justify-between">
+        {/* Upgrade Suggestions & Actions */}
+        <div className="pt-4 border-t space-y-3">
+          {quota.upgrade_suggestion ? (
+            <div className="space-y-3">
               <div className="flex items-center space-x-2">
                 <TrendingUp className="h-4 w-4 text-blue-600" />
-                <span className="text-sm font-medium">Suggestion</span>
+                <span className="text-sm font-medium">💡 Recommendation</span>
               </div>
-            </div>
-            <p className="text-sm text-gray-600 mt-1 mb-3">
-              {quota.upgrade_suggestion}
-            </p>
-            {onUpgrade && (
+              <p className="text-sm text-gray-600">
+                {quota.upgrade_suggestion}
+              </p>
               <Button size="sm" onClick={onUpgrade} className="w-full">
-                Upgrade Plan
+                🚀 Upgrade Now
               </Button>
-            )}
-          </div>
-        )}
+            </div>
+          ) : quota.plan.tier === 'free' && quota.monthly_runs.percentage >= 50 ? (
+            <div className="space-y-3">
+              <div className="flex items-center space-x-2">
+                <TrendingUp className="h-4 w-4 text-blue-600" />
+                <span className="text-sm font-medium">💡 Growing Fast?</span>
+              </div>
+              <p className="text-sm text-gray-600">
+                You're already at {quota.monthly_runs.percentage.toFixed(0)}% usage. 
+                Starter plan gives you 50 deployments/month + 14-day free trial!
+              </p>
+              <Button size="sm" onClick={onUpgrade} className="w-full">
+                🎯 Try Starter Free for 14 Days
+              </Button>
+            </div>
+          ) : quota.plan.tier === 'starter' && quota.monthly_runs.percentage >= 60 ? (
+            <div className="space-y-3">
+              <div className="flex items-center space-x-2">
+                <TrendingUp className="h-4 w-4 text-blue-600" />
+                <span className="text-sm font-medium">🚀 Power User?</span>
+              </div>
+              <p className="text-sm text-gray-600">
+                Pro plan offers 200 deployments/month + 5 concurrent deployments for teams.
+              </p>
+              <Button size="sm" onClick={onUpgrade} className="w-full">
+                ⚡ Upgrade to Pro
+              </Button>
+            </div>
+          ) : (
+            <div className="text-center py-2">
+              <Button 
+                size="sm" 
+                variant="outline" 
+                onClick={onUpgrade}
+                className="w-full"
+              >
+                📊 View All Plans
+              </Button>
+            </div>
+          )}
+        </div>
       </CardContent>
     </Card>
   )

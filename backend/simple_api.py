@@ -1913,14 +1913,13 @@ except ImportError as e:
 
 # Add GitHub authentication routes
 try:
-    from src.api.github_auth_routes import router as github_auth_router, _github_sessions
+    from src.api.github_auth_routes import router as github_auth_router
     app.include_router(github_auth_router, prefix="/api/v1")
     GITHUB_AUTH_AVAILABLE = True
     logger.info("✅ GitHub authentication routes loaded successfully")
 except ImportError as e:
     logger.warning(f"⚠️ GitHub auth routes not available: {e}")
     GITHUB_AUTH_AVAILABLE = False
-    _github_sessions = {}
 
 # Add payment routes with Stripe integration
 try:

@@ -64,6 +64,7 @@ export function generateRandomString(length: number): string {
 /**
  * Debounce function to limit how often a function can be called
  */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function debounce<T extends (...args: any[]) => any>(
   func: T,
   wait: number
@@ -144,7 +145,7 @@ export async function copyToClipboard(text: string): Promise<boolean> {
   try {
     await navigator.clipboard.writeText(text)
     return true
-  } catch (err) {
+  } catch {
     // Fallback for older browsers
     const textArea = document.createElement('textarea')
     textArea.value = text
@@ -154,7 +155,7 @@ export async function copyToClipboard(text: string): Promise<boolean> {
       document.execCommand('copy')
       document.body.removeChild(textArea)
       return true
-    } catch (fallbackErr) {
+    } catch {
       document.body.removeChild(textArea)
       return false
     }
@@ -208,7 +209,7 @@ export function slugify(text: string): string {
 /**
  * Check if value is empty (null, undefined, empty string, empty array, empty object)
  */
-export function isEmpty(value: any): boolean {
+export function isEmpty(value: unknown): boolean {
   if (value == null) return true
   if (typeof value === 'string') return value.trim() === ''
   if (Array.isArray(value)) return value.length === 0

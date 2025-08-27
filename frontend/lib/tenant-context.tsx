@@ -109,7 +109,7 @@ export function TenantProvider({ children, host }: TenantProviderProps) {
 
   useEffect(() => {
     detectTenant()
-  }, [host])
+  }, [host, detectTenant])
 
   const value: TenantContextValue = {
     tenant,

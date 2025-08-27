@@ -78,7 +78,6 @@ function ProfilePageContent() {
   } = useAuth()
   const { 
     createSubscription, 
-    upgradeSubscription, 
     cancelSubscription,
     loading: stripeLoading 
   } = useStripePayment({
@@ -253,13 +252,19 @@ function ProfilePageContent() {
         
         // Process subscription data from billing API
         if (profileResponse.subscription) {
-          const billingData = profileResponse.subscription
+          const billingData = profileResponse.subscription as {
+            plan?: { tier?: string; max_projects?: number }
+            status?: string
+            current_period_end?: string
+            trial_end?: string
+            usage?: { projects_count?: number }
+          }
           
           // Transform billing data to match frontend subscription interface
-          const transformedSubscription = {
-            plan: billingData.plan?.tier || 'free',
-            status: billingData.status || 'active',
-            currentPeriodEnd: billingData.current_period_end || billingData.trial_end,
+          const transformedSubscription: Subscription = {
+            plan: (billingData.plan?.tier as Subscription['plan']) || 'free',
+            status: (billingData.status as Subscription['status']) || 'active',
+            currentPeriodEnd: billingData.current_period_end || billingData.trial_end || null,
             deployments: {
               used: billingData.usage?.projects_count || 0,
               limit: billingData.plan?.max_projects || 5
@@ -270,8 +275,8 @@ function ProfilePageContent() {
         }
         
         // Fetch user deployments
-        const deploymentsResponse = await fetchUserDeployments()
-        if (deploymentsResponse.deployments) {
+        const deploymentsResponse = await fetchUserDeployments() as { deployments?: Deployment[] }
+        if (deploymentsResponse?.deployments) {
           setDeployments(deploymentsResponse.deployments)
         }
       } catch (error) {
@@ -374,8 +379,8 @@ function ProfilePageContent() {
       
       // Refetch deployments from backend to get the actual cleared state
       try {
-        const deploymentsResponse = await fetchUserDeployments()
-        if (deploymentsResponse.deployments) {
+        const deploymentsResponse = await fetchUserDeployments() as { deployments?: Deployment[] }
+        if (deploymentsResponse?.deployments) {
           setDeployments(deploymentsResponse.deployments)
         } else {
           setDeployments([])

@@ -1,7 +1,9 @@
 'use client'
 
+/* eslint-disable @typescript-eslint/no-explicit-any */
+
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { ReactNode, useState } from 'react'
+import { ReactNode } from 'react'
 
 // Create a QueryClient with optimal configuration
 function makeQueryClient() {
@@ -11,9 +13,10 @@ function makeQueryClient() {
         // With SSR, we usually want to set some default staleTime
         // above 0 to avoid refetching immediately on the client
         staleTime: 60 * 1000, // 1 minute
-        retry: (failureCount, error: any) => {
+        retry: (failureCount, error: unknown) => {
           // Don't retry for 404s or auth errors
-          if (error?.status === 404 || error?.status === 401) {
+          const errorWithStatus = error as { status?: number }
+          if (errorWithStatus?.status === 404 || errorWithStatus?.status === 401) {
             return false
           }
           return failureCount < 3

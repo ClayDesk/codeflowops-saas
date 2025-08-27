@@ -1,10 +1,11 @@
 # Billing and Subscription Management Routes for CodeFlowOps
-from fastapi import APIRouter, Depends, HTTPException, Request, Response
+from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 from fastapi.security import HTTPBearer
 from sqlalchemy.orm import Session
 from typing import List, Dict, Optional
 from datetime import datetime
 import json
+import stripe
 
 from ..models.billing_models import (
     BillingPlan, OrganizationSubscription, Invoice, Payment,
@@ -14,6 +15,7 @@ from ..models.enhanced_models import Organization, User
 from ..utils.stripe_service import stripe_service
 from ..utils.database import get_db_session
 from ..services.dynamic_pricing_service import dynamic_pricing_service
+from ..config.stripe_config import stripe_config
 from auth.cognito_rbac import verify_token, get_current_user
 
 router = APIRouter(prefix="/billing", tags=["billing"])
@@ -634,9 +636,6 @@ async def create_checkout_session(
                 raise HTTPException(status_code=400, detail="Organization already has an active subscription")
         
         # Create Stripe checkout session
-        import stripe
-        from ..config.stripe_config import stripe_config
-        
         # Set Stripe API key
         stripe.api_key = stripe_config.get_secret_key()
         

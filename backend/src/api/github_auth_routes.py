@@ -10,15 +10,18 @@ import requests
 import os
 import logging
 import uuid
+import stripe
 from datetime import datetime
 
 # Import Cognito provider for user storage
 try:
     from ..auth.providers.cognito import CognitoAuthProvider
+    from ..config.stripe_config import stripe_config
     COGNITO_AVAILABLE = True
 except ImportError:
     try:
         from src.auth.providers.cognito import CognitoAuthProvider
+        from src.config.stripe_config import stripe_config
         COGNITO_AVAILABLE = True
     except ImportError:
         COGNITO_AVAILABLE = False
@@ -805,9 +808,6 @@ async def create_github_user_subscription(plan_tier: str, request: Request):
         
         # Create Stripe checkout session for the subscription
         try:
-            import stripe
-            from ..config.stripe_config import stripe_config
-            
             # Set Stripe API key
             stripe.api_key = stripe_config.get_secret_key()
             

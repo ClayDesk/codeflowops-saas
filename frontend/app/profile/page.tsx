@@ -12,6 +12,7 @@ import { Label } from '@/components/ui/label'
 import { Badge } from "@/components/ui/badge"
 import { SubscriptionPricing } from '@/components/profile/SubscriptionPricing'
 import { BillingHistoryModal } from '@/components/profile/BillingHistoryModal'
+import { QuotaDisplay } from '@/components/quota/QuotaDisplay'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Alert, AlertDescription } from '@/components/ui/alert'
@@ -739,6 +740,11 @@ function ProfilePageContent() {
                   )}
                 </CardContent>
               </Card>
+
+              {/* Quota & Usage Display */}
+              <QuotaDisplay 
+                onUpgrade={() => setActiveTab('subscription')}
+              />
 
               {/* Plan Actions */}
               <Card>

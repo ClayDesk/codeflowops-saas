@@ -57,6 +57,9 @@ _LOCK = threading.Lock()
 from repository_enhancer import RepositoryEnhancer, _get_primary_language
 from cleanup_service import cleanup_service
 
+# Import deployment quota manager
+from deployment_quota_manager import deployment_quota_manager
+
 # Add backend paths to import existing components
 backend_path = Path(__file__).parent
 src_path = backend_path / "src"
@@ -350,6 +353,85 @@ async def validate_credentials(request: CredentialsRequest):
             "error": str(e)
         }
 
+@router.get("/api/quota/status")
+async def get_quota_status(user_id: Optional[str] = None, plan: Optional[str] = None):
+    """
+    Get current quota status for user
+    Returns deployment limits and usage information
+    """
+    try:
+        # For now, use query parameters or defaults
+        # In production, get user_id from auth token and plan from subscription
+        user_id = user_id or "demo_user"
+        plan_tier = plan or "free"
+        
+        # Mock current usage - in production, get from database
+        current_runs = 2  # Example: user has made 2 deployments this month
+        active_runs = 1   # Example: 1 deployment currently running
+        
+        quota_status = deployment_quota_manager.get_quota_status(
+            user_id=user_id,
+            plan_tier=plan_tier,
+            current_runs=current_runs,
+            active_runs=active_runs
+        )
+        
+        return {
+            "success": True,
+            "quota": quota_status
+        }
+        
+    except Exception as e:
+        logger.error(f"Failed to get quota status: {e}")
+        raise HTTPException(status_code=500, detail="Failed to retrieve quota status")
+
+@router.post("/api/quota/check")
+async def check_deployment_quota(user_id: Optional[str] = None, plan: Optional[str] = None):
+    """
+    Check if user can start a new deployment
+    Returns quota validation before deployment starts
+    """
+    try:
+        # For now, use request parameters or defaults
+        user_id = user_id or "demo_user"
+        plan_tier = plan or "free"
+        
+        # Mock current usage - in production, get from database
+        current_runs = 2
+        active_runs = 1
+        
+        # Check both monthly and concurrent limits
+        can_deploy_monthly, monthly_reason = deployment_quota_manager.check_monthly_quota(
+            user_id, plan_tier, current_runs
+        )
+        can_deploy_concurrent, concurrent_reason = deployment_quota_manager.check_concurrent_quota(
+            user_id, plan_tier, active_runs
+        )
+        
+        can_deploy = can_deploy_monthly and can_deploy_concurrent
+        
+        return {
+            "success": True,
+            "can_deploy": can_deploy,
+            "checks": {
+                "monthly": {
+                    "passed": can_deploy_monthly,
+                    "reason": monthly_reason
+                },
+                "concurrent": {
+                    "passed": can_deploy_concurrent,
+                    "reason": concurrent_reason
+                }
+            },
+            "quota_status": deployment_quota_manager.get_quota_status(
+                user_id, plan_tier, current_runs, active_runs
+            )
+        }
+        
+    except Exception as e:
+        logger.error(f"Failed to check deployment quota: {e}")
+        raise HTTPException(status_code=500, detail="Failed to check deployment quota")
+
 @router.post("/api/deploy")
 async def deploy_to_aws(request: DeployRequest):
     """
@@ -361,6 +443,47 @@ async def deploy_to_aws(request: DeployRequest):
         deployment_id = request.deployment_id or request.analysis_id
         if not deployment_id:
             raise HTTPException(status_code=400, detail="deployment_id or analysis_id is required")
+        
+        # CHECK QUOTA BEFORE PROCEEDING
+        # For now, use demo values - in production, get from auth token
+        user_id = "demo_user"  # TODO: Get from authenticated user context
+        plan_tier = "free"     # TODO: Get from user subscription
+        current_runs = 2       # TODO: Get from database
+        active_runs = 1        # TODO: Get from database
+        
+        # Validate quota limits
+        can_deploy_monthly, monthly_reason = deployment_quota_manager.check_monthly_quota(
+            user_id, plan_tier, current_runs
+        )
+        can_deploy_concurrent, concurrent_reason = deployment_quota_manager.check_concurrent_quota(
+            user_id, plan_tier, active_runs
+        )
+        
+        if not can_deploy_monthly:
+            logger.warning(f"Deployment blocked - Monthly quota exceeded: {monthly_reason}")
+            raise HTTPException(
+                status_code=403, 
+                detail={
+                    "error": "Monthly deployment limit exceeded",
+                    "reason": monthly_reason,
+                    "quota_type": "monthly",
+                    "upgrade_suggestion": "Consider upgrading your plan for more monthly deployments"
+                }
+            )
+        
+        if not can_deploy_concurrent:
+            logger.warning(f"Deployment blocked - Concurrent quota exceeded: {concurrent_reason}")
+            raise HTTPException(
+                status_code=429,
+                detail={
+                    "error": "Concurrent deployment limit exceeded", 
+                    "reason": concurrent_reason,
+                    "quota_type": "concurrent",
+                    "suggestion": "Wait for existing deployments to complete before starting new ones"
+                }
+            )
+        
+        logger.info(f"✅ Quota check passed for deployment {deployment_id}")
         
         # Normalize AWS credential field names
         aws_access_key = request.aws_access_key or request.aws_access_key_id
@@ -1900,6 +2023,30 @@ async def api_health():
 
 # Include the main router
 app.include_router(router)
+
+# Include payment routes for Stripe integration
+try:
+    from src.routes.payment_routes import router as payment_router
+    app.include_router(payment_router)
+    logger.info("✅ Payment routes (Stripe integration) loaded successfully")
+except ImportError as e:
+    logger.error(f"❌ Failed to load payment routes from src.routes.payment_routes: {e}")
+    try:
+        # Alternative: try with modified Python path
+        import sys
+        import os
+        src_path = os.path.join(os.path.dirname(__file__), 'src')
+        if src_path not in sys.path:
+            sys.path.insert(0, src_path)
+        
+        # Import after adding path
+        import importlib
+        payment_module = importlib.import_module('routes.payment_routes')
+        payment_router = getattr(payment_module, 'router')
+        app.include_router(payment_router)
+        logger.info("✅ Payment routes loaded with dynamic import")
+    except Exception as e2:
+        logger.error(f"❌ All payment route imports failed: {e2}")
 
 # Add modular stack routers if available
 try:

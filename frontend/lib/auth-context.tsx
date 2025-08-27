@@ -302,18 +302,27 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   // Fetch user profile data
   const fetchUserProfile = async () => {
     try {
-      const token = getStoredToken()
-      if (!token) {
-        throw new Error('No access token found')
+      // Check if user is authenticated via GitHub OAuth (cookie-based)
+      let userResponse
+      let token = getStoredToken()
+      
+      if (user?.provider === 'github' || !token) {
+        // Try GitHub OAuth endpoint with cookies
+        userResponse = await fetch(`${API_BASE}/api/v1/auth/github/user`, {
+          credentials: 'include', // Include cookies for GitHub OAuth
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        })
+      } else {
+        // Try token-based auth endpoint
+        userResponse = await fetch(`${API_BASE}/api/v1/auth/me`, {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+        })
       }
-
-      // Fetch user data from /me endpoint
-      const userResponse = await fetch(`${API_BASE}/api/v1/auth/me`, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-      })
 
       if (!userResponse.ok) {
         throw new Error('Failed to fetch user profile')
@@ -324,12 +333,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       // Fetch subscription data from billing endpoint
       let subscriptionData = null
       try {
-        const subscriptionResponse = await fetch(`${API_BASE}/api/v1/billing/subscription`, {
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json',
-          },
-        })
+        let subscriptionResponse
+        
+        if (user?.provider === 'github' || !token) {
+          // Use cookies for GitHub OAuth
+          subscriptionResponse = await fetch(`${API_BASE}/api/v1/billing/subscription`, {
+            credentials: 'include',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+          })
+        } else {
+          // Use token-based auth
+          subscriptionResponse = await fetch(`${API_BASE}/api/v1/billing/subscription`, {
+            headers: {
+              'Authorization': `Bearer ${token}`,
+              'Content-Type': 'application/json',
+            },
+          })
+        }
 
         if (subscriptionResponse.ok) {
           subscriptionData = await subscriptionResponse.json()

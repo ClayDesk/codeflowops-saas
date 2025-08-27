@@ -31,14 +31,30 @@ export function useStripePayment({ onSuccess, onError }: UseStripePaymentOptions
     }
   }
 
+  const makeAuthenticatedRequest = async (url: string, options: RequestInit = {}) => {
+    const token = localStorage.getItem('codeflowops_access_token')
+    
+    // Try with credentials (for GitHub OAuth) and token-based auth as fallback
+    const requestOptions = {
+      ...options,
+      credentials: 'include' as RequestCredentials, // Include cookies for GitHub OAuth
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token && { Authorization: `Bearer ${token}` }),
+        ...options.headers
+      }
+    }
+
+    return fetch(url, requestOptions)
+  }
+
   const createSubscription = async (params: CreateSubscriptionParams) => {
     try {
       setLoading(true)
       setError(null)
 
-      const response = await fetch(`${API_BASE}/api/v1/billing/subscribe/${params.planTier}`, {
+      const response = await makeAuthenticatedRequest(`${API_BASE}/api/v1/billing/subscribe/${params.planTier}`, {
         method: 'POST',
-        headers: getAuthHeaders(),
         body: JSON.stringify({
           pricing_context: params.pricingContext || {},
           trial_days: params.trialDays
@@ -79,9 +95,8 @@ export function useStripePayment({ onSuccess, onError }: UseStripePaymentOptions
       setLoading(true)
       setError(null)
 
-      const response = await fetch(`${API_BASE}/api/v1/payments/upgrade-subscription`, {
+      const response = await makeAuthenticatedRequest(`${API_BASE}/api/v1/payments/upgrade-subscription`, {
         method: 'POST',
-        headers: getAuthHeaders(),
         body: JSON.stringify({
           subscription_id: params.subscriptionId,
           new_plan_tier: params.newPlanTier,

@@ -510,11 +510,12 @@ function ProfilePageContent() {
         </div>
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="grid w-full grid-cols-4">
+          <TabsList className="grid w-full grid-cols-5">
             <TabsTrigger value="overview">Overview</TabsTrigger>
             <TabsTrigger value="deployments">Deployments</TabsTrigger>
             <TabsTrigger value="subscription">Subscription</TabsTrigger>
             <TabsTrigger value="settings">Settings</TabsTrigger>
+            <TabsTrigger value="debug">Debug</TabsTrigger>
           </TabsList>
 
           <TabsContent value="overview" className="space-y-6">
@@ -1093,6 +1094,99 @@ function ProfilePageContent() {
               </Card>
             </div>
           </TabsContent>
+
+          <TabsContent value="debug" className="space-y-6">
+            <div className="space-y-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Settings className="h-5 w-5" />
+                    Authentication Debug
+                  </CardTitle>
+                  <CardDescription>
+                    Debug information for troubleshooting authentication and API issues
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="space-y-2">
+                    <Label>Authentication Status</Label>
+                    <div className="text-sm bg-muted p-3 rounded">
+                      <div>Authenticated: {isAuthenticated ? '✅ Yes' : '❌ No'}</div>
+                      <div>Provider: {user?.provider || 'None'}</div>
+                      <div>User ID: {user?.id || 'None'}</div>
+                      <div>Username: {user?.username || 'None'}</div>
+                      <div>Email: {user?.email || 'None'}</div>
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>API Endpoints Test</Label>
+                    <div className="flex gap-2">
+                      <Button 
+                        variant="outline" 
+                        size="sm"
+                        onClick={async () => {
+                          try {
+                            const response = await fetch('https://api.codeflowops.com/api/v1/auth/github/user', {
+                              credentials: 'include'
+                            })
+                            console.log('GitHub User API:', response.status, await response.text())
+                          } catch (e) {
+                            console.error('API Test Error:', e)
+                          }
+                        }}
+                      >
+                        Test GitHub User API
+                      </Button>
+                      
+                      <Button 
+                        variant="outline" 
+                        size="sm"
+                        onClick={async () => {
+                          try {
+                            const response = await fetch('https://api.codeflowops.com/api/quota/status', {
+                              credentials: 'include'
+                            })
+                            console.log('Quota API:', response.status, await response.text())
+                          } catch (e) {
+                            console.error('API Test Error:', e)
+                          }
+                        }}
+                      >
+                        Test Quota API
+                      </Button>
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>GitHub OAuth Login</Label>
+                    <Button 
+                      onClick={() => {
+                        window.location.href = 'https://api.codeflowops.com/api/v1/auth/github'
+                      }}
+                      className="w-full"
+                    >
+                      <Github className="mr-2 h-4 w-4" />
+                      Login with GitHub OAuth
+                    </Button>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>Manual Profile Refresh</Label>
+                    <Button 
+                      variant="outline" 
+                      onClick={fetchUserProfile}
+                      className="w-full"
+                    >
+                      <RefreshCw className="mr-2 h-4 w-4" />
+                      Refresh User Profile
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          </TabsContent>
+
         </Tabs>
       </div>
     </div>

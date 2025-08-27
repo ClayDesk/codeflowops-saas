@@ -3,6 +3,7 @@
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { useStripePayment } from '@/hooks/use-stripe-payment'
+import { useAuthState } from '@/hooks/use-auth-guard'
 import { useState } from 'react'
 import { Loader2 } from 'lucide-react'
 
@@ -23,6 +24,7 @@ interface SubscriptionPricingProps {
 
 export function SubscriptionPricing({ currentPlan = 'free' }: SubscriptionPricingProps) {
   const [loadingPlan, setLoadingPlan] = useState<string | null>(null)
+  const { isAuthenticated, loading: authLoading } = useAuthState()
   
   const { createSubscription } = useStripePayment({
     onSuccess: (result) => {
@@ -129,6 +131,15 @@ export function SubscriptionPricing({ currentPlan = 'free' }: SubscriptionPricin
     }
 
     const handleSubscribe = async () => {
+      // Check if user is authenticated
+      if (!isAuthenticated) {
+        // Redirect to register with plan information
+        const registerUrl = `/register?plan=${plan.tier}&trial=${plan.trial_days || 0}&redirect=deploy`
+        window.location.href = registerUrl
+        return
+      }
+
+      // User is authenticated, proceed with subscription creation
       setLoadingPlan(plan.tier)
       await createSubscription({
         planTier: plan.tier,
@@ -140,12 +151,17 @@ export function SubscriptionPricing({ currentPlan = 'free' }: SubscriptionPricin
       <Button 
         className="w-full"
         onClick={handleSubscribe}
-        disabled={loadingPlan === plan.tier}
+        disabled={loadingPlan === plan.tier || authLoading}
       >
         {loadingPlan === plan.tier ? (
           <>
             <Loader2 className="mr-2 h-4 w-4 animate-spin" />
             Creating...
+          </>
+        ) : authLoading ? (
+          <>
+            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            Loading...
           </>
         ) : (
           cta

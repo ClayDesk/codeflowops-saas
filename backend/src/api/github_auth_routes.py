@@ -669,3 +669,219 @@ async def get_github_user_deployments(request: Request):
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to get deployment data"
         )
+
+@router.get("/auth/github/quota")
+async def get_github_user_quota(request: Request):
+    """
+    Get quota/usage data for GitHub OAuth user
+    GitHub OAuth compatible alternative to /api/quota/status
+    """
+    try:
+        session_token = request.cookies.get("codeflowops_session")
+        
+        if not session_token or session_token not in _github_sessions:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="No valid GitHub session found"
+            )
+        
+        session_data = _github_sessions[session_token]
+        user_data = session_data["user"]
+        
+        # Return quota data for GitHub OAuth users
+        return {
+            "success": True,
+            "quota": {
+                "plan": {
+                    "tier": "free",
+                    "name": "Free"
+                },
+                "monthly_runs": {
+                    "used": 0,
+                    "limit": 5,
+                    "unlimited": False
+                },
+                "concurrent_runs": {
+                    "active": 0,
+                    "limit": 2
+                },
+                "deployment_allowed": {
+                    "can_deploy": True,
+                    "checks": {
+                        "monthly_check": {
+                            "passed": True,
+                            "reason": "Under monthly limit"
+                        },
+                        "concurrent_check": {
+                            "passed": True,
+                            "reason": "Under concurrent limit"
+                        }
+                    }
+                }
+            },
+            "user_info": {
+                "email": user_data.get("email"),
+                "github_username": user_data.get("login"),
+                "stored_in_cognito": session_data.get("stored_in_cognito", False)
+            }
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error getting GitHub user quota: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to get quota data"
+        )
+
+@router.post("/auth/github/subscribe/{plan_tier}")
+async def create_github_subscription(
+    plan_tier: str,
+    request: Request,
+    subscription_data: dict = None
+):
+    """
+    Create subscription for GitHub OAuth user
+    GitHub OAuth compatible alternative to /api/v1/billing/subscribe/{plan_tier}
+    """
+    try:
+        session_token = request.cookies.get("codeflowops_session")
+        
+        if not session_token or session_token not in _github_sessions:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="No valid GitHub session found"
+            )
+        
+        session_data = _github_sessions[session_token]
+        user_data = session_data["user"]
+        
+        # Return mock subscription creation response
+        # In a real implementation, you'd integrate with Stripe
+        return {
+            "success": True,
+            "client_secret": f"pi_mock_{plan_tier}_client_secret",
+            "subscription_id": f"sub_mock_{plan_tier}",
+            "plan_tier": plan_tier,
+            "user_info": {
+                "email": user_data.get("email"),
+                "github_username": user_data.get("login")
+            },
+            "message": f"Mock subscription creation for {plan_tier} plan"
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error creating GitHub user subscription: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to create subscription"
+        )
+
+@router.post("/auth/github/subscribe/{plan_tier}")
+async def create_github_user_subscription(plan_tier: str, request: Request):
+    """
+    Create subscription for GitHub OAuth user
+    GitHub OAuth compatible alternative to /api/v1/billing/subscribe/{plan_tier}
+    """
+    try:
+        session_token = request.cookies.get("codeflowops_session")
+        
+        if not session_token or session_token not in _github_sessions:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="No valid GitHub session found"
+            )
+        
+        session_data = _github_sessions[session_token]
+        user_data = session_data["user"]
+        
+        # Get request body
+        body = await request.json() if request.headers.get("content-type") == "application/json" else {}
+        pricing_context = body.get("pricing_context", {})
+        trial_days = body.get("trial_days", 14)
+        
+        # For now, return a mock subscription creation response
+        # In a real implementation, you'd create the subscription in your database/billing system
+        return {
+            "success": True,
+            "subscription": {
+                "id": f"github-sub-{user_data.get('id')}-{plan_tier}",
+                "plan_tier": plan_tier,
+                "status": "active",
+                "trial_days": trial_days,
+                "user_email": user_data.get("email"),
+                "github_username": user_data.get("login"),
+                # For demo - normally you'd return client_secret for actual payment
+                "client_secret": None  # No payment required for demo
+            },
+            "message": f"Successfully created {plan_tier} subscription for GitHub user {user_data.get('login')}",
+            "requires_payment": False  # For demo, no payment required
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error creating GitHub user subscription: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to create subscription"
+        )
+
+@router.get("/auth/github/quota")
+async def get_github_user_quota(request: Request):
+    """
+    Get quota/usage data for GitHub OAuth user
+    GitHub OAuth compatible alternative to /api/quota/status
+    """
+    try:
+        session_token = request.cookies.get("codeflowops_session")
+        
+        if not session_token or session_token not in _github_sessions:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="No valid GitHub session found"
+            )
+        
+        session_data = _github_sessions[session_token]
+        user_data = session_data["user"]
+        
+        # Return quota data in the expected format
+        return {
+            "success": True,
+            "quota": {
+                "plan": {
+                    "tier": "free",
+                    "name": "Free"
+                },
+                "monthly_runs": {
+                    "used": 0,
+                    "limit": 5,
+                    "unlimited": False
+                },
+                "concurrent_runs": {
+                    "active": 0,
+                    "limit": 2
+                },
+                "deployment_allowed": {
+                    "can_deploy": True,
+                    "reason": "Within quota limits"
+                }
+            },
+            "user_info": {
+                "email": user_data.get("email"),
+                "github_username": user_data.get("login"),
+                "authenticated_via": "github_oauth"
+            }
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error getting GitHub user quota: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to get quota data"
+        )

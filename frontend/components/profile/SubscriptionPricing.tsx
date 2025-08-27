@@ -2,6 +2,9 @@
 
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { useStripePayment } from '@/hooks/use-stripe-payment'
+import { useState } from 'react'
+import { Loader2 } from 'lucide-react'
 
 interface Plan {
   tier: string
@@ -19,6 +22,19 @@ interface SubscriptionPricingProps {
 }
 
 export function SubscriptionPricing({ currentPlan = 'free' }: SubscriptionPricingProps) {
+  const [loadingPlan, setLoadingPlan] = useState<string | null>(null)
+  
+  const { createSubscription } = useStripePayment({
+    onSuccess: (result) => {
+      if (result.checkout_url) {
+        window.location.href = result.checkout_url
+      }
+    },
+    onError: (error) => {
+      console.error('Subscription creation failed:', error)
+      setLoadingPlan(null)
+    }
+  })
   const formatPrice = (priceInCents: number) => {
     if (priceInCents === 0) return 'Free'
     return new Intl.NumberFormat('en-US', {
@@ -112,16 +128,28 @@ export function SubscriptionPricing({ currentPlan = 'free' }: SubscriptionPricin
       )
     }
 
-    const handleSubscribe = () => {
-      window.location.href = `/checkout?plan=${plan.tier}`
+    const handleSubscribe = async () => {
+      setLoadingPlan(plan.tier)
+      await createSubscription({
+        planTier: plan.tier,
+        trialDays: plan.trial_days
+      })
     }
 
     return (
       <Button 
         className="w-full"
         onClick={handleSubscribe}
+        disabled={loadingPlan === plan.tier}
       >
-        {cta}
+        {loadingPlan === plan.tier ? (
+          <>
+            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            Creating...
+          </>
+        ) : (
+          cta
+        )}
       </Button>
     )
   }

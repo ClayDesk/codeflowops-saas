@@ -338,7 +338,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         throw new Error('Failed to fetch user profile')
       }
 
-      const userData = await userResponse.json()
+      const responseData = await userResponse.json()
+      
+      // Extract user data - GitHub OAuth returns nested user object
+      let userData = responseData.user || responseData
+      
+      // Map GitHub fields to frontend User interface
+      if (userData.login && !userData.username) {
+        userData = {
+          ...userData,
+          username: userData.login // Map GitHub 'login' to 'username'
+        }
+      }
 
       // Fetch subscription data from billing endpoint
       let subscriptionData = null

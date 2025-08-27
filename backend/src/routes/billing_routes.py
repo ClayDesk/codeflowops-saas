@@ -594,3 +594,108 @@ async def check_resource_limits(
         "current_usage": current_usage,
         "plan_details": usage_summary
     }
+
+@router.post("/subscribe/{plan_tier}/checkout")
+async def create_checkout_session(
+    plan_tier: str,
+    request: Request,
+    trial_days: int = 0,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db_session)
+):
+    """
+    Create a Stripe checkout session for subscription
+    """
+    try:
+        # Validate plan tier
+        try:
+            plan_tier_enum = PlanTier(plan_tier)
+        except ValueError:
+            raise HTTPException(status_code=400, detail="Invalid plan tier")
+        
+        if plan_tier_enum == PlanTier.FREE:
+            raise HTTPException(status_code=400, detail="Cannot create subscription for free plan")
+        
+        if plan_tier_enum == PlanTier.ENTERPRISE:
+            raise HTTPException(status_code=400, detail="Please contact support@codeflowops.com for Enterprise plans")
+        
+        # Check if organization already has an active subscription
+        if current_user.organization_id:
+            existing_subscription = db.query(OrganizationSubscription).filter(
+                OrganizationSubscription.organization_id == current_user.organization_id,
+                OrganizationSubscription.status.in_([
+                    SubscriptionStatus.ACTIVE, 
+                    SubscriptionStatus.TRIALING,
+                    SubscriptionStatus.PAST_DUE
+                ])
+            ).first()
+            
+            if existing_subscription:
+                raise HTTPException(status_code=400, detail="Organization already has an active subscription")
+        
+        # Create Stripe checkout session
+        import stripe
+        from ..config.stripe_config import stripe_config
+        
+        # Set Stripe API key
+        stripe.api_key = stripe_config.get_secret_key()
+        
+        # Get price ID for the plan
+        price_ids = stripe_config.get_price_ids()
+        price_id = price_ids.get(plan_tier)
+        
+        if not price_id:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"No price configured for plan: {plan_tier}"
+            )
+        
+        # Create checkout session
+        checkout_session = stripe.checkout.Session.create(
+            payment_method_types=['card'],
+            line_items=[{
+                'price': price_id,
+                'quantity': 1,
+            }],
+            mode='subscription',
+            success_url=f"https://app.codeflowops.com/profile?success=true&session_id={{CHECKOUT_SESSION_ID}}",
+            cancel_url=f"https://app.codeflowops.com/profile?canceled=true",
+            customer_email=current_user.email,
+            metadata={
+                'user_id': str(current_user.id),
+                'organization_id': str(current_user.organization_id) if current_user.organization_id else '',
+                'plan_tier': plan_tier,
+                'trial_days': str(trial_days)
+            },
+            subscription_data={
+                'trial_period_days': trial_days if trial_days > 0 else None,
+                'metadata': {
+                    'user_id': str(current_user.id),
+                    'organization_id': str(current_user.organization_id) if current_user.organization_id else '',
+                    'plan_tier': plan_tier
+                }
+            }
+        )
+        
+        return {
+            "success": True,
+            "checkout_url": checkout_session.url,
+            "session_id": checkout_session.id,
+            "subscription": {
+                "plan_tier": plan_tier,
+                "trial_days": trial_days,
+                "user_email": current_user.email
+            },
+            "message": f"Stripe checkout created for {plan_tier} subscription"
+        }
+        
+    except stripe.error.StripeError as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to create checkout session: {str(e)}"
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to create checkout session"
+        )

@@ -61,15 +61,15 @@ export function useStripePayment({ onSuccess, onError }: UseStripePaymentOptions
         // Likely GitHub OAuth user - use GitHub-compatible endpoint
         endpoint = `${API_BASE}/api/v1/auth/github/subscribe/${params.planTier}`
       } else {
-        // Regular Cognito user - use standard billing endpoint
-        endpoint = `${API_BASE}/api/v1/billing/subscribe/${params.planTier}`
+        // Regular Cognito user - use new checkout session endpoint
+        endpoint = `${API_BASE}/api/v1/billing/subscribe/${params.planTier}/checkout`
       }
 
       const response = await makeAuthenticatedRequest(endpoint, {
         method: 'POST',
         body: JSON.stringify({
-          pricing_context: params.pricingContext || {},
-          trial_days: params.trialDays
+          trial_days: params.trialDays || 0,
+          pricing_context: params.pricingContext || {}
         })
       })
 
@@ -80,7 +80,14 @@ export function useStripePayment({ onSuccess, onError }: UseStripePaymentOptions
 
       const result = await response.json()
 
-      if (result.subscription.client_secret) {
+      // If we get a checkout URL, redirect to Stripe Checkout
+      if (result.checkout_url) {
+        window.location.href = result.checkout_url
+        return result
+      }
+
+      // For backwards compatibility, handle other response formats
+      if (result.subscription?.client_secret) {
         // Return client secret for frontend payment confirmation
         return {
           ...result,

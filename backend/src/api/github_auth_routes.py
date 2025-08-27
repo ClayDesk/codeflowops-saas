@@ -803,23 +803,76 @@ async def create_github_user_subscription(plan_tier: str, request: Request):
         pricing_context = body.get("pricing_context", {})
         trial_days = body.get("trial_days", 14)
         
-        # For now, return a mock subscription creation response
-        # In a real implementation, you'd create the subscription in your database/billing system
-        return {
-            "success": True,
-            "subscription": {
-                "id": f"github-sub-{user_data.get('id')}-{plan_tier}",
-                "plan_tier": plan_tier,
-                "status": "active",
-                "trial_days": trial_days,
-                "user_email": user_data.get("email"),
-                "github_username": user_data.get("login"),
-                # For demo - normally you'd return client_secret for actual payment
-                "client_secret": None  # No payment required for demo
-            },
-            "message": f"Successfully created {plan_tier} subscription for GitHub user {user_data.get('login')}",
-            "requires_payment": False  # For demo, no payment required
-        }
+        # Create Stripe checkout session for the subscription
+        try:
+            import stripe
+            from ..config.stripe_config import stripe_config
+            
+            # Set Stripe API key
+            stripe.api_key = stripe_config.get_secret_key()
+            
+            # Get price ID for the plan
+            price_ids = stripe_config.get_price_ids()
+            price_id = price_ids.get(plan_tier)
+            
+            if not price_id:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=f"No price configured for plan: {plan_tier}"
+                )
+            
+            # Create checkout session
+            checkout_session = stripe.checkout.Session.create(
+                payment_method_types=['card'],
+                line_items=[{
+                    'price': price_id,
+                    'quantity': 1,
+                }],
+                mode='subscription',
+                success_url=f"{FRONTEND_URL}/profile?success=true&session_id={{CHECKOUT_SESSION_ID}}",
+                cancel_url=f"{FRONTEND_URL}/profile?canceled=true",
+                customer_email=user_data.get("email"),
+                metadata={
+                    'github_user_id': user_data.get("id"),
+                    'github_username': user_data.get("login"),
+                    'plan_tier': plan_tier,
+                    'trial_days': str(trial_days)
+                },
+                subscription_data={
+                    'trial_period_days': trial_days if trial_days > 0 else None,
+                    'metadata': {
+                        'github_user_id': user_data.get("id"),
+                        'github_username': user_data.get("login"),
+                        'plan_tier': plan_tier
+                    }
+                }
+            )
+            
+            return {
+                "success": True,
+                "checkout_url": checkout_session.url,
+                "session_id": checkout_session.id,
+                "subscription": {
+                    "plan_tier": plan_tier,
+                    "trial_days": trial_days,
+                    "user_email": user_data.get("email"),
+                    "github_username": user_data.get("login")
+                },
+                "message": f"Stripe checkout created for {plan_tier} subscription"
+            }
+            
+        except stripe.error.StripeError as e:
+            logger.error(f"Stripe error creating checkout session: {e}")
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Failed to create checkout session: {str(e)}"
+            )
+        except Exception as e:
+            logger.error(f"Error creating Stripe checkout session: {e}")
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Failed to create checkout session"
+            )
         
     except HTTPException:
         raise

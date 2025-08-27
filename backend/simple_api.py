@@ -413,12 +413,17 @@ async def get_quota_status(request: Request, user_id: Optional[str] = None, plan
         # Try to get user info from GitHub OAuth session
         github_user_data = None
         if GITHUB_AUTH_AVAILABLE:
-            session_token = request.cookies.get("codeflowops_session")
-            if session_token and session_token in _github_sessions:
-                session_data = _github_sessions[session_token]
-                github_user_data = session_data.get("user")
-                user_id = github_user_data.get("id", user_id)
-                logger.info(f"📊 Getting quota for GitHub user: {github_user_data.get('login', 'unknown')}")
+            try:
+                from src.api.github_auth_routes import get_session
+                session_token = request.cookies.get("codeflowops_session")
+                if session_token:
+                    session_data = get_session(session_token)
+                    if session_data:
+                        github_user_data = session_data.get("user")
+                        user_id = github_user_data.get("id", user_id)
+                        logger.info(f"📊 Getting quota for GitHub user: {github_user_data.get('login', 'unknown')}")
+            except ImportError:
+                logger.warning("Could not import get_session from GitHub auth routes")
         
         # Use provided parameters or defaults
         user_id = user_id or "demo_user"

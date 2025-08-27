@@ -698,3 +698,44 @@ async def create_checkout_session(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to create checkout session"
         )
+
+# Add missing payment endpoints that frontend expects
+@router.get("/billing-history")
+async def get_billing_history(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db_session)
+):
+    """Get billing history for the user"""
+    try:
+        # For now, return empty billing history
+        # In a real implementation, you'd fetch from Stripe or database
+        return {
+            "success": True,
+            "billing_history": [],
+            "message": "No billing history available"
+        }
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to fetch billing history"
+        )
+
+@router.get("/customer-portal")
+async def get_customer_portal(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db_session)
+):
+    """Get Stripe customer portal URL"""
+    try:
+        # For now, return a placeholder
+        # In a real implementation, you'd create a Stripe customer portal session
+        return {
+            "success": True,
+            "portal_url": None,
+            "message": "Customer portal not yet implemented"
+        }
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to create customer portal session"
+        )

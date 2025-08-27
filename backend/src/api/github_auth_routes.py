@@ -427,6 +427,54 @@ async def github_auth_health():
     }
 
 # Debug endpoint to test Cognito integration
+@router.get("/auth/me")
+async def get_current_user_universal(request: Request):
+    """
+    Universal /me endpoint that works for both GitHub OAuth and Cognito users
+    """
+    try:
+        # First try GitHub OAuth session
+        session_token = request.cookies.get("codeflowops_session")
+        
+        if session_token and session_token in _github_sessions:
+            session_data = _github_sessions[session_token]
+            user_data = session_data["user"]
+            
+            return {
+                "user_id": user_data.get("id"),
+                "username": user_data.get("login"),
+                "email": user_data.get("email"),
+                "full_name": user_data.get("name"),
+                "provider": "github",
+                "github_username": user_data.get("login"),
+                "avatar_url": user_data.get("avatar_url")
+            }
+        
+        # If no GitHub session, try Cognito token
+        auth_header = request.headers.get("Authorization")
+        if auth_header and auth_header.startswith("Bearer "):
+            # This would be a Cognito user - for now return a simple response
+            # In a real implementation, you'd verify the JWT token
+            return {
+                "error": "cognito_user_detected",
+                "message": "Please use the /api/v1/auth/me endpoint for Cognito users"
+            }
+        
+        # No valid authentication found
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Not authenticated"
+        )
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error getting current user: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to get user information"
+        )
+
 @router.get("/auth/github/test-cognito")
 async def test_cognito_integration():
     """Test endpoint to verify Cognito integration"""

@@ -14,7 +14,6 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { 
   User, 
-  Calendar, 
   Mail, 
   Shield, 
   History, 
@@ -438,7 +437,7 @@ function ProfilePageContent() {
                     <History className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
                     <h3 className="text-lg font-medium mb-2">No Recent Deployments</h3>
                     <p className="text-muted-foreground">
-                      You haven't deployed anything in the last 7 days.
+                      You haven&apos;t deployed anything in the last 7 days.
                     </p>
                   </div>
                 ) : (

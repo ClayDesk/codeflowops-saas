@@ -1,3 +1,14 @@
 {
-    "git.ignoreLimitWarning": true
+    "git.ignoreLimitWarning": true,
+    "stripe.projectName": "codeflowops",
+    "stripe.telemetry.enabled": true,
+    "files.associations": {
+        "*.stripe": "json"
+    },
+    "json.schemas": [
+        {
+            "fileMatch": ["stripe.json", "*.stripe"],
+            "url": "https://raw.githubusercontent.com/stripe/vscode-stripe/main/resources/schemas/stripe-app-schema.json"
+        }
+    ]
 }

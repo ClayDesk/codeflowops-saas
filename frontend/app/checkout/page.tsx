@@ -2,7 +2,7 @@
 
 import { Suspense } from 'react'
 import { useSearchParams } from 'next/navigation'
-import { StripeCheckout } from '@/components/stripe/StripeCheckout'
+import { StripeCheckout } from '@/components/StripeCheckout'
 import { Loader2 } from 'lucide-react'
 
 function CheckoutContent() {
@@ -55,11 +55,6 @@ function CheckoutContent() {
           
           <div className="max-w-2xl mx-auto">
             <StripeCheckout
-              planTier={planTier}
-              planName={currentPlan.name}
-              planPrice={currentPlan.price}
-              planFeatures={currentPlan.features}
-              trialDays={currentPlan.trialDays}
               onSuccess={() => {
                 window.location.href = '/profile?tab=subscription&success=true'
               }}
@@ -125,11 +120,6 @@ function CheckoutContent() {
         
         <div className="max-w-2xl mx-auto">
           <StripeCheckout
-            planTier={planTier}
-            planName={currentPlan.name}
-            planPrice={currentPlan.price}
-            planFeatures={currentPlan.features}
-            trialDays={planTier === 'starter' ? 14 : planTier === 'pro' ? 7 : 0}
             onSuccess={() => {
               window.location.href = '/profile?tab=subscription&success=true'
             }}

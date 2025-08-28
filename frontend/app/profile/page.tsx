@@ -17,7 +17,6 @@ import {
   Calendar, 
   Mail, 
   Shield, 
-  CreditCard, 
   History, 
   Settings,
   CheckCircle,
@@ -47,16 +46,6 @@ interface Deployment {
   technology?: string
 }
 
-interface Subscription {
-  plan: 'trial' | 'free' | 'starter' | 'pro' | 'enterprise'
-  status: 'active' | 'cancelled' | 'expired'
-  currentPeriodEnd: string
-  deployments: {
-    used: number
-    limit: number
-  }
-}
-
 function ProfilePageContent() {
   const searchParams = useSearchParams()
   const { 
@@ -73,7 +62,6 @@ function ProfilePageContent() {
   const [isLoading, setIsLoading] = useState(true)
   const [isEditing, setIsEditing] = useState(false)
   const [deployments, setDeployments] = useState<Deployment[]>([])
-  const [subscription, setSubscription] = useState<Subscription | null>(null)
   const [profileData, setProfileData] = useState({
     full_name: user?.full_name || '',
     email: user?.email || ''
@@ -97,9 +85,6 @@ function ProfilePageContent() {
             email: profileResponse.user.email || ''
           })
         }
-        if (profileResponse.subscription) {
-          setSubscription(profileResponse.subscription)
-        }
         
         // Fetch user deployments
         const deploymentsResponse = await fetchUserDeployments()
@@ -111,15 +96,6 @@ function ProfilePageContent() {
         // Set empty deployments if API fails - don't use hardcoded fallback
         setDeployments([])
         
-        setSubscription({
-          plan: 'trial',
-          status: 'active',
-          currentPeriodEnd: '2025-09-21T00:00:00Z',
-          deployments: {
-            used: 0,
-            limit: 5
-          }
-        })
       } finally {
         setIsLoading(false)
       }
@@ -133,7 +109,7 @@ function ProfilePageContent() {
   // Handle tab selection from URL parameters
   useEffect(() => {
     const tab = searchParams.get('tab')
-    if (tab && ['overview', 'deployments', 'subscription', 'settings'].includes(tab)) {
+    if (tab && ['overview', 'deployments', 'settings'].includes(tab)) {
       setActiveTab(tab)
     }
   }, [searchParams])
@@ -175,22 +151,6 @@ function ProfilePageContent() {
     return (
       <Badge variant={variants[status as keyof typeof variants] || 'outline'}>
         {status.charAt(0).toUpperCase() + status.slice(1)}
-      </Badge>
-    )
-  }
-
-  const getPlanBadge = (plan: string) => {
-    const colors = {
-      trial: 'bg-blue-100 text-blue-800',
-      free: 'bg-gray-100 text-gray-800',
-      starter: 'bg-green-100 text-green-800',
-      pro: 'bg-purple-100 text-purple-800',
-      enterprise: 'bg-orange-100 text-orange-800'
-    } as const
-
-    return (
-      <Badge className={colors[plan as keyof typeof colors] || colors.trial}>
-        {plan.toUpperCase()}
       </Badge>
     )
   }
@@ -354,10 +314,9 @@ function ProfilePageContent() {
         </div>
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="grid w-full grid-cols-4">
+          <TabsList className="grid w-full grid-cols-3">
             <TabsTrigger value="overview">Overview</TabsTrigger>
             <TabsTrigger value="deployments">Deployments</TabsTrigger>
-            <TabsTrigger value="subscription">Subscription</TabsTrigger>
             <TabsTrigger value="settings">Settings</TabsTrigger>
           </TabsList>
 
@@ -386,21 +345,6 @@ function ProfilePageContent() {
                       </p>
                     </div>
                     <CheckCircle className="h-8 w-8 text-green-500" />
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardContent className="pt-6">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm font-medium text-muted-foreground">Current Plan</p>
-                      <p className="text-xl font-bold flex items-center gap-2">
-                        {subscription?.plan.toUpperCase()}
-                        {getPlanBadge(subscription?.plan || 'trial')}
-                      </p>
-                    </div>
-                    <CreditCard className="h-8 w-8 text-muted-foreground" />
                   </div>
                 </CardContent>
               </Card>
@@ -535,289 +479,6 @@ function ProfilePageContent() {
                     ))}
                   </div>
                 )}
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          <TabsContent value="subscription" className="space-y-6">
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              {/* Current Plan */}
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <CreditCard className="h-5 w-5" />
-                    Current Plan
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  {subscription && (
-                    <>
-                      <div className="flex items-center justify-between">
-                        <span className="font-medium">Plan:</span>
-                        {getPlanBadge(subscription.plan)}
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <span className="font-medium">Status:</span>
-                        <Badge variant={subscription.status === 'active' ? 'default' : 'secondary'}>
-                          {subscription.status.toUpperCase()}
-                        </Badge>
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <span className="font-medium">Deployments:</span>
-                        <span>{subscription.deployments.used} / {subscription.deployments.limit}</span>
-                      </div>
-                      <div className="w-full bg-gray-200 rounded-full h-2">
-                        <div 
-                          className="bg-blue-600 h-2 rounded-full" 
-                          style={{ width: `${(subscription.deployments.used / subscription.deployments.limit) * 100}%` }}
-                        ></div>
-                      </div>
-                      {subscription.plan === 'trial' && (
-                        <Alert>
-                          <Calendar className="h-4 w-4" />
-                          <AlertDescription>
-                            Your trial expires on {new Date(subscription.currentPeriodEnd).toLocaleDateString()}
-                          </AlertDescription>
-                        </Alert>
-                      )}
-                    </>
-                  )}
-                </CardContent>
-              </Card>
-
-              {/* Plan Actions */}
-              <Card>
-                <CardHeader>
-                  <CardTitle>Plan Management</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  {subscription?.plan === 'trial' ? (
-                    <div className="space-y-3">
-                      <p className="text-sm text-muted-foreground">
-                        Upgrade your plan to unlock more features and deployments.
-                      </p>
-                      <Button className="w-full text-white dark:text-white">
-                        Upgrade to Pro
-                      </Button>
-                      <Button variant="outline" className="w-full dark:text-white dark:border-gray-600 dark:hover:bg-gray-700">
-                        View All Plans
-                      </Button>
-                    </div>
-                  ) : (
-                    <div className="space-y-3">
-                      <p className="text-sm text-muted-foreground">
-                        Manage your subscription and billing.
-                      </p>
-                      <Button variant="outline" className="w-full dark:text-white dark:border-gray-600 dark:hover:bg-gray-700">
-                        Update Payment Method
-                      </Button>
-                      <Button variant="outline" className="w-full dark:text-white dark:border-gray-600 dark:hover:bg-gray-700">
-                        View Billing History
-                      </Button>
-                      <Button variant="destructive" className="w-full text-white dark:text-white">
-                        Cancel Subscription
-                      </Button>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-            </div>
-
-            {/* Pricing Plans */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Available Plans</CardTitle>
-                <CardDescription>
-                  Choose the plan that best fits your needs
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                  {/* Free Plan */}
-                  <div className="border rounded-lg p-6 space-y-4">
-                    <div>
-                      <h3 className="text-lg font-semibold">Free</h3>
-                      <p className="text-2xl font-bold">$0<span className="text-sm font-normal">/forever</span></p>
-                      <p className="text-sm text-muted-foreground mt-2">Perfect for personal projects and learning</p>
-                    </div>
-                    <ul className="space-y-2 text-sm">
-                      <li className="flex items-center gap-2">
-                        <CheckCircle className="h-4 w-4 text-green-500" />
-                        5 React/Static deployments per month
-                      </li>
-                      <li className="flex items-center gap-2">
-                        <CheckCircle className="h-4 w-4 text-green-500" />
-                        Public repositories only
-                      </li>
-                      <li className="flex items-center gap-2">
-                        <CheckCircle className="h-4 w-4 text-green-500" />
-                        Basic AWS infrastructure
-                      </li>
-                      <li className="flex items-center gap-2">
-                        <CheckCircle className="h-4 w-4 text-green-500" />
-                        Standard build times
-                      </li>
-                      <li className="flex items-center gap-2">
-                        <CheckCircle className="h-4 w-4 text-green-500" />
-                        Community support
-                      </li>
-                      <li className="flex items-center gap-2 opacity-40">
-                        <XCircle className="h-4 w-4 text-gray-400" />
-                        Private repositories
-                      </li>
-                      <li className="flex items-center gap-2 opacity-40">
-                        <XCircle className="h-4 w-4 text-gray-400" />
-                        Custom domains
-                      </li>
-                      <li className="flex items-center gap-2 opacity-40">
-                        <XCircle className="h-4 w-4 text-gray-400" />
-                        Priority support
-                      </li>
-                      <li className="flex items-center gap-2 opacity-40">
-                        <XCircle className="h-4 w-4 text-gray-400" />
-                        Advanced analytics
-                      </li>
-                    </ul>
-                    <Button 
-                      variant={subscription?.plan === 'free' ? 'secondary' : 'default'}
-                      className="w-full text-white dark:text-white"
-                      disabled={subscription?.plan === 'free'}
-                    >
-                      {subscription?.plan === 'free' ? 'Current Plan' : 'Get Started Free'}
-                    </Button>
-                  </div>
-
-                  {/* Pro Plan */}
-                  <div className="border-2 border-blue-500 rounded-lg p-6 space-y-4 relative">
-                    <div className="absolute -top-3 left-1/2 transform -translate-x-1/2">
-                      <Badge className="bg-blue-500">Most Popular</Badge>
-                    </div>
-                    <div>
-                      <h3 className="text-lg font-semibold">Pro</h3>
-                      <p className="text-2xl font-bold">$12<span className="text-sm font-normal">/per month</span></p>
-                      <p className="text-sm text-muted-foreground mt-2">Best for professional developers and small teams</p>
-                    </div>
-                    <ul className="space-y-2 text-sm">
-                      <li className="flex items-center gap-2">
-                        <CheckCircle className="h-4 w-4 text-green-500" />
-                        Unlimited React & Static deployments
-                      </li>
-                      <li className="flex items-center gap-2">
-                        <CheckCircle className="h-4 w-4 text-green-500" />
-                        Private repositories
-                      </li>
-                      <li className="flex items-center gap-2">
-                        <CheckCircle className="h-4 w-4 text-green-500" />
-                        Custom domains with SSL
-                      </li>
-                      <li className="flex items-center gap-2">
-                        <CheckCircle className="h-4 w-4 text-green-500" />
-                        Fast build times
-                      </li>
-                      <li className="flex items-center gap-2">
-                        <CheckCircle className="h-4 w-4 text-green-500" />
-                        Email support
-                      </li>
-                      <li className="flex items-center gap-2">
-                        <CheckCircle className="h-4 w-4 text-green-500" />
-                        Advanced analytics
-                      </li>
-                      <li className="flex items-center gap-2">
-                        <CheckCircle className="h-4 w-4 text-green-500" />
-                        Environment variables
-                      </li>
-                      <li className="flex items-center gap-2">
-                        <CheckCircle className="h-4 w-4 text-green-500" />
-                        Deployment previews
-                      </li>
-                      <li className="flex items-center gap-2">
-                        <CheckCircle className="h-4 w-4 text-green-500" />
-                        GitHub integration
-                      </li>
-                      <li className="flex items-center gap-2">
-                        <CheckCircle className="h-4 w-4 text-green-500" />
-                        CloudFront CDN
-                      </li>
-                      <li className="flex items-center gap-2 opacity-40">
-                        <XCircle className="h-4 w-4 text-gray-400" />
-                        White-label options
-                      </li>
-                      <li className="flex items-center gap-2 opacity-40">
-                        <XCircle className="h-4 w-4 text-gray-400" />
-                        Dedicated support
-                      </li>
-                      <li className="flex items-center gap-2 opacity-40">
-                        <XCircle className="h-4 w-4 text-gray-400" />
-                        Custom integrations
-                      </li>
-                    </ul>
-                    <Button 
-                      variant={subscription?.plan === 'pro' ? 'secondary' : 'default'}
-                      className="w-full text-white dark:text-white"
-                      disabled={subscription?.plan === 'pro'}
-                    >
-                      {subscription?.plan === 'pro' ? 'Current Plan' : 'Start Pro Trial'}
-                    </Button>
-                  </div>
-
-                  {/* Enterprise Plan */}
-                  <div className="border rounded-lg p-6 space-y-4">
-                    <div>
-                      <h3 className="text-lg font-semibold">Enterprise</h3>
-                      <p className="text-2xl font-bold">Custom</p>
-                      <p className="text-sm text-muted-foreground mt-2">For large teams and organizations</p>
-                    </div>
-                    <ul className="space-y-2 text-sm">
-                      <li className="flex items-center gap-2">
-                        <CheckCircle className="h-4 w-4 text-green-500" />
-                        Everything in Pro
-                      </li>
-                      <li className="flex items-center gap-2">
-                        <CheckCircle className="h-4 w-4 text-green-500" />
-                        White-label solution
-                      </li>
-                      <li className="flex items-center gap-2">
-                        <CheckCircle className="h-4 w-4 text-green-500" />
-                        Dedicated support manager
-                      </li>
-                      <li className="flex items-center gap-2">
-                        <CheckCircle className="h-4 w-4 text-green-500" />
-                        Custom integrations & APIs
-                      </li>
-                      <li className="flex items-center gap-2">
-                        <CheckCircle className="h-4 w-4 text-green-500" />
-                        SLA guarantees (99.9% uptime)
-                      </li>
-                      <li className="flex items-center gap-2">
-                        <CheckCircle className="h-4 w-4 text-green-500" />
-                        Advanced security & compliance
-                      </li>
-                      <li className="flex items-center gap-2">
-                        <CheckCircle className="h-4 w-4 text-green-500" />
-                        Team management & permissions
-                      </li>
-                      <li className="flex items-center gap-2">
-                        <CheckCircle className="h-4 w-4 text-green-500" />
-                        Priority builds & deployment
-                      </li>
-                      <li className="flex items-center gap-2">
-                        <CheckCircle className="h-4 w-4 text-green-500" />
-                        Custom workflows & automation
-                      </li>
-                      <li className="flex items-center gap-2">
-                        <CheckCircle className="h-4 w-4 text-green-500" />
-                        Multi-region deployments
-                      </li>
-                    </ul>
-                    <Button 
-                      variant={subscription?.plan === 'enterprise' ? 'secondary' : 'default'}
-                      className="w-full text-white dark:text-white"
-                      disabled={subscription?.plan === 'enterprise'}
-                    >
-                      {subscription?.plan === 'enterprise' ? 'Current Plan' : 'Contact Sales'}
-                    </Button>
-                  </div>
-                </div>
               </CardContent>
             </Card>
           </TabsContent>

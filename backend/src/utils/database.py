@@ -62,10 +62,8 @@ def create_tables():
     Create all tables in the database
     """
     from ..models.enhanced_models import Base as EnhancedBase
-    from ..models.billing_models import Base as BillingBase
     
     EnhancedBase.metadata.create_all(bind=engine)
-    BillingBase.metadata.create_all(bind=engine)
 
 def init_database():
     """

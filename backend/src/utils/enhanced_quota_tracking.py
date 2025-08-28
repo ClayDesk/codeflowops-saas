@@ -5,10 +5,9 @@ from typing import Dict, Optional, Tuple, List
 from sqlalchemy.orm import Session
 from dataclasses import dataclass
 
-from ..models.billing_models import (
-    OrganizationSubscription, BillingPlan, PlanTier, SubscriptionStatus,
-    PLAN_CONFIGS
-)
+# Billing models removed (dynamic pricing plans removed)
+# Using simplified quota tracking without plan tiers
+
 from ..models.enhanced_models import Organization, User, Project, DeploymentHistory
 from ..utils.database import get_db_session
 

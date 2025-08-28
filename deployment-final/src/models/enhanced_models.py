@@ -10,9 +10,6 @@ Base = declarative_base()
 
 class OrganizationPlan(enum.Enum):
     FREE = "free"
-    STARTER = "starter" 
-    PRO = "pro"
-    ENTERPRISE = "enterprise"
 
 class UserRole(enum.Enum):
     OWNER = "owner"

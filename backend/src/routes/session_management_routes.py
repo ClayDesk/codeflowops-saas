@@ -8,7 +8,7 @@ import logging
 
 from ..utils.session_resume import session_resume_manager, ResumeStrategy
 from ..utils.structured_logging import structured_logger
-from ..utils.quota_tracking import quota_manager
+from ..utils.simple_quota_tracking import quota_manager
 from dependencies.session import get_session_manager, SessionManager
 from auth.auth_manager import auth_manager
 

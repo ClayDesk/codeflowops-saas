@@ -10,7 +10,7 @@ from datetime import datetime, timedelta
 
 from ..models.enhanced_models import User, Organization, Team, Project, DeploymentHistory, Usage
 from ..utils.job_queue import job_queue, JobStatus
-from ..utils.quota_tracking import quota_manager
+from ..utils.simple_quota_tracking import quota_manager
 from ..utils.session_resume import session_resume_manager
 from dependencies.session import get_session_manager, SessionManager
 from database.connection import get_database_manager

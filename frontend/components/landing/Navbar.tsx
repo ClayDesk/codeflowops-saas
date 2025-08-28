@@ -42,12 +42,6 @@ export function Navbar() {
               How it Works
             </Link>
             <Link
-              href="#pricing"
-              className="text-gray-600 hover:text-gray-900 dark:text-gray-300 dark:hover:text-white font-medium transition-colors"
-            >
-              Pricing
-            </Link>
-            <Link
               href="#testimonials"
               className="text-gray-600 hover:text-gray-900 dark:text-gray-300 dark:hover:text-white font-medium transition-colors"
             >
@@ -115,13 +109,6 @@ export function Navbar() {
                 onClick={() => setIsOpen(false)}
               >
                 How it Works
-              </Link>
-              <Link
-                href="#pricing"
-                className="block px-3 py-2 text-gray-600 hover:text-gray-900 dark:text-gray-300 dark:hover:text-white font-medium transition-colors"
-                onClick={() => setIsOpen(false)}
-              >
-                Pricing
               </Link>
               <Link
                 href="#testimonials"

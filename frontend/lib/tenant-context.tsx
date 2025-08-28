@@ -6,7 +6,7 @@ interface TenantInfo {
   slug: string
   name: string
   domain: string
-  subscription: 'starter' | 'professional' | 'enterprise'
+  subscription: 'free'
   isCustomDomain: boolean
 }
 
@@ -65,7 +65,7 @@ export function TenantProvider({ children, host }: TenantProviderProps) {
             slug: data.slug,
             name: data.name,
             domain: hostname,
-            subscription: data.subscription,
+            subscription: 'free',
             isCustomDomain: true,
           })
           setIsLoading(false)
@@ -83,7 +83,7 @@ export function TenantProvider({ children, host }: TenantProviderProps) {
             slug: data.slug,
             name: data.name,
             domain: data.custom_domain || `${data.slug}.codeflowops.com`,
-            subscription: data.subscription_tier,
+            subscription: 'free',
             isCustomDomain,
           })
         } else if (response.status === 404) {

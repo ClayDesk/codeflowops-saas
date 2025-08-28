@@ -46,13 +46,13 @@ export function useStripe({ onSuccess, onError }: UseStripeOptions = {}) {
 
       const result = await response.json()
       
-      // Redirect to Stripe Checkout immediately
-      if (result.checkout_url) {
-        window.location.href = result.checkout_url
+      // Redirect to Stripe Checkout immediately if URL exists
+      if (result.subscription?.checkout_url) {
+        window.location.href = result.subscription.checkout_url
         return result
       }
       
-      // Only call onSuccess if we didn't redirect (shouldn't happen normally)
+      // Only call onSuccess if we didn't redirect (completed subscription)
       onSuccess?.(result)
       return result
 

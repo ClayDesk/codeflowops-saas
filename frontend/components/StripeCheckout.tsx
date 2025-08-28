@@ -23,13 +23,14 @@ export function StripeCheckout({ onSuccess, onCancel }: StripeCheckoutProps) {
 
   const { createSubscription, loading, error, clearError } = useStripe({
     onSuccess: (result) => {
-      // Only show success state if we have a completed subscription (not just checkout URL)
-      if (result.subscription && !result.checkout_url) {
+      // Only show success state if we have a completed subscription WITHOUT a checkout URL
+      // If checkout_url exists, the user needs to complete payment on Stripe first
+      if (result.subscription && !result.subscription.checkout_url) {
         setSubscriptionData(result.subscription)
         setIsComplete(true)
         onSuccess?.()
       }
-      // If we have checkout_url, the hook will redirect automatically
+      // If checkout_url exists, the hook will redirect to Stripe automatically
     },
     onError: (error) => {
       console.error('Subscription error:', error)

@@ -44,6 +44,12 @@ redis==5.0.8
 celery==5.3.4
 kombu==5.3.4
 
+# --- Payments ---
+stripe==8.0.0
+
+# --- Environment ---
+python-dotenv==1.0.0
+
 # --- Infra / misc ---
 requests==2.31.0
 structlog==23.2.0

@@ -7,6 +7,10 @@ Core functionality with modular router integration - legacy deployment logic rem
 import os
 os.environ['GIT_PYTHON_REFRESH'] = 'quiet'
 
+# Load environment variables from .env file
+from dotenv import load_dotenv
+load_dotenv()
+
 from fastapi import FastAPI, HTTPException, APIRouter, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
@@ -84,8 +88,16 @@ except ImportError as e:
     logger.warning(f"⚠️ Trial management service not available: {e}")
     TRIAL_SERVICE_AVAILABLE = False
 
-# Stripe functionality removed
-STRIPE_AVAILABLE = False
+# Simple Stripe configuration
+try:
+    from config.stripe_config import StripeConfig
+    import stripe
+    stripe.api_key = StripeConfig.get_secret_key()
+    STRIPE_AVAILABLE = True
+    logger.info("✅ Simple Stripe configuration loaded")
+except Exception as e:
+    logger.warning(f"⚠️ Stripe not available: {e}")
+    STRIPE_AVAILABLE = False
 
 # Add backend paths to import existing components
 backend_path = Path(__file__).parent
@@ -1915,9 +1927,13 @@ except ImportError as e:
     logger.warning(f"⚠️ GitHub auth routes not available: {e}")
     GITHUB_AUTH_AVAILABLE = False
 
-# Payment routes removed (Stripe functionality removed)
-
-# Billing routes removed (file not found)
+# Add simple payment routes (Stripe integration)
+try:
+    from src.routes.payment_routes import router as payment_router
+    app.include_router(payment_router)
+    logger.info("✅ Simple payment routes loaded successfully")
+except ImportError as e:
+    logger.warning(f"⚠️ Payment routes not available: {e}")
 
 # Include modular routers if available
 if MODULAR_ROUTERS_AVAILABLE:

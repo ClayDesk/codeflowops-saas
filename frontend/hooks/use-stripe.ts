@@ -1,0 +1,67 @@
+/**
+ * Simple Stripe Hook
+ * Handles subscription creation
+ */
+
+import { useState } from 'react'
+
+interface UseStripeOptions {
+  onSuccess?: (result: any) => void
+  onError?: (error: string) => void
+}
+
+interface CreateSubscriptionParams {
+  email: string
+  name?: string
+  trialDays?: number
+}
+
+export function useStripe({ onSuccess, onError }: UseStripeOptions = {}) {
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'https://api.codeflowops.com'
+
+  const createSubscription = async (params: CreateSubscriptionParams) => {
+    try {
+      setLoading(true)
+      setError(null)
+
+      const response = await fetch(`${API_BASE}/api/v1/payments/create-subscription`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          email: params.email,
+          name: params.name,
+          trial_days: params.trialDays || 14
+        })
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.detail || 'Failed to create subscription')
+      }
+
+      const result = await response.json()
+      onSuccess?.(result)
+      return result
+
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'An error occurred'
+      setError(errorMessage)
+      onError?.(errorMessage)
+      throw err
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  return {
+    createSubscription,
+    loading,
+    error,
+    clearError: () => setError(null)
+  }
+}

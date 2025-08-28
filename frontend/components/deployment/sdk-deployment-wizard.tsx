@@ -128,6 +128,7 @@ export function SDKDeploymentWizard({ initialRepo = '', onClose }: { initialRepo
   const [currentStep, setCurrentStep] = useState(0)
   const [formData, setFormData] = useState({
     repositoryUrl: initialRepo,
+    githubToken: '',
     awsAccessKey: '',
     awsSecretKey: '',
     awsRegion: '',
@@ -148,6 +149,68 @@ export function SDKDeploymentWizard({ initialRepo = '', onClose }: { initialRepo
   const [deploymentProgress, setDeploymentProgress] = useState(0)
   const [deploymentResult, setDeploymentResult] = useState<any>(null)
   const [deploymentPhase, setDeploymentPhase] = useState('initializing')
+
+  // Repository validation for CodeFlowOps (React + Static sites only)
+  const validateRepositoryForCodeFlowOps = (repoUrl: string, analysis?: any): { valid: boolean; message?: string; warning?: string } => {
+    console.log('🔍 Starting validation for:', repoUrl)
+    
+    // Only validate GitHub repositories
+    if (!repoUrl.includes('github.com')) {
+      return { valid: false, message: "Only GitHub repositories are currently supported" }
+    }
+
+    // Enhanced repository name checking for backend and unsupported frameworks
+    const repoName = repoUrl.split('/').pop()?.toLowerCase() || ''
+    console.log('🔍 Extracted repo name:', repoName)
+    
+    // Comprehensive check for any unsupported patterns
+    const unsupportedPatterns = [
+      // PHP Frameworks
+      'codeigniter', 'laravel', 'symfony', 'cakephp', 'yii', 'zend',
+      // Python Frameworks  
+      'django', 'flask', 'fastapi', 'pyramid',
+      // Java Frameworks
+      'spring', 'struts', 'hibernate',
+      // Node.js Backend Frameworks
+      'express', 'nestjs', 'koa', 'hapi',
+      // Other Backend Frameworks
+      'rails', 'gin', 'actix', 'fiber',
+      // Project Types
+      'ecommerce', 'e-commerce', 'cms', 'admin', 'dashboard', 'api', 'backend', 'server',
+      // Languages that indicate backend
+      'php', 'python', 'java', 'golang', 'rust', 'ruby'
+    ]
+    
+    // Check each pattern
+    for (const pattern of unsupportedPatterns) {
+      if (repoName.includes(pattern)) {
+        console.log('� Found unsupported pattern:', pattern)
+        return {
+          valid: false,
+          message: `🚀 CodeFlowOps specializes in React and static websites. We detected "${pattern.toUpperCase()}" in your repository, which isn't currently supported. Please try a React, Vue, Angular, or static website repository instead. Support for ${pattern} applications is coming soon!`
+        }
+      }
+    }
+
+    // If we have analysis data, check the detected stack
+    if (analysis?.detected_stack) {
+      const detectedStack = analysis.detected_stack.toLowerCase()
+      const unsupportedStacks = [
+        'python', 'django', 'flask', 'fastapi', 'java', 'spring', 
+        'dotnet', 'c#', 'ruby', 'rails', 'go', 'rust', 'php', 'laravel', 'codeigniter'
+      ]
+      
+      if (unsupportedStacks.some(stack => detectedStack.includes(stack))) {
+        return {
+          valid: false,
+          message: `🚀 CodeFlowOps specializes in React and static websites. We detected "${detectedStack}" technology which isn't currently supported. Support for ${detectedStack} applications is coming soon!`
+        }
+      }
+    }
+
+    console.log('✅ Validation passed for:', repoName)
+    return { valid: true }
+  }
 
   // Progress animation effect for smoother progress bar
   useEffect(() => {
@@ -220,7 +283,13 @@ export function SDKDeploymentWizard({ initialRepo = '', onClose }: { initialRepo
 
     setIsAnalyzing(true)
     try {
-      const result = await api.analyzeRepository(formData.repositoryUrl)
+      // Pass both repository URL and GitHub token if provided
+      const requestData = {
+        repositoryUrl: formData.repositoryUrl,
+        ...(formData.githubToken && { githubToken: formData.githubToken })
+      }
+      
+      const result = await api.analyzeRepository(requestData)
       console.log('Analysis result:', result) // Debug log to see what data is available
       setAnalysisResult(result)
       
@@ -238,6 +307,8 @@ export function SDKDeploymentWizard({ initialRepo = '', onClose }: { initialRepo
       setIsAnalyzing(false)
     }
   }
+
+
 
   const handleValidateCredentials = async () => {
     if (!formData.awsAccessKey.trim() || !formData.awsSecretKey.trim()) {
@@ -651,9 +722,34 @@ function RepositoryStep({
             onChange={(e) => setFormData({...formData, repositoryUrl: e.target.value})}
           />
           <p className="text-sm text-gray-500">
-            Supports public GitHub repositories. We'll analyze the project structure and build requirements.
+            Supports React, Vue, Angular, and static websites. We'll analyze the project structure and build requirements.
           </p>
         </div>
+
+        {/* GitHub Token Field - Only show for GitHub URLs */}
+        {formData.repositoryUrl.toLowerCase().includes('github.com') && (
+          <div className="space-y-2">
+            <Label htmlFor="github-token">GitHub Personal Access Token (Optional)</Label>
+            <Input
+              id="github-token"
+              type="password"
+              placeholder="ghp_xxxxxxxxxxxxxxxxxxxx (for private repositories)"
+              value={formData.githubToken}
+              onChange={(e) => setFormData({...formData, githubToken: e.target.value})}
+            />
+            <p className="text-xs text-gray-500">
+              Required only for private repositories. Create a token at{' '}
+              <a 
+                href="https://github.com/settings/tokens" 
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="text-blue-500 hover:underline"
+              >
+                GitHub Settings
+              </a>
+            </p>
+          </div>
+        )}
 
         <div className="space-y-2">
           <Label htmlFor="project-name">Project Name (Optional)</Label>

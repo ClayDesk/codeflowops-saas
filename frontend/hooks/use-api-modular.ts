@@ -33,14 +33,21 @@ export const useAnalyzeRepository = () => {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: async (repositoryUrl: string) => {
+    mutationFn: async ({ repositoryUrl, githubToken }: { repositoryUrl: string; githubToken?: string }) => {
       const url = smartApiConfig.getApiUrl('/api/analyze-repo')
+      const requestBody: any = { 
+        repo_url: repositoryUrl,
+        analysis_type: 'full'
+      }
+      
+      // Add GitHub token if provided
+      if (githubToken) {
+        requestBody.github_token = githubToken
+      }
+      
       const response = await fetchApi(url, {
         method: 'POST',
-        body: JSON.stringify({ 
-          repo_url: repositoryUrl,
-          analysis_type: 'full'
-        }),
+        body: JSON.stringify(requestBody),
       })
       
       // Add stack type detection info

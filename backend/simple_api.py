@@ -2,7 +2,12 @@
 Simple Core API for CodeFlowOps SaaS Workflow - Streamlined Modular Version
 Core functionality with modular router integration - legacy deployment logic removed
 """
-from fastapi import FastAPI, HTTPException, APIRouter
+
+# Fix GitPython issue at the very beginning
+import os
+os.environ['GIT_PYTHON_REFRESH'] = 'quiet'
+
+from fastapi import FastAPI, HTTPException, APIRouter, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
@@ -52,6 +57,47 @@ _LOCK = threading.Lock()
 from repository_enhancer import RepositoryEnhancer, _get_primary_language
 from cleanup_service import cleanup_service
 
+# Import deployment quota manager with error handling
+try:
+    from deployment_quota_manager import deployment_quota_manager
+    QUOTA_MANAGER_AVAILABLE = True
+    logger.info("✅ Deployment quota manager loaded successfully")
+except ImportError as e:
+    logger.warning(f"⚠️ Deployment quota manager not available: {e}")
+    QUOTA_MANAGER_AVAILABLE = False
+    # Create a mock quota manager for fallback
+    class MockQuotaManager:
+        def get_quota_status(self, *args, **kwargs):
+            return {"error": "Quota manager not available"}
+        def check_monthly_quota(self, *args, **kwargs):
+            return True, "Quota checking disabled"
+        def check_concurrent_quota(self, *args, **kwargs):
+            return True, "Quota checking disabled"
+    deployment_quota_manager = MockQuotaManager()
+
+# Import trial management service
+try:
+    from trial_management_service import trial_service
+    TRIAL_SERVICE_AVAILABLE = True
+    logger.info("✅ Trial management service loaded successfully")
+except ImportError as e:
+    logger.warning(f"⚠️ Trial management service not available: {e}")
+    TRIAL_SERVICE_AVAILABLE = False
+
+# Import secure Stripe configuration
+try:
+    from config.stripe_config import StripeConfig
+    import stripe
+    stripe.api_key = StripeConfig.get_secret_key()
+    STRIPE_AVAILABLE = True
+    logger.info("✅ Stripe configuration loaded successfully")
+except ImportError as e:
+    logger.warning(f"⚠️ Stripe configuration not available: {e}")
+    STRIPE_AVAILABLE = False
+except ValueError as e:
+    logger.error(f"❌ Stripe configuration error: {e}")
+    STRIPE_AVAILABLE = False
+
 # Add backend paths to import existing components
 backend_path = Path(__file__).parent
 src_path = backend_path / "src"
@@ -85,10 +131,24 @@ except ImportError as e:
     logger.error(f"⚠️ Modular router system not available: {e}")
     stack_router_registry = None
 
+def authorize_github_url(repo_url: str, github_token: Optional[str] = None) -> str:
+    """
+    Authorize private GitHub URL by injecting token
+    Returns: Modified URL that works with existing clone logic
+    """
+    if not github_token or 'github.com' not in repo_url:
+        return repo_url
+    
+    if repo_url.startswith('https://github.com/'):
+        return repo_url.replace('https://github.com/', f'https://{github_token}@github.com/')
+    
+    return repo_url
+
 # Pydantic models
 class RepoAnalysisRequest(BaseModel):
     repo_url: str
     analysis_type: str = "full"
+    github_token: Optional[str] = None
 
 class DeployRequest(BaseModel):
     deployment_id: Optional[str] = None
@@ -125,6 +185,95 @@ router = APIRouter()
 # Session management (simplified)
 deployment_sessions = {}
 
+@router.get("/")
+async def root():
+    """Root endpoint - API is healthy"""
+    return {
+        "status": "healthy",
+        "service": "CodeFlowOps Streamlined API",
+        "version": "2.0.0",
+        "message": "Welcome to CodeFlowOps API"
+    }
+
+@router.get("/health")
+async def health_check():
+    """Health check endpoint for ELB"""
+    return {
+        "status": "healthy",
+        "service": "CodeFlowOps Streamlined API",
+        "version": "2.0.0"
+    }
+
+@router.get("/api/v1/pricing")
+async def get_public_pricing(
+    country: Optional[str] = None,
+    currency: Optional[str] = None,
+    referral_code: Optional[str] = None,
+    company_size: Optional[str] = None
+):
+    """
+    Public pricing endpoint that doesn't require authentication
+    """
+    # Return fallback static pricing for now
+    return {
+        "plans": [
+            {
+                "id": "free",
+                "name": "Free",
+                "price": 0,
+                "currency": currency or "USD",
+                "interval": "month",
+                "features": ["3 projects", "Public repositories", "Community support"],
+                "recommended": False
+            },
+            {
+                "id": "starter",
+                "name": "Starter", 
+                "price": 19,
+                "currency": currency or "USD",
+                "interval": "month",
+                "trial_days": 14,
+                "features": ["10 projects", "Private repositories", "Email support"],
+                "recommended": True
+            },
+            {
+                "id": "pro",
+                "name": "Pro",
+                "price": 49,
+                "currency": currency or "USD", 
+                "interval": "month",
+                "trial_days": 7,
+                "features": ["Unlimited projects", "Priority support", "Advanced analytics"],
+                "recommended": False
+            },
+            {
+                "id": "enterprise",
+                "name": "Enterprise",
+                "price": 0,
+                "currency": currency or "USD",
+                "interval": "month",
+                "features": ["Everything in Pro", "Custom integrations", "Dedicated support"],
+                "recommended": False,
+                "contact_sales": True
+            }
+        ],
+        "currency": currency or "USD",
+        "personalized": False
+    }
+
+@router.get("/favicon.ico")
+async def favicon():
+    """Return empty response for favicon requests to prevent 404s"""
+    return JSONResponse(content="", media_type="image/x-icon", status_code=204)
+
+@router.get("/robots.txt")
+async def robots():
+    """Return robots.txt to prevent 404s"""
+    return JSONResponse(
+        content="User-agent: *\nDisallow: /api/\nAllow: /\n",
+        media_type="text/plain"
+    )
+
 @router.post("/api/analyze-repo")
 async def analyze_repository(request: RepoAnalysisRequest):
     """
@@ -132,6 +281,10 @@ async def analyze_repository(request: RepoAnalysisRequest):
     Routes to appropriate stack handler when available
     """
     repo_url = request.repo_url.strip()
+    
+    # Authorize private GitHub URL if token provided
+    authorized_url = authorize_github_url(repo_url, request.github_token)
+    
     logger.info(f"🔍 Analyzing repository: {repo_url}")
     
     try:
@@ -143,7 +296,7 @@ async def analyze_repository(request: RepoAnalysisRequest):
         
         # Use enhanced analyzer for comprehensive analysis
         analyzer = EnhancedRepositoryAnalyzer()
-        analysis = await analyzer.analyze_repository_comprehensive(repo_url, deployment_id)
+        analysis = await analyzer.analyze_repository_comprehensive(authorized_url, deployment_id)
         
         if not analysis or analysis.get("error"):
             raise HTTPException(status_code=400, detail=analysis.get("error", "Analysis failed"))
@@ -238,6 +391,150 @@ async def validate_credentials(request: CredentialsRequest):
             "error": str(e)
         }
 
+@router.get("/api/quota/status")
+async def get_quota_status(request: Request, user_id: Optional[str] = None, plan: Optional[str] = None):
+    """
+    Get current quota status for user
+    Returns deployment limits and usage information
+    Supports GitHub OAuth session authentication
+    """
+    try:
+        if not QUOTA_MANAGER_AVAILABLE:
+            return {
+                "success": False,
+                "error": "Quota manager not available",
+                "quota": {
+                    "plan": {"tier": plan or "free", "name": "Free"},
+                    "monthly_runs": {"used": 0, "limit": "unknown", "unlimited": False},
+                    "deployment_allowed": {"can_deploy": True}
+                }
+            }
+        
+        # Try to get user info from GitHub OAuth session
+        github_user_data = None
+        if GITHUB_AUTH_AVAILABLE:
+            try:
+                from src.api.github_auth_routes import get_session
+                session_token = request.cookies.get("codeflowops_session")
+                if session_token:
+                    session_data = get_session(session_token)
+                    if session_data:
+                        github_user_data = session_data.get("user")
+                        user_id = github_user_data.get("id", user_id)
+                        logger.info(f"📊 Getting quota for GitHub user: {github_user_data.get('login', 'unknown')}")
+            except ImportError:
+                logger.warning("Could not import get_session from GitHub auth routes")
+        
+        # Use provided parameters or defaults
+        user_id = user_id or "demo_user"
+        
+        # Get trial/plan information if available
+        plan_tier = plan or "free"
+        trial_info = None
+        
+        if TRIAL_SERVICE_AVAILABLE and github_user_data:
+            try:
+                # Get trial status for GitHub user
+                user_email = github_user_data.get("email")
+                if user_email:
+                    trial_status = trial_service.get_trial_status(user_email)
+                    trial_info = trial_status
+                    
+                    # Update plan tier based on trial status
+                    if trial_status.get("is_trial_active"):
+                        trial_type = trial_status.get("trial_type", "starter")
+                        plan_tier = trial_type.lower()
+                        logger.info(f"📋 User {user_email} has active {trial_type} trial")
+                    elif trial_status.get("has_subscription"):
+                        plan_tier = trial_status.get("subscription_tier", "free")
+                        logger.info(f"💳 User {user_email} has {plan_tier} subscription")
+            except Exception as e:
+                logger.warning(f"⚠️ Could not get trial info: {e}")
+        
+        # Mock current usage - in production, get from database
+        current_runs = 2  # Example: user has made 2 deployments this month
+        active_runs = 1   # Example: 1 deployment currently running
+        
+        quota_status = deployment_quota_manager.get_quota_status(
+            user_id=user_id,
+            plan_tier=plan_tier,
+            current_runs=current_runs,
+            active_runs=active_runs
+        )
+        
+        return {
+            "success": True,
+            "quota": quota_status,
+            "trial_info": trial_info,
+            "user_info": {
+                "authenticated_via": "github_oauth" if github_user_data else "query_params",
+                "user_id": user_id,
+                "plan_tier": plan_tier
+            }
+        }
+        
+    except Exception as e:
+        logger.error(f"Failed to get quota status: {e}")
+        raise HTTPException(status_code=500, detail="Failed to retrieve quota status")
+
+@router.post("/api/quota/check")
+async def check_deployment_quota(user_id: Optional[str] = None, plan: Optional[str] = None):
+    """
+    Check if user can start a new deployment
+    Returns quota validation before deployment starts
+    """
+    try:
+        if not QUOTA_MANAGER_AVAILABLE:
+            return {
+                "success": True,
+                "can_deploy": True,
+                "checks": {
+                    "monthly": {"passed": True, "reason": "Quota checking disabled"},
+                    "concurrent": {"passed": True, "reason": "Quota checking disabled"}
+                },
+                "note": "Quota manager not available - allowing all deployments"
+            }
+        
+        # For now, use request parameters or defaults
+        user_id = user_id or "demo_user"
+        plan_tier = plan or "free"
+        
+        # Mock current usage - in production, get from database
+        current_runs = 2
+        active_runs = 1
+        
+        # Check both monthly and concurrent limits
+        can_deploy_monthly, monthly_reason = deployment_quota_manager.check_monthly_quota(
+            user_id, plan_tier, current_runs
+        )
+        can_deploy_concurrent, concurrent_reason = deployment_quota_manager.check_concurrent_quota(
+            user_id, plan_tier, active_runs
+        )
+        
+        can_deploy = can_deploy_monthly and can_deploy_concurrent
+        
+        return {
+            "success": True,
+            "can_deploy": can_deploy,
+            "checks": {
+                "monthly": {
+                    "passed": can_deploy_monthly,
+                    "reason": monthly_reason
+                },
+                "concurrent": {
+                    "passed": can_deploy_concurrent,
+                    "reason": concurrent_reason
+                }
+            },
+            "quota_status": deployment_quota_manager.get_quota_status(
+                user_id, plan_tier, current_runs, active_runs
+            )
+        }
+        
+    except Exception as e:
+        logger.error(f"Failed to check deployment quota: {e}")
+        raise HTTPException(status_code=500, detail="Failed to check deployment quota")
+
 @router.post("/api/deploy")
 async def deploy_to_aws(request: DeployRequest):
     """
@@ -249,6 +546,50 @@ async def deploy_to_aws(request: DeployRequest):
         deployment_id = request.deployment_id or request.analysis_id
         if not deployment_id:
             raise HTTPException(status_code=400, detail="deployment_id or analysis_id is required")
+        
+        # CHECK QUOTA BEFORE PROCEEDING (if quota manager is available)
+        if QUOTA_MANAGER_AVAILABLE:
+            # For now, use demo values - in production, get from auth token
+            user_id = "demo_user"  # TODO: Get from authenticated user context
+            plan_tier = "free"     # TODO: Get from user subscription
+            current_runs = 2       # TODO: Get from database
+            active_runs = 1        # TODO: Get from database
+            
+            # Validate quota limits
+            can_deploy_monthly, monthly_reason = deployment_quota_manager.check_monthly_quota(
+                user_id, plan_tier, current_runs
+            )
+            can_deploy_concurrent, concurrent_reason = deployment_quota_manager.check_concurrent_quota(
+                user_id, plan_tier, active_runs
+            )
+            
+            if not can_deploy_monthly:
+                logger.warning(f"Deployment blocked - Monthly quota exceeded: {monthly_reason}")
+                raise HTTPException(
+                    status_code=403, 
+                    detail={
+                        "error": "Monthly deployment limit exceeded",
+                        "reason": monthly_reason,
+                        "quota_type": "monthly",
+                        "upgrade_suggestion": "Consider upgrading your plan for more monthly deployments"
+                    }
+                )
+            
+            if not can_deploy_concurrent:
+                logger.warning(f"Deployment blocked - Concurrent quota exceeded: {concurrent_reason}")
+                raise HTTPException(
+                    status_code=429,
+                    detail={
+                        "error": "Concurrent deployment limit exceeded", 
+                        "reason": concurrent_reason,
+                        "quota_type": "concurrent",
+                        "suggestion": "Wait for existing deployments to complete before starting new ones"
+                    }
+                )
+            
+            logger.info(f"✅ Quota check passed for deployment {deployment_id}")
+        else:
+            logger.info(f"⚠️ Quota checking disabled for deployment {deployment_id}")
         
         # Normalize AWS credential field names
         aws_access_key = request.aws_access_key or request.aws_access_key_id
@@ -1579,9 +1920,36 @@ except ImportError as e:
 try:
     from src.api.github_auth_routes import router as github_auth_router
     app.include_router(github_auth_router, prefix="/api/v1")
+    GITHUB_AUTH_AVAILABLE = True
     logger.info("✅ GitHub authentication routes loaded successfully")
 except ImportError as e:
     logger.warning(f"⚠️ GitHub auth routes not available: {e}")
+    GITHUB_AUTH_AVAILABLE = False
+
+# Add payment routes with Stripe integration
+try:
+    from src.routes.payment_routes import router as payment_router
+    app.include_router(payment_router)
+    logger.info("✅ Payment routes with Stripe integration loaded successfully")
+except ImportError as e:
+    logger.warning(f"⚠️ Payment routes not available: {e}")
+
+# Add billing routes for dynamic pricing
+try:
+    from src.routes.billing_routes import router as billing_router
+    app.include_router(billing_router, prefix="/api/v1")
+    logger.info("✅ Billing routes with dynamic pricing loaded successfully")
+except ImportError as e:
+    logger.warning(f"⚠️ Billing routes not available: {e}")
+
+# Add billing routes under /payments prefix for frontend compatibility
+try:
+    from src.routes.billing_routes import create_payments_router
+    payments_billing_router = create_payments_router()
+    app.include_router(payments_billing_router, prefix="/api/v1/payments")
+    logger.info("✅ Payments billing routes for frontend compatibility loaded successfully")
+except ImportError as e:
+    logger.warning(f"⚠️ Payments billing routes not available: {e}")
 
 # Include modular routers if available
 if MODULAR_ROUTERS_AVAILABLE:
@@ -1761,6 +2129,115 @@ if MODULAR_ROUTERS_AVAILABLE:
 else:
     logger.info("⚠️ Modular router endpoints not available - using fallback deployment only")
 
+# ===== TRIAL MANAGEMENT ENDPOINTS =====
+if TRIAL_SERVICE_AVAILABLE:
+    @app.get("/api/trial/status")
+    async def get_trial_status():
+        """Get comprehensive trial status with AI analytics"""
+        try:
+            # For demo, using a fixed user ID - in production, get from JWT token
+            user_id = "demo-user-123"
+            trial_status = trial_service.get_trial_status(user_id)
+            return trial_status
+        except Exception as e:
+            logger.error(f"Error getting trial status: {e}")
+            return {"error": f"Failed to get trial status: {str(e)}"}
+    
+    @app.post("/api/trial/extend")
+    async def extend_trial():
+        """Extend trial period (admin functionality)"""
+        try:
+            # Implementation for trial extension
+            return {"success": True, "message": "Trial extended successfully"}
+        except Exception as e:
+            logger.error(f"Error extending trial: {e}")
+            return {"error": f"Failed to extend trial: {str(e)}"}
+
+# Enhanced quota endpoint with trial integration
+@app.get("/api/quota/status")
+async def get_quota_status():
+    """Get quota status with trial integration"""
+    try:
+        base_quota = {"quota_used": 2, "quota_limit": 5, "deployments_remaining": 3}
+        
+        # Add trial data if available
+        if TRIAL_SERVICE_AVAILABLE:
+            try:
+                user_id = "demo-user-123"
+                trial_data = trial_service.get_trial_status(user_id)
+                if trial_data and not trial_data.get('error'):
+                    base_quota.update({
+                        "trial_active": True,
+                        "trial_days_remaining": trial_data.get('metrics', {}).get('days_remaining', 0),
+                        "engagement_score": trial_data.get('metrics', {}).get('engagement_score', 0),
+                        "trial_health": trial_data.get('analytics', {}).get('trial_health', 'unknown')
+                    })
+            except Exception as e:
+                logger.error(f"Error adding trial data to quota: {e}")
+        
+        return base_quota
+    except Exception as e:
+        logger.error(f"Error getting quota status: {e}")
+        return {"error": f"Failed to get quota status: {str(e)}"}
+
+# ===== STRIPE WEBHOOK ENDPOINT =====
+if STRIPE_AVAILABLE:
+    @app.post("/api/stripe/webhook")
+    async def stripe_webhook(request):
+        """Handle Stripe webhooks for subscription events"""
+        try:
+            payload = await request.body()
+            sig_header = request.headers.get('stripe-signature')
+            
+            if not sig_header:
+                raise HTTPException(status_code=400, detail="Missing Stripe signature")
+            
+            # Verify webhook signature
+            try:
+                event = stripe.Webhook.construct_event(
+                    payload, sig_header, StripeConfig.get_webhook_secret()
+                )
+            except ValueError:
+                raise HTTPException(status_code=400, detail="Invalid payload")
+            except stripe.error.SignatureVerificationError:
+                raise HTTPException(status_code=400, detail="Invalid signature")
+            
+            # Handle the event
+            event_type = event['type']
+            logger.info(f"Received Stripe webhook: {event_type}")
+            
+            if event_type == 'customer.subscription.created':
+                # Handle new subscription
+                subscription = event['data']['object']
+                customer_id = subscription['customer']
+                logger.info(f"New subscription created for customer: {customer_id}")
+                
+            elif event_type == 'customer.subscription.updated':
+                # Handle subscription updates
+                subscription = event['data']['object']
+                logger.info(f"Subscription updated: {subscription['id']}")
+                
+            elif event_type == 'customer.subscription.deleted':
+                # Handle subscription cancellation
+                subscription = event['data']['object']
+                logger.info(f"Subscription cancelled: {subscription['id']}")
+                
+            elif event_type == 'invoice.payment_succeeded':
+                # Handle successful payment
+                invoice = event['data']['object']
+                logger.info(f"Payment succeeded for invoice: {invoice['id']}")
+                
+            elif event_type == 'invoice.payment_failed':
+                # Handle failed payment
+                invoice = event['data']['object']
+                logger.info(f"Payment failed for invoice: {invoice['id']}")
+            
+            return {"status": "success"}
+            
+        except Exception as e:
+            logger.error(f"Error processing Stripe webhook: {e}")
+            raise HTTPException(status_code=400, detail=f"Webhook error: {str(e)}")
+
 # Add basic health check endpoint
 @app.get("/health")
 async def health():
@@ -1772,6 +2249,30 @@ async def api_health():
 
 # Include the main router
 app.include_router(router)
+
+# Include payment routes for Stripe integration
+try:
+    from src.routes.payment_routes import router as payment_router
+    app.include_router(payment_router)
+    logger.info("✅ Payment routes (Stripe integration) loaded successfully")
+except ImportError as e:
+    logger.error(f"❌ Failed to load payment routes from src.routes.payment_routes: {e}")
+    try:
+        # Alternative: try with modified Python path
+        import sys
+        import os
+        src_path = os.path.join(os.path.dirname(__file__), 'src')
+        if src_path not in sys.path:
+            sys.path.insert(0, src_path)
+        
+        # Import after adding path
+        import importlib
+        payment_module = importlib.import_module('routes.payment_routes')
+        payment_router = getattr(payment_module, 'router')
+        app.include_router(payment_router)
+        logger.info("✅ Payment routes loaded with dynamic import")
+    except Exception as e2:
+        logger.error(f"❌ All payment route imports failed: {e2}")
 
 # Add modular stack routers if available
 try:

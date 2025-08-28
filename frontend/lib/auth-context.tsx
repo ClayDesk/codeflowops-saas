@@ -60,10 +60,10 @@ interface AuthContextType extends AuthState {
   refreshToken: () => Promise<void>
   getCognitoConfig: () => Promise<CognitoConfig | null>
   resetPassword: (email: string) => Promise<void>
-  fetchUserProfile: () => Promise<any>
-  updateUserProfile: (profileData: any) => Promise<any>
-  fetchUserDeployments: () => Promise<any>
-  clearDeploymentHistory: () => Promise<any>
+  fetchUserProfile: () => Promise<{ user: User; subscription: Record<string, unknown> } | undefined>
+  updateUserProfile: (profileData: Partial<User>) => Promise<User | undefined>
+  fetchUserDeployments: () => Promise<Record<string, unknown>[] | undefined>
+  clearDeploymentHistory: () => Promise<void>
   profilePicture: string | null
   updateProfilePicture: (imageFile: File) => Promise<void>
   removeProfilePicture: () => void
@@ -90,48 +90,58 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const USER_KEY = 'codeflowops_user'
 
   // Utility function for better error handling
-  const parseAuthError = (error: any): AuthError => {
+  const parseAuthError = (error: unknown): AuthError => {
     if (typeof error === 'string') {
       return { code: 'UNKNOWN_ERROR', message: error }
     }
     
-    if (error?.detail) {
+    if (error && typeof error === 'object' && 'detail' in error) {
+      const errorObj = error as { detail: string }
       // Backend error format
-      if (typeof error.detail === 'string') {
+      if (typeof errorObj.detail === 'string') {
         // Check for Cognito-specific errors
-        if (error.detail.includes('Auth flow not enabled')) {
+        if (errorObj.detail.includes('Auth flow not enabled')) {
           return {
             code: 'COGNITO_AUTH_FLOW_ERROR',
             message: 'Authentication method not configured properly',
             details: 'Please contact support - authentication service needs configuration'
           }
         }
-        if (error.detail.includes('User does not exist') || error.detail.includes('Incorrect username or password')) {
+        if (errorObj.detail.includes('User does not exist') || errorObj.detail.includes('Incorrect username or password')) {
           return {
             code: 'INVALID_CREDENTIALS',
             message: 'Invalid email or password'
           }
         }
-        if (error.detail.includes('User already exists')) {
+        if (errorObj.detail.includes('User already exists')) {
           return {
             code: 'USER_EXISTS',
             message: 'An account with this email already exists'
           }
         }
-        if (error.detail.includes('Password does not conform to policy')) {
+        if (errorObj.detail.includes('Password does not conform to policy')) {
           return {
             code: 'WEAK_PASSWORD',
             message: 'Password does not meet requirements',
             details: 'Password must contain uppercase, lowercase, number and special character'
           }
         }
-        return { code: 'API_ERROR', message: error.detail }
+        return { code: 'API_ERROR', message: errorObj.detail }
       }
     }
     
+    // Generic error handling
+    if (error && typeof error === 'object' && 'message' in error) {
+      const errorWithMessage = error as { message: string }
+      return {
+        code: 'NETWORK_ERROR',
+        message: errorWithMessage.message || 'Network error occurred'
+      }
+    }
+
     return {
-      code: 'NETWORK_ERROR',
-      message: error?.message || 'Network error occurred'
+      code: 'UNKNOWN_ERROR',
+      message: 'An unexpected error occurred'
     }
   }
 
@@ -302,24 +312,79 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   // Fetch user profile data
   const fetchUserProfile = async () => {
     try {
+      // Check if user is authenticated via GitHub OAuth (cookie-based)
+      let userResponse
       const token = getStoredToken()
-      if (!token) {
-        throw new Error('No access token found')
+      
+      if (user?.provider === 'github' || !token) {
+        // Try GitHub OAuth endpoint with cookies
+        userResponse = await fetch(`${API_BASE}/api/v1/auth/github/user`, {
+          credentials: 'include', // Include cookies for GitHub OAuth
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        })
+      } else {
+        // Try token-based auth endpoint
+        userResponse = await fetch(`${API_BASE}/api/v1/auth/me`, {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+        })
       }
 
-      const response = await fetch(`${API_BASE}/api/v1/auth/profile`, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-      })
-
-      if (!response.ok) {
-        throw new Error('Failed to fetch profile')
+      if (!userResponse.ok) {
+        throw new Error('Failed to fetch user profile')
       }
 
-      const data = await response.json()
-      return data
+      const responseData = await userResponse.json()
+      
+      // Extract user data - GitHub OAuth returns nested user object
+      let userData = responseData.user || responseData
+      
+      // Map GitHub fields to frontend User interface
+      if (userData.login && !userData.username) {
+        userData = {
+          ...userData,
+          username: userData.login // Map GitHub 'login' to 'username'
+        }
+      }
+
+      // Fetch subscription data from billing endpoint
+      let subscriptionData = null
+      try {
+        let subscriptionResponse
+        
+        if (user?.provider === 'github' || !token) {
+          // Use GitHub-compatible subscription endpoint for GitHub OAuth users
+          subscriptionResponse = await fetch(`${API_BASE}/api/v1/auth/github/subscription`, {
+            credentials: 'include',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+          })
+        } else {
+          // Use token-based auth for regular Cognito users
+          subscriptionResponse = await fetch(`${API_BASE}/api/v1/billing/subscription`, {
+            headers: {
+              'Authorization': `Bearer ${token}`,
+              'Content-Type': 'application/json',
+            },
+          })
+        }
+
+        if (subscriptionResponse.ok) {
+          subscriptionData = await subscriptionResponse.json()
+        }
+      } catch (subError) {
+        console.warn('Failed to fetch subscription data:', subError)
+      }
+
+      return {
+        user: userData,
+        subscription: subscriptionData
+      }
     } catch (error) {
       console.error('Error fetching profile:', error)
       throw error
@@ -327,14 +392,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }
 
   // Update user profile
-  const updateUserProfile = async (profileData: any) => {
+  const updateUserProfile = async (profileData: Partial<User>) => {
     try {
       const token = getStoredToken()
       if (!token) {
         throw new Error('No access token found')
       }
 
-      const response = await fetch(`${API_BASE}/api/v1/auth/profile`, {
+      const response = await fetch(`${API_BASE}/api/v1/auth/me`, {
         method: 'PUT',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -349,7 +414,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       const data = await response.json()
       // Update local user state
-      setUser(data.user)
+      setUser(data)
       return data
     } catch (error) {
       console.error('Error updating profile:', error)
@@ -361,23 +426,32 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const fetchUserDeployments = async () => {
     try {
       const token = getStoredToken()
-      if (!token) {
-        throw new Error('No access token found')
+      
+      let response
+      if (user?.provider === 'github' || !token) {
+        // Use GitHub-compatible deployments endpoint
+        response = await fetch(`${API_BASE}/api/v1/auth/github/deployments`, {
+          credentials: 'include',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        })
+      } else {
+        // Use token-based auth for regular Cognito users
+        response = await fetch(`${API_BASE}/api/v1/auth/deployments`, {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+        })
       }
-
-      const response = await fetch(`${API_BASE}/api/v1/auth/deployments`, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-      })
 
       if (!response.ok) {
         throw new Error('Failed to fetch deployments')
       }
 
       const data = await response.json()
-      return data
+      return data.deployments || data
     } catch (error) {
       console.error('Error fetching deployments:', error)
       throw error
@@ -547,13 +621,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (response.ok) {
         const data = await response.json()
         if (data.authenticated && data.user) {
-          setUser({
+          // Set user data from GitHub
+          const githubUser = {
             id: data.user.id,
             email: data.user.email,
             name: data.user.name || data.user.login,
             username: data.user.login,
             provider: 'github'
-          })
+          }
+          setUser(githubUser)
+          
+          // Note: We'll handle subscription data separately for GitHub users
+          // No need to exchange for Cognito tokens since we have a GitHub-compatible endpoint
+          
           return true
         }
       }
@@ -607,7 +687,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
 
     initializeAuth()
-  }, [])
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   const value: AuthContextType = {
     user,

@@ -1,7 +1,7 @@
 'use client'
 
-import { useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { useState, useEffect } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { useAuth } from '@/lib/auth-context'
 import { Button } from '@/components/ui/button'
@@ -9,7 +9,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
 import { Alert, AlertDescription } from '@/components/ui/alert'
-import { Loader2, Mail, Lock, User, Eye, EyeOff, CheckCircle } from 'lucide-react'
+import { Loader2, Mail, Lock, User, Eye, EyeOff, CheckCircle, CreditCard, Clock } from 'lucide-react'
 
 interface RegisterFormProps {
   redirectTo?: string
@@ -28,9 +28,36 @@ export function RegisterForm({ redirectTo = '/smart-deploy' }: RegisterFormProps
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
+  const [planInfo, setPlanInfo] = useState<{
+    plan: string | null
+    trial: string | null
+    redirect: string | null
+  }>({ plan: null, trial: null, redirect: null })
 
   const { register } = useAuth()
   const router = useRouter()
+  const searchParams = useSearchParams()
+
+  // Extract plan parameters from URL
+  useEffect(() => {
+    const plan = searchParams.get('plan')
+    const trial = searchParams.get('trial')
+    const redirect = searchParams.get('redirect')
+    
+    if (plan) {
+      setPlanInfo({ plan, trial, redirect })
+    }
+  }, [searchParams])
+
+  // Helper function to get plan details
+  const getPlanDetails = (planName: string) => {
+    const plans: Record<string, { name: string; price: string; trialDays?: number }> = {
+      starter: { name: 'Starter Plan', price: '$19/month', trialDays: 14 },
+      pro: { name: 'Pro Plan', price: '$49/month', trialDays: 7 },
+      free: { name: 'Free Plan', price: 'Free forever' }
+    }
+    return plans[planName.toLowerCase()] || null
+  }
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target
@@ -130,10 +157,44 @@ export function RegisterForm({ redirectTo = '/smart-deploy' }: RegisterFormProps
         full_name: ''
       })
       
-      // Redirect to the specified page
-      setTimeout(() => {
-        router.push(redirectTo)
-      }, 1500)
+      // If user was registering for a specific plan, trigger subscription
+      if (planInfo.plan && planInfo.plan !== 'free') {
+        setSuccess('Account created! Setting up your subscription...')
+        
+        setTimeout(async () => {
+          try {
+            // Trigger subscription flow
+            const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'https://api.codeflowops.com'
+            const response = await fetch(`${API_BASE}/api/v1/billing/subscribe/${planInfo.plan}`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+              credentials: 'include'
+            })
+
+            if (response.ok) {
+              const data = await response.json()
+              if (data.checkout_url) {
+                window.location.href = data.checkout_url
+                return
+              }
+            }
+            
+            // Fallback: redirect to profile for manual subscription
+            router.push('/profile?tab=billing')
+          } catch (err) {
+            console.error('Subscription setup failed:', err)
+            // Still redirect to profile where user can manually subscribe
+            router.push('/profile?tab=billing')
+          }
+        }, 1500)
+      } else {
+        // Regular redirect without subscription
+        setTimeout(() => {
+          router.push(planInfo.redirect || redirectTo)
+        }, 1500)
+      }
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Registration failed. Please try again.'
       setError(errorMessage)
@@ -175,11 +236,35 @@ export function RegisterForm({ redirectTo = '/smart-deploy' }: RegisterFormProps
         <CardHeader className="space-y-1">
           <CardTitle className="text-2xl font-bold text-center">Create Account</CardTitle>
           <CardDescription className="text-center">
-            Sign up for CodeFlowOps to get started
+            {planInfo.plan ? `Sign up for CodeFlowOps ${getPlanDetails(planInfo.plan)?.name}` : 'Sign up for CodeFlowOps to get started'}
           </CardDescription>
         </CardHeader>
 
         <CardContent>
+          {/* Plan Information Display */}
+          {planInfo.plan && getPlanDetails(planInfo.plan) && (
+            <div className="mb-6 p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
+              <div className="flex items-center space-x-2 mb-2">
+                <CreditCard className="h-5 w-5 text-blue-600" />
+                <h3 className="font-semibold text-blue-900 dark:text-blue-100">
+                  {getPlanDetails(planInfo.plan)?.name}
+                </h3>
+              </div>
+              <div className="text-sm text-blue-800 dark:text-blue-200">
+                <p className="font-medium">{getPlanDetails(planInfo.plan)?.price}</p>
+                {planInfo.trial === 'true' && getPlanDetails(planInfo.plan)?.trialDays && (
+                  <div className="flex items-center space-x-1 mt-1">
+                    <Clock className="h-4 w-4" />
+                    <span>{getPlanDetails(planInfo.plan)?.trialDays}-day free trial included</span>
+                  </div>
+                )}
+                <p className="mt-2 text-xs">
+                  After creating your account, you'll be redirected to complete your subscription setup.
+                </p>
+              </div>
+            </div>
+          )}
+
           <form onSubmit={handleSubmit} className="space-y-4">
             {error && (
               <Alert variant="destructive">
@@ -341,6 +426,32 @@ export function RegisterForm({ redirectTo = '/smart-deploy' }: RegisterFormProps
               ) : (
                 'Create Account'
               )}
+            </Button>
+
+            {/* GitHub Login Section */}
+            <div className="relative">
+              <div className="absolute inset-0 flex items-center">
+                <span className="w-full border-t" />
+              </div>
+              <div className="relative flex justify-center text-xs uppercase">
+                <span className="bg-background px-2 text-muted-foreground">
+                  Or continue with
+                </span>
+              </div>
+            </div>
+
+            <Button
+              type="button"
+              variant="outline"
+              className="w-full"
+              onClick={() => {
+                const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'https://api.codeflowops.com'
+                window.location.href = `${API_BASE}/api/v1/auth/github`
+              }}
+              disabled={isLoading}
+            >
+              <span className="mr-2 text-lg">⚡</span>
+              Continue with GitHub
             </Button>
           </form>
         </CardContent>

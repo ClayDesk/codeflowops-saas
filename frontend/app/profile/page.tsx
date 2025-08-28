@@ -87,8 +87,8 @@ function ProfilePageContent() {
         }
         
         // Fetch user deployments
-        const deploymentsResponse = await fetchUserDeployments()
-        if (deploymentsResponse.deployments) {
+        const deploymentsResponse = await fetchUserDeployments() as { deployments?: Deployment[] }
+        if (deploymentsResponse?.deployments) {
           setDeployments(deploymentsResponse.deployments)
         }
       } catch (error) {
@@ -178,8 +178,8 @@ function ProfilePageContent() {
       
       // Refetch deployments from backend to get the actual cleared state
       try {
-        const deploymentsResponse = await fetchUserDeployments()
-        if (deploymentsResponse.deployments) {
+        const deploymentsResponse = await fetchUserDeployments() as { deployments?: Deployment[] }
+        if (deploymentsResponse?.deployments) {
           setDeployments(deploymentsResponse.deployments)
         } else {
           setDeployments([])

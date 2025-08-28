@@ -2,6 +2,11 @@
 Node.js LightSail Router - Simple & Reliable
 Based on lessons learned from Python LightSail issues - uses simplified approach
 """
+
+# Fix GitPython issue at the beginning
+import os
+os.environ['GIT_PYTHON_REFRESH'] = 'quiet'
+
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 from typing import Optional, Dict, Any, List, Union
@@ -10,7 +15,6 @@ import boto3
 import json
 import asyncio
 import tempfile
-import os
 import subprocess
 from datetime import datetime
 import uuid

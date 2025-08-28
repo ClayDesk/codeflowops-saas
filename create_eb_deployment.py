@@ -27,8 +27,18 @@ def create_eb_deployment_package():
     # Create deployment directory
     deployment_dir.mkdir(exist_ok=True)
     
-    # Copy the working simple_api.py as main.py
+    # Copy the working simple_api.py to the deployment (keep original name)
+    shutil.copy2(backend_dir / "simple_api.py", deployment_dir / "simple_api.py")
+    print("  Copied: simple_api.py")
+    
+    # Also copy as main.py for backward compatibility 
     shutil.copy2(backend_dir / "simple_api.py", deployment_dir / "main.py")
+    print("  Copied: simple_api.py as main.py")
+    
+    # Copy the application.py entry point
+    if (backend_dir / "application.py").exists():
+        shutil.copy2(backend_dir / "application.py", deployment_dir / "application.py")
+        print("  Copied: application.py")
     
     # Copy all support files from backend directory
     support_files = [
@@ -37,7 +47,9 @@ def create_eb_deployment_package():
         "enhanced_repository_analyzer.py",
         "react_deployer.py",           # Updated React deployer with DirectReactBuilder
         "direct_react_builder.py",     # New DirectReactBuilder (replaces CodeBuild)
-        "simple_react_deployer.py"     # Simple React deployer if it exists
+        "simple_react_deployer.py",    # Simple React deployer if it exists
+        "trial_management_service.py", # Trial management with AI analytics
+        "deployment_quota_manager.py"  # Enhanced quota management with trial integration
     ]
     
     for file in support_files:
@@ -84,6 +96,12 @@ def create_eb_deployment_package():
     if utils_dir.exists():
         shutil.copytree(utils_dir, deployment_dir / "utils", dirs_exist_ok=True)
         print("  Copied: utils/ directory")
+    
+    # Copy config directory if it exists (for secure Stripe configuration)
+    config_dir = backend_dir / "config"
+    if config_dir.exists():
+        shutil.copytree(config_dir, deployment_dir / "config", dirs_exist_ok=True)
+        print("  Copied: config/ directory")
     
     # Copy .ebextensions from backend if it exists (for custom configurations like Node.js)
     backend_ebextensions_dir = backend_dir / ".ebextensions"
@@ -219,6 +237,7 @@ commands:
       echo "Git location: $(which git)"
       echo "Git version: $(git --version)"
       echo "PATH: $PATH"
+      echo "GIT_PYTHON_REFRESH: $GIT_PYTHON_REFRESH"
     ignoreErrors: true
 """)
     

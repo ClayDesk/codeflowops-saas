@@ -84,19 +84,8 @@ except ImportError as e:
     logger.warning(f"⚠️ Trial management service not available: {e}")
     TRIAL_SERVICE_AVAILABLE = False
 
-# Import secure Stripe configuration
-try:
-    from config.stripe_config import StripeConfig
-    import stripe
-    stripe.api_key = StripeConfig.get_secret_key()
-    STRIPE_AVAILABLE = True
-    logger.info("✅ Stripe configuration loaded successfully")
-except ImportError as e:
-    logger.warning(f"⚠️ Stripe configuration not available: {e}")
-    STRIPE_AVAILABLE = False
-except ValueError as e:
-    logger.error(f"❌ Stripe configuration error: {e}")
-    STRIPE_AVAILABLE = False
+# Stripe functionality removed
+STRIPE_AVAILABLE = False
 
 # Add backend paths to import existing components
 backend_path = Path(__file__).parent
@@ -1926,30 +1915,9 @@ except ImportError as e:
     logger.warning(f"⚠️ GitHub auth routes not available: {e}")
     GITHUB_AUTH_AVAILABLE = False
 
-# Add payment routes with Stripe integration
-try:
-    from src.routes.payment_routes import router as payment_router
-    app.include_router(payment_router)
-    logger.info("✅ Payment routes with Stripe integration loaded successfully")
-except ImportError as e:
-    logger.warning(f"⚠️ Payment routes not available: {e}")
+# Payment routes removed (Stripe functionality removed)
 
-# Add billing routes for dynamic pricing
-try:
-    from src.routes.billing_routes import router as billing_router
-    app.include_router(billing_router, prefix="/api/v1")
-    logger.info("✅ Billing routes with dynamic pricing loaded successfully")
-except ImportError as e:
-    logger.warning(f"⚠️ Billing routes not available: {e}")
-
-# Add billing routes under /payments prefix for frontend compatibility
-try:
-    from src.routes.billing_routes import create_payments_router
-    payments_billing_router = create_payments_router()
-    app.include_router(payments_billing_router, prefix="/api/v1/payments")
-    logger.info("✅ Payments billing routes for frontend compatibility loaded successfully")
-except ImportError as e:
-    logger.warning(f"⚠️ Payments billing routes not available: {e}")
+# Billing routes removed (file not found)
 
 # Include modular routers if available
 if MODULAR_ROUTERS_AVAILABLE:
@@ -2180,63 +2148,7 @@ async def get_quota_status():
         logger.error(f"Error getting quota status: {e}")
         return {"error": f"Failed to get quota status: {str(e)}"}
 
-# ===== STRIPE WEBHOOK ENDPOINT =====
-if STRIPE_AVAILABLE:
-    @app.post("/api/stripe/webhook")
-    async def stripe_webhook(request):
-        """Handle Stripe webhooks for subscription events"""
-        try:
-            payload = await request.body()
-            sig_header = request.headers.get('stripe-signature')
-            
-            if not sig_header:
-                raise HTTPException(status_code=400, detail="Missing Stripe signature")
-            
-            # Verify webhook signature
-            try:
-                event = stripe.Webhook.construct_event(
-                    payload, sig_header, StripeConfig.get_webhook_secret()
-                )
-            except ValueError:
-                raise HTTPException(status_code=400, detail="Invalid payload")
-            except stripe.error.SignatureVerificationError:
-                raise HTTPException(status_code=400, detail="Invalid signature")
-            
-            # Handle the event
-            event_type = event['type']
-            logger.info(f"Received Stripe webhook: {event_type}")
-            
-            if event_type == 'customer.subscription.created':
-                # Handle new subscription
-                subscription = event['data']['object']
-                customer_id = subscription['customer']
-                logger.info(f"New subscription created for customer: {customer_id}")
-                
-            elif event_type == 'customer.subscription.updated':
-                # Handle subscription updates
-                subscription = event['data']['object']
-                logger.info(f"Subscription updated: {subscription['id']}")
-                
-            elif event_type == 'customer.subscription.deleted':
-                # Handle subscription cancellation
-                subscription = event['data']['object']
-                logger.info(f"Subscription cancelled: {subscription['id']}")
-                
-            elif event_type == 'invoice.payment_succeeded':
-                # Handle successful payment
-                invoice = event['data']['object']
-                logger.info(f"Payment succeeded for invoice: {invoice['id']}")
-                
-            elif event_type == 'invoice.payment_failed':
-                # Handle failed payment
-                invoice = event['data']['object']
-                logger.info(f"Payment failed for invoice: {invoice['id']}")
-            
-            return {"status": "success"}
-            
-        except Exception as e:
-            logger.error(f"Error processing Stripe webhook: {e}")
-            raise HTTPException(status_code=400, detail=f"Webhook error: {str(e)}")
+# Stripe webhook functionality removed
 
 # Add basic health check endpoint
 @app.get("/health")
@@ -2250,29 +2162,7 @@ async def api_health():
 # Include the main router
 app.include_router(router)
 
-# Include payment routes for Stripe integration
-try:
-    from src.routes.payment_routes import router as payment_router
-    app.include_router(payment_router)
-    logger.info("✅ Payment routes (Stripe integration) loaded successfully")
-except ImportError as e:
-    logger.error(f"❌ Failed to load payment routes from src.routes.payment_routes: {e}")
-    try:
-        # Alternative: try with modified Python path
-        import sys
-        import os
-        src_path = os.path.join(os.path.dirname(__file__), 'src')
-        if src_path not in sys.path:
-            sys.path.insert(0, src_path)
-        
-        # Import after adding path
-        import importlib
-        payment_module = importlib.import_module('routes.payment_routes')
-        payment_router = getattr(payment_module, 'router')
-        app.include_router(payment_router)
-        logger.info("✅ Payment routes loaded with dynamic import")
-    except Exception as e2:
-        logger.error(f"❌ All payment route imports failed: {e2}")
+# Payment routes removed (Stripe functionality removed)
 
 # Add modular stack routers if available
 try:

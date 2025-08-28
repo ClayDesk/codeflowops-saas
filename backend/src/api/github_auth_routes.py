@@ -10,18 +10,15 @@ import requests
 import os
 import logging
 import uuid
-import stripe
 from datetime import datetime
 
 # Import Cognito provider for user storage
 try:
     from ..auth.providers.cognito import CognitoAuthProvider
-    from ..config.stripe_config import stripe_config
     COGNITO_AVAILABLE = True
 except ImportError:
     try:
         from src.auth.providers.cognito import CognitoAuthProvider
-        from src.config.stripe_config import stripe_config
         COGNITO_AVAILABLE = True
     except ImportError:
         COGNITO_AVAILABLE = False
@@ -812,108 +809,6 @@ async def get_github_user_quota(request: Request):
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to get quota data"
-        )
-
-# Duplicate route removed - using the Stripe-integrated version below
-
-@router.post("/auth/github/subscribe/{plan_tier}")
-async def create_github_user_subscription(plan_tier: str, request: Request):
-    """
-    Create subscription for GitHub OAuth user
-    GitHub OAuth compatible alternative to /api/v1/billing/subscribe/{plan_tier}
-    """
-    try:
-        session_token = request.cookies.get("codeflowops_session")
-        
-        if not session_token or not session_exists(session_token):
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="No valid GitHub session found"
-            )
-        
-        session_data = get_session(session_token)
-        user_data = session_data["user"]
-        
-        # Get request body
-        body = await request.json() if request.headers.get("content-type") == "application/json" else {}
-        pricing_context = body.get("pricing_context", {})
-        trial_days = body.get("trial_days", 14)
-        
-        # Create Stripe checkout session for the subscription
-        try:
-            # Set Stripe API key
-            stripe.api_key = stripe_config.get_secret_key()
-            
-            # Get price ID for the plan
-            price_ids = stripe_config.get_price_ids()
-            price_id = price_ids.get(plan_tier)
-            
-            if not price_id:
-                raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    detail=f"No price configured for plan: {plan_tier}"
-                )
-            
-            # Create checkout session
-            checkout_session = stripe.checkout.Session.create(
-                payment_method_types=['card'],
-                line_items=[{
-                    'price': price_id,
-                    'quantity': 1,
-                }],
-                mode='subscription',
-                success_url=f"{FRONTEND_URL}/profile?success=true&session_id={{CHECKOUT_SESSION_ID}}",
-                cancel_url=f"{FRONTEND_URL}/profile?canceled=true",
-                customer_email=user_data.get("email"),
-                metadata={
-                    'github_user_id': user_data.get("id"),
-                    'github_username': user_data.get("login"),
-                    'plan_tier': plan_tier,
-                    'trial_days': str(trial_days)
-                },
-                subscription_data={
-                    'trial_period_days': trial_days if trial_days > 0 else None,
-                    'metadata': {
-                        'github_user_id': user_data.get("id"),
-                        'github_username': user_data.get("login"),
-                        'plan_tier': plan_tier
-                    }
-                }
-            )
-            
-            return {
-                "success": True,
-                "checkout_url": checkout_session.url,
-                "session_id": checkout_session.id,
-                "subscription": {
-                    "plan_tier": plan_tier,
-                    "trial_days": trial_days,
-                    "user_email": user_data.get("email"),
-                    "github_username": user_data.get("login")
-                },
-                "message": f"Stripe checkout created for {plan_tier} subscription"
-            }
-            
-        except stripe.error.StripeError as e:
-            logger.error(f"Stripe error creating checkout session: {e}")
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail=f"Failed to create checkout session: {str(e)}"
-            )
-        except Exception as e:
-            logger.error(f"Error creating Stripe checkout session: {e}")
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail="Failed to create checkout session"
-            )
-        
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Error creating GitHub user subscription: {e}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to create subscription"
         )
 
 @router.get("/auth/github/quota")

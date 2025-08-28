@@ -11,7 +11,6 @@ from ..models.billing_models import (
 )
 from ..models.enhanced_models import Organization, User, Project, DeploymentHistory
 from ..utils.database import get_db_session
-from ..utils.stripe_service import stripe_service
 
 @dataclass
 class QuotaLimits:
@@ -223,15 +222,8 @@ class EnhancedQuotaManager:
         if not allowed:
             raise ValueError(f"Quota exceeded: {reason}")
         
-        # Record usage event for billing
-        stripe_service.process_usage_event(
-            db=db,
-            organization_id=organization_id,
-            user_id=metadata.get("user_id") if metadata else None,
-            event_type=f"{resource_type}_consumed",
-            quantity=quantity,
-            metadata=metadata
-        )
+        # Usage event recording removed (Stripe functionality removed)
+        # Basic quota tracking continues without billing integration
         
         # Update subscription usage counters
         subscription = db.query(OrganizationSubscription).filter(

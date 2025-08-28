@@ -187,7 +187,7 @@ export function TopHeader({ onMenuClick, sidebarCollapsed }: TopHeaderProps) {
                 <div className="text-xs text-muted-foreground mt-1">1 hour ago</div>
               </DropdownMenuItem>
               <DropdownMenuItem className="flex flex-col items-start p-3">
-                <div className="font-medium">Billing Update</div>
+                <div className="font-medium">System Update</div>
                 <div className="text-sm text-muted-foreground">Monthly invoice is now available</div>
                 <div className="text-xs text-muted-foreground mt-1">2 hours ago</div>
               </DropdownMenuItem>
@@ -230,10 +230,6 @@ export function TopHeader({ onMenuClick, sidebarCollapsed }: TopHeaderProps) {
             <DropdownMenuItem onClick={() => router.push('/dashboard/profile')}>
               <User className="mr-2 h-4 w-4" />
               <span>Profile</span>
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => router.push('/dashboard/billing')}>
-              <CreditCard className="mr-2 h-4 w-4" />
-              <span>Billing</span>
             </DropdownMenuItem>
             <DropdownMenuItem onClick={() => router.push('/dashboard/settings')}>
               <Settings className="mr-2 h-4 w-4" />

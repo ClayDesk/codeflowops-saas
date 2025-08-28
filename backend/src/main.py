@@ -372,27 +372,8 @@ if LEGACY_ROUTES_AVAILABLE:
             tags=["Admin Panel"]
         )
 
-    # Add billing routes if available
-    try:
-        from routes.billing_routes import router as billing_router
-        app.include_router(
-            billing_router,
-            prefix="/api",
-            tags=["Billing & Subscriptions"]
-        )
-    except ImportError:
-        logger.info("Billing routes not available")
-
-    # Add admin billing routes if available
-    try:
-        from routes.admin_billing_routes import router as admin_billing_router
-        app.include_router(
-            admin_billing_router,
-            prefix="/api",
-            tags=["Admin Billing Management"]
-        )
-    except ImportError:
-        logger.info("Admin billing routes not available")
+    # Billing routes removed (Stripe functionality removed)
+    logger.info("Billing functionality has been removed from the application")
 
 
 # Enhanced root endpoint

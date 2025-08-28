@@ -18,7 +18,7 @@ const routeLabels: Record<string, string> = {
   analytics: 'Analytics',
   monitoring: 'Monitoring',
   team: 'Team',
-  billing: 'Billing',
+  // billing: 'Billing', // Removed (Stripe functionality removed)
   settings: 'Settings',
   support: 'Support',
   profile: 'Profile',

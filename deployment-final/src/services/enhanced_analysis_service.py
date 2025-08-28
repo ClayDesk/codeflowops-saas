@@ -564,7 +564,8 @@ class EnhancedAnalysisService:
                 
                 # Map dependencies to services
                 service_map = {
-                    'stripe': 'Stripe (Payments)',
+                    # Payment service mappings removed (Stripe functionality removed)
+                    'paypal': 'PayPal (Payments)',
                     'aws-sdk': 'AWS Services',
                     'firebase': 'Firebase',
                     'sendgrid': 'SendGrid (Email)',
@@ -587,7 +588,7 @@ class EnhancedAnalysisService:
         
         # Check for API endpoints in code
         api_patterns = [
-            'api.stripe.com', 'api.github.com', 'api.twitter.com',
+            'api.github.com', 'api.twitter.com',
             'maps.googleapis.com', 'api.sendgrid.com'
         ]
         

@@ -80,12 +80,6 @@ const navigation: NavigationItem[] = [
 
 const bottomNavigation: NavigationItem[] = [
   {
-    name: 'Billing',
-    href: '/dashboard/billing',
-    icon: CreditCard,
-    description: 'Manage subscription and billing'
-  },
-  {
     name: 'Settings',
     href: '/dashboard/settings',
     icon: Settings,

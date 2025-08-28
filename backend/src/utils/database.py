@@ -73,8 +73,5 @@ def init_database():
     """
     create_tables()
     
-    # Initialize billing plans
-    from ..utils.stripe_service import stripe_service
-    with get_db_context() as db:
-        import asyncio
-        asyncio.run(stripe_service.initialize_plans(db))
+    # Billing plans initialization removed (Stripe functionality removed)
+    # Plans are now managed through environment configuration only

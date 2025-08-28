@@ -30,8 +30,8 @@ class EnvironmentScanStage:
         "AWS_SECRET_ACCESS_KEY": re.compile(r'(?i)aws(.{0,20})?(secret|key).{0,10}[:=]\s*["\']?([A-Za-z0-9/+=]{40,})["\']?'),
         "GITHUB_TOKEN": re.compile(r'ghp_[A-Za-z0-9]{36,}'),
         "GITHUB_PAT": re.compile(r'github_pat_[A-Za-z0-9_]{82}'),
-        "STRIPE_SECRET_KEY": re.compile(r'sk_(live|test)_[A-Za-z0-9]{20,}'),
-        "STRIPE_PUBLISHABLE_KEY": re.compile(r'pk_(live|test)_[A-Za-z0-9]{20,}'),
+        # Payment/financial service keys removed (Stripe functionality removed)
+        "PAYPAL_CLIENT_ID": re.compile(r'[A-Za-z0-9_-]{50,}'),
         "TWILIO_ACCOUNT_SID": re.compile(r'\bAC[a-f0-9]{32}\b', re.I),  # Twilio Account SID
         "TWILIO_AUTH_TOKEN": re.compile(r'(?i)(?:twilio.{0,10}(?:auth.{0,5})?token|auth.{0,5}token).{0,10}[:=]\s*["\']?([a-f0-9]{32})["\']?'),  # Context-dependent with literal value
         "SENDGRID_API_KEY": re.compile(r'SG\.[A-Za-z0-9_-]{20,}\.[A-Za-z0-9_-]{40,}'),
@@ -277,11 +277,11 @@ class EnvironmentScanStage:
         """Assess risk level of detected secret"""
         high_risk_types = {
             "AWS_SECRET_ACCESS_KEY", "GITHUB_TOKEN", "GITHUB_PAT", 
-            "STRIPE_SECRET_KEY", "PRIVATE_KEY", "FIREBASE_PRIVATE_KEY"
+            "PRIVATE_KEY", "FIREBASE_PRIVATE_KEY"
         }
         
         medium_risk_types = {
-            "AWS_ACCESS_KEY_ID", "STRIPE_PUBLISHABLE_KEY", "JWT_SECRET",
+            "AWS_ACCESS_KEY_ID", "JWT_SECRET",
             "SENDGRID_API_KEY", "TWILIO_AUTH_TOKEN"
         }
         
@@ -370,7 +370,8 @@ class EnvironmentScanStage:
         
         # Pattern matching for known integrations
         integration_patterns = {
-            "stripe": ["STRIPE_", "NEXT_PUBLIC_STRIPE"],
+            # Payment service prefixes removed (Stripe functionality removed)
+            "paypal": ["PAYPAL_"],
             "aws": ["AWS_", "S3_", "LAMBDA_"],
             "sendgrid": ["SENDGRID_"],
             "twilio": ["TWILIO_"],

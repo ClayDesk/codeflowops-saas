@@ -56,7 +56,6 @@ const moreMenuItems = [
   { name: 'Templates', href: '/dashboard/templates', icon: FileText },
   { name: 'Analytics', href: '/dashboard/analytics', icon: BarChart3 },
   { name: 'Team', href: '/dashboard/team', icon: Users },
-  { name: 'Billing', href: '/dashboard/billing', icon: CreditCard },
   { name: 'Settings', href: '/dashboard/settings', icon: Settings },
   { name: 'Notifications', href: '/dashboard/notifications', icon: Bell }
 ]

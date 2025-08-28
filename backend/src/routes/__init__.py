@@ -65,19 +65,9 @@ try:
 except ImportError:
     admin_routes = RouteModule('admin_routes')
 
-try:
-    from . import admin_billing_routes
-    if not hasattr(admin_billing_routes, 'router'):
-        admin_billing_routes.router = APIRouter()
-except ImportError:
-    admin_billing_routes = RouteModule('admin_billing_routes')
-
-try:
-    from . import billing_routes
-    if not hasattr(billing_routes, 'router'):
-        billing_routes.router = APIRouter()
-except ImportError:
-    billing_routes = RouteModule('billing_routes')
+# Billing routes removed (Stripe functionality removed)
+admin_billing_routes = RouteModule('admin_billing_routes')
+billing_routes = RouteModule('billing_routes')
 
 try:
     from . import websocket_routes
@@ -99,7 +89,5 @@ __all__ = [
     "dashboard_routes",
     "session_management_routes",
     "admin_routes",
-    "admin_billing_routes",
-    "billing_routes",
     "websocket_routes"
 ]

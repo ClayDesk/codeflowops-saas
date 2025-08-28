@@ -5,7 +5,7 @@ Handles subscription creation and webhook events
 
 import stripe
 import logging
-from typing import Dict, Any
+from typing import Dict, Any, Optional
 
 # Import config with fallback for different path structures
 try:
@@ -65,6 +65,52 @@ class StripeService:
                 'plan': 'pro',
                 'amount': 1200,  # $12.00 in cents
                 'currency': 'usd'
+            }
+            
+        except stripe.error.StripeError as e:
+            logger.error(f"Stripe error: {str(e)}")
+            raise Exception(f"Payment processing failed: {str(e)}")
+        except Exception as e:
+            logger.error(f"Unexpected error: {str(e)}")
+            raise Exception(f"Service error: {str(e)}")
+    
+    async def create_checkout_session(self, email: str, name: Optional[str] = None, trial_days: int = 14) -> Dict[str, Any]:
+        """Create a Stripe Checkout Session for subscription with payment collection"""
+        try:
+            import stripe
+            stripe.api_key = StripeConfig.get_secret_key()
+            
+            # Create checkout session
+            checkout_session = stripe.checkout.Session.create(
+                payment_method_types=['card'],
+                line_items=[{
+                    'price': StripeConfig.get_price_id(),
+                    'quantity': 1,
+                }],
+                mode='subscription',
+                success_url='https://codeflowops.com/profile?tab=subscription&success=true',
+                cancel_url='https://codeflowops.com/pricing',
+                customer_email=email,
+                subscription_data={
+                    'trial_period_days': trial_days,
+                    'metadata': {
+                        'plan': 'pro',
+                        'trial_days': str(trial_days)
+                    }
+                },
+                metadata={
+                    'customer_name': name or '',
+                    'plan': 'pro'
+                }
+            )
+            
+            logger.info(f"Created checkout session: {checkout_session.id}")
+            
+            return {
+                'success': True,
+                'checkout_session_id': checkout_session.id,
+                'checkout_url': checkout_session.url,
+                'trial_days': trial_days
             }
             
         except stripe.error.StripeError as e:

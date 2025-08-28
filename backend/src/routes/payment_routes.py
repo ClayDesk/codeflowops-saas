@@ -39,6 +39,24 @@ async def create_subscription(request: CreateSubscriptionRequest):
         
         return {
             "success": True,
+            "subscription": result
+        }
+    except Exception as e:
+        logger.error(f"Failed to create subscription: {str(e)}")
+        raise HTTPException(status_code=400, detail=str(e))
+
+@router.post("/create-checkout-session")
+async def create_checkout_session(request: CreateSubscriptionRequest):
+    """Create a Stripe Checkout Session for subscription with payment collection"""
+    try:
+        result = await stripe_service.create_checkout_session(
+            email=request.email,
+            name=request.name,
+            trial_days=request.trial_days
+        )
+        
+        return {
+            "success": True,
             "message": f"Subscription created with {request.trial_days} day trial",
             "subscription": result
         }

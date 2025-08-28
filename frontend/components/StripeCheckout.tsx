@@ -133,7 +133,7 @@ export function StripeCheckout({ onSuccess, onCancel }: StripeCheckoutProps) {
         </div>
         <CardTitle className="text-2xl font-bold">Start Your Free Trial</CardTitle>
         <CardDescription>
-          Get 14 days of full access to CodeFlowOps Pro
+          Get 14 days free, then $12/month. Enter your details to continue to secure payment setup.
         </CardDescription>
         
         {/* Trial Benefits */}
@@ -230,10 +230,10 @@ export function StripeCheckout({ onSuccess, onCancel }: StripeCheckoutProps) {
             {loading ? (
               <>
                 <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                Creating your trial...
+                Redirecting to checkout...
               </>
             ) : (
-              'Start Free Trial'
+              'Continue to Payment'
             )}
           </Button>
 
@@ -244,7 +244,7 @@ export function StripeCheckout({ onSuccess, onCancel }: StripeCheckoutProps) {
               Secured by Stripe • SSL Encrypted
             </div>
             <p className="text-xs text-gray-500">
-              No credit card required • Cancel anytime
+              You'll enter payment details on Stripe's secure checkout page
             </p>
           </div>
 

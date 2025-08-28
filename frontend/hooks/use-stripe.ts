@@ -27,7 +27,7 @@ export function useStripe({ onSuccess, onError }: UseStripeOptions = {}) {
       setLoading(true)
       setError(null)
 
-      const response = await fetch(`${API_BASE}/api/v1/payments/create-subscription`, {
+      const response = await fetch(`${API_BASE}/api/v1/payments/create-checkout-session`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -41,10 +41,17 @@ export function useStripe({ onSuccess, onError }: UseStripeOptions = {}) {
 
       if (!response.ok) {
         const errorData = await response.json()
-        throw new Error(errorData.detail || 'Failed to create subscription')
+        throw new Error(errorData.detail || 'Failed to create checkout session')
       }
 
       const result = await response.json()
+      
+      // Redirect to Stripe Checkout
+      if (result.checkout_url) {
+        window.location.href = result.checkout_url
+        return result
+      }
+      
       onSuccess?.(result)
       return result
 

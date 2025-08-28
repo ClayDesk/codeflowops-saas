@@ -3,12 +3,18 @@
 import { useRouter } from 'next/navigation'
 import { ArrowRight, Github, Zap, Shield, Globe } from 'lucide-react'
 import { ProductScreenshot } from '@/components/ui/ProductScreenshot'
+import { useAuth } from '@/lib/auth-context'
 
 export function Hero() {
   const router = useRouter();
+  const { isAuthenticated, loading } = useAuth();
 
   const handleDeploy = () => {
-    router.push('/deploy');
+    if (isAuthenticated) {
+      router.push('/deploy');
+    } else {
+      router.push('/register');
+    }
   };
 
   return (
@@ -37,7 +43,7 @@ export function Hero() {
                 onClick={handleDeploy}
                 className="bg-gradient-to-r from-blue-600 to-purple-600 text-white px-12 py-5 text-xl font-semibold whitespace-nowrap flex items-center justify-center space-x-3 rounded-2xl transition-all hover:shadow-lg hover:from-blue-700 hover:to-purple-700 transform hover:scale-105"
               >
-                <span>Deploy Now</span>
+                <span>{isAuthenticated ? 'Deploy Now' : 'Start Free Trial'}</span>
                 <ArrowRight className="w-6 h-6" />
               </button>
             </div>

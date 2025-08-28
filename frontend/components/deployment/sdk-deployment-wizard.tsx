@@ -13,6 +13,7 @@ import { AlertCircle, CheckCircle, Github, Globe, Rocket, ArrowRight, ArrowLeft,
 import { motion, AnimatePresence } from 'framer-motion'
 import { useSmartDeployApi } from '@/lib/api'
 import toast from 'react-hot-toast'
+import { AuthProtected } from '@/components/auth/AuthProtected'
 
 interface DeploymentStep {
   id: string
@@ -124,6 +125,14 @@ const isPythonProject = (analysisResult: any) => {
 }
 
 export function SDKDeploymentWizard({ initialRepo = '', onClose }: { initialRepo?: string; onClose?: () => void }) {
+  return (
+    <AuthProtected>
+      <SDKDeploymentWizardContent initialRepo={initialRepo} onClose={onClose} />
+    </AuthProtected>
+  );
+}
+
+function SDKDeploymentWizardContent({ initialRepo = '', onClose }: { initialRepo?: string; onClose?: () => void }) {
   const api = useSmartDeployApi()
   const [currentStep, setCurrentStep] = useState(0)
   const [formData, setFormData] = useState({

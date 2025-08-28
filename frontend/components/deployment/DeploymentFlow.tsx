@@ -28,6 +28,7 @@ import {
 } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import SimpleCredentialInput from '@/components/credential-management/SimpleCredentialInput';
+import { AuthProtected } from '@/components/auth/AuthProtected';
 
 // Visual step metadata (Preview included). Internal state still uses 3.5 for Preview for backward compatibility.
 const stepsMeta = [
@@ -81,6 +82,14 @@ interface DeploymentFlowProps {
 }
 
 const DeploymentFlow: React.FC<DeploymentFlowProps> = ({ onComplete, onCancel }) => {
+  return (
+    <AuthProtected>
+      <DeploymentFlowContent onComplete={onComplete} onCancel={onCancel} />
+    </AuthProtected>
+  );
+};
+
+const DeploymentFlowContent: React.FC<DeploymentFlowProps> = ({ onComplete, onCancel }) => {
   // Lightweight presentational helpers (UI only)
   const AnalysisSection: React.FC<{title: string; defaultOpen?: boolean; children: React.ReactNode}> = ({ title, defaultOpen = false, children }) => (
     <details className="group rounded-md border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 px-4 py-3" open={defaultOpen}>

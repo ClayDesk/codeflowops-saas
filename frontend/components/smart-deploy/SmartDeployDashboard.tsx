@@ -12,11 +12,12 @@ import { Label } from '@/components/ui/label';
 import { useApiConfig, useSmartDeployApi } from '@/lib/api';
 import { CreateDeploymentModal } from './CreateDeploymentModal';
 import { TestFrameworkModal } from '../test/TestFrameworkModal';
-import { 
-  Cloud, 
-  Rocket, 
-  FileCode, 
-  Activity, 
+import { AuthProtected } from '@/components/auth/AuthProtected';
+import {
+  Cloud,
+  Rocket,
+  FileCode,
+  Activity,
   Plus,
   Upload,
   Eye,
@@ -27,9 +28,7 @@ import {
   GitBranch,
   Server,
   Zap
-} from 'lucide-react';
-
-const DeploymentCard = ({ deployment, onRefresh }: {
+} from 'lucide-react';const DeploymentCard = ({ deployment, onRefresh }: {
   deployment: any;
   onRefresh: () => void;
 }) => {
@@ -806,6 +805,14 @@ interface DashboardStats {
 }
 
 export function SmartDeployDashboard() {
+  return (
+    <AuthProtected>
+      <SmartDeployDashboardContent />
+    </AuthProtected>
+  );
+}
+
+function SmartDeployDashboardContent() {
   const [deployments, setDeployments] = useState<Deployment[]>([]);
   const [stats, setStats] = useState<DashboardStats>({
     total_deployments: 0,

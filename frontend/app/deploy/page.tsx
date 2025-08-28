@@ -7,21 +7,47 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { SDKDeploymentWizard } from '@/components/deployment/sdk-deployment-wizard'
 import { Rocket, Github, Zap, ArrowRight } from 'lucide-react'
+import { useAuthGuard } from '@/hooks/use-auth-guard'
+import { Skeleton } from '@/components/ui/skeleton'
 
 function DeployPageContent() {
+  const { isAuthenticated, loading } = useAuthGuard('/login')
   const [showDeploymentFlow, setShowDeploymentFlow] = useState(false)
   const [prefilledRepo, setPrefilledRepo] = useState('')
   const searchParams = useSearchParams()
 
   useEffect(() => {
-    // Check if there's a repo parameter in the URL
-    const repo = searchParams.get('repo')
-    if (repo) {
-      setPrefilledRepo(decodeURIComponent(repo))
-      // Automatically start the deployment flow if there's a repo URL
-      setShowDeploymentFlow(true)
+    // Only proceed if authenticated
+    if (!loading && isAuthenticated) {
+      // Check if there's a repo parameter in the URL
+      const repo = searchParams.get('repo')
+      if (repo) {
+        setPrefilledRepo(decodeURIComponent(repo))
+        // Automatically start the deployment flow if there's a repo URL
+        setShowDeploymentFlow(true)
+      }
     }
-  }, [searchParams])
+  }, [searchParams, loading, isAuthenticated])
+
+  // Show loading skeleton while checking authentication
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-indigo-50 dark:from-gray-900 dark:via-gray-950 dark:to-blue-950">
+        <div className="container mx-auto px-4 py-16">
+          <div className="text-center mb-16">
+            <Skeleton className="w-48 h-8 mx-auto mb-6" />
+            <Skeleton className="w-96 h-12 mx-auto mb-6" />
+            <Skeleton className="w-[600px] h-20 mx-auto" />
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  // Don't render content if not authenticated (guard will redirect)
+  if (!isAuthenticated) {
+    return null
+  }
 
 
 

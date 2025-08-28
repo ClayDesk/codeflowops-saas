@@ -1,3 +1,5 @@
+'use client'
+
 import Link from 'next/link'
 import { 
   Zap, 
@@ -12,6 +14,7 @@ import {
   Code,
   FileText
 } from 'lucide-react'
+import { useAuth } from '@/lib/auth-context'
 
 const mainServices = [
   {
@@ -92,6 +95,8 @@ const features = [
 ]
 
 export function Features() {
+  const { isAuthenticated } = useAuth()
+
   return (
     <section id="features" className="py-24 bg-gray-50 dark:bg-gray-950 transition-colors">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -154,9 +159,9 @@ export function Features() {
             <p className="text-blue-100 mb-6 text-lg">
               Join thousands of developers who have streamlined their deployment workflow
             </p>
-            <Link href="/deploy">
+            <Link href={isAuthenticated ? "/deploy" : "/register"}>
               <button className="bg-white text-blue-600 px-10 py-4 rounded-xl font-semibold text-lg hover:bg-gray-50 transition-colors">
-                Start Free Trial
+                {isAuthenticated ? 'Deploy Now' : 'Start Free Trial'}
               </button>
             </Link>
           </div>

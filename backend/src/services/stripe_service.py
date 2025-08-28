@@ -91,6 +91,7 @@ class StripeService:
                 success_url='https://codeflowops.com/profile?tab=subscription&success=true',
                 cancel_url='https://codeflowops.com/pricing',
                 customer_email=email,
+                payment_method_collection='always',  # Force payment method collection
                 subscription_data={
                     'trial_period_days': trial_days,
                     'metadata': {

@@ -2,8 +2,8 @@
 
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { useStripePayment } from '@/hooks/use-stripe-payment'
-import { useAuthState } from '@/hooks/use-auth-guard'
+import { useStripe } from '@/hooks/use-stripe'
+import { useAuth } from '@/lib/auth-context'
 import { useState } from 'react'
 import { Loader2 } from 'lucide-react'
 
@@ -24,9 +24,9 @@ interface SubscriptionPricingProps {
 
 export function SubscriptionPricing({ currentPlan = 'free' }: SubscriptionPricingProps) {
   const [loadingPlan, setLoadingPlan] = useState<string | null>(null)
-  const { isAuthenticated, loading: authLoading } = useAuthState()
+  const { isAuthenticated, loading: authLoading, user } = useAuth()
   
-  const { createSubscription } = useStripePayment({
+  const { createSubscription } = useStripe({
     onSuccess: (result) => {
       if (result.checkout_url) {
         window.location.href = result.checkout_url
@@ -142,7 +142,8 @@ export function SubscriptionPricing({ currentPlan = 'free' }: SubscriptionPricin
       // User is authenticated, proceed with subscription creation
       setLoadingPlan(plan.tier)
       await createSubscription({
-        planTier: plan.tier,
+        email: user?.email || 'user@example.com',
+        name: user?.name || user?.full_name,
         trialDays: plan.trial_days
       })
     }

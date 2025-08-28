@@ -2,7 +2,25 @@
   "version": "0.2.0",
   "configurations": [
     {
-      "name": "Stripe: Webhooks listen",
+      "name": "Stripe: Webhooks listen (Production)",
+      "type": "stripe",
+      "request": "launch",
+      "command": "listen",
+      "forwardTo": "https://api.codeflowops.com",
+      "events": [
+        "customer.subscription.created",
+        "customer.subscription.updated",
+        "customer.subscription.deleted",
+        "invoice.payment_succeeded",
+        "invoice.payment_failed",
+        "checkout.session.completed",
+        "payment_intent.succeeded",
+        "payment_intent.payment_failed"
+      ],
+      "skipVerify": false
+    },
+    {
+      "name": "Stripe: Webhooks listen (Local)",
       "type": "stripe",
       "request": "launch",
       "command": "listen",
@@ -42,18 +60,33 @@
   ],
   "compounds": [
     {
-      "name": "Launch: Full Stack + Stripe Webhooks",
+      "name": "Launch: Full Stack + Stripe Webhooks (Production)",
       "configurations": [
         "FastAPI: Launch Backend",
         "Next.js: Launch Frontend", 
-        "Stripe: Webhooks listen"
+        "Stripe: Webhooks listen (Production)"
       ]
     },
     {
-      "name": "Launch: Backend + Stripe Webhooks",
+      "name": "Launch: Full Stack + Stripe Webhooks (Local)",
       "configurations": [
         "FastAPI: Launch Backend",
-        "Stripe: Webhooks listen"
+        "Next.js: Launch Frontend", 
+        "Stripe: Webhooks listen (Local)"
+      ]
+    },
+    {
+      "name": "Launch: Backend + Stripe Webhooks (Production)",
+      "configurations": [
+        "FastAPI: Launch Backend",
+        "Stripe: Webhooks listen (Production)"
+      ]
+    },
+    {
+      "name": "Launch: Backend + Stripe Webhooks (Local)",
+      "configurations": [
+        "FastAPI: Launch Backend",
+        "Stripe: Webhooks listen (Local)"
       ]
     }
   ]

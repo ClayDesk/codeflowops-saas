@@ -80,7 +80,7 @@ class StripeConfig:
         if price_id:
             return price_id
             
-        return "price_1QUiJxI4QCB7xLMgJt1mmk7p"  # Hardcoded fallback
+        return "price_1S152qDkkBHtBd89SE5F7ayE"  # Hardcoded fallback
     
     @staticmethod
     def get_product_id() -> str:
@@ -95,4 +95,4 @@ class StripeConfig:
         if product_id:
             return product_id
             
-        return "prod_RNwKDILN4H5Xgg"  # Hardcoded fallback
+        return "prod_Swz08EJnc2Qksh"  # Hardcoded fallback

@@ -42,6 +42,40 @@ def is_php_repo(repo: Path) -> bool:
     
     return False
 
+def is_nextjs_repo(repo: Path) -> bool:
+    """
+    Detect Next.js repositories using reliable signals:
+    1. next.config.js/next.config.mjs exists
+    2. package.json has next dependency
+    3. pages/ or app/ directory with Next.js structure
+    """
+    # Signal 1: Next.js config files
+    next_configs = ["next.config.js", "next.config.mjs", "next.config.ts"]
+    if any((repo / config).exists() for config in next_configs):
+        logger.info("Detected Next.js: next.config file found")
+        return True
+    
+    # Signal 2: Check package.json for Next.js dependency
+    package_json = _read_package_json(repo)
+    dependencies = {**package_json.get("dependencies", {}), **package_json.get("devDependencies", {})}
+    
+    if "next" in dependencies:
+        logger.info("Detected Next.js: 'next' dependency found in package.json")
+        return True
+    
+    # Signal 3: Next.js directory structure
+    if (repo / "pages").exists() or (repo / "app").exists():
+        # Check if it looks like Next.js structure
+        if (repo / "pages" / "_app.js").exists() or (repo / "pages" / "_app.tsx").exists():
+            logger.info("Detected Next.js: pages/_app file found")
+            return True
+        
+        if (repo / "app" / "layout.js").exists() or (repo / "app" / "layout.tsx").exists():
+            logger.info("Detected Next.js: app/layout file found")
+            return True
+    
+    return False
+
 def classify_laravel_type(repo: Path) -> str:
     """
     Classify Laravel application type based on priority rules:

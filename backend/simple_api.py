@@ -2731,7 +2731,53 @@ async def health():
 
 @app.get("/api/health")
 async def api_health():
-    return {"status": "healthy", "service": "CodeFlowOps Streamlined API", "version": "2.0.0"}
+    import psutil
+    import sys
+    from datetime import datetime
+    
+    try:
+        # Get system metrics
+        memory = psutil.virtual_memory()
+        disk = psutil.disk_usage('/')
+        
+        # Get process info
+        process = psutil.Process()
+        
+        health_data = {
+            "status": "healthy",
+            "service": "CodeFlowOps Streamlined API", 
+            "version": "2.0.0",
+            "timestamp": datetime.utcnow().isoformat(),
+            "system": {
+                "memory_percent": memory.percent,
+                "memory_available_mb": memory.available // (1024 * 1024),
+                "disk_percent": disk.percent,
+                "disk_free_gb": disk.free // (1024 * 1024 * 1024),
+                "process_memory_mb": process.memory_info().rss // (1024 * 1024),
+                "python_version": sys.version.split()[0]
+            },
+            "active_sessions": len(_ANALYSIS_SESSIONS),
+            "active_deployments": len(_DEPLOY_STATES),
+            "deployment_history_count": len(_USER_DEPLOYMENT_HISTORY)
+        }
+        
+        # Check if memory usage is concerning
+        if memory.percent > 85:
+            health_data["warnings"] = ["High memory usage detected"]
+        
+        if disk.percent > 90:
+            health_data["warnings"] = health_data.get("warnings", []) + ["Low disk space"]
+            
+        return health_data
+        
+    except Exception as e:
+        return {
+            "status": "degraded", 
+            "service": "CodeFlowOps Streamlined API",
+            "version": "2.0.0",
+            "error": str(e),
+            "timestamp": datetime.utcnow().isoformat()
+        }
 
 # Auth-compatible deployment endpoints for frontend profile page
 @app.get("/api/v1/auth/deployments")

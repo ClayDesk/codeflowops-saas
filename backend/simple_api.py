@@ -56,6 +56,7 @@ logger = logging.getLogger(__name__)
 executor = ThreadPoolExecutor(max_workers=4)
 _DEPLOY_STATES = {}
 _ANALYSIS_SESSIONS = {}  # Store analysis data by deployment_id
+_USER_DEPLOYMENT_HISTORY = {}  # Store completed deployments by user_id for dashboard
 _LOCK = threading.Lock()
 
 # Import repository enhancer and cleanup service
@@ -756,6 +757,38 @@ async def validate_credentials(request: CredentialsRequest):
             "error": str(e)
         }
 
+def _store_completed_deployment(deployment_id: str, deployment_state: Dict[str, Any]):
+    """Store completed deployment in user history for dashboard display"""
+    try:
+        user_id = deployment_state.get("user_id", "demo_user")
+        
+        # Create deployment history entry
+        history_entry = {
+            "id": deployment_id,
+            "name": deployment_state.get("project_name", "Unknown Project"),
+            "repository": deployment_state.get("repository_url", ""),
+            "status": "success" if deployment_state.get("status") == "completed" else "failed",
+            "url": deployment_state.get("website_url") or deployment_state.get("cloudfront_url") or deployment_state.get("deployment_url"),
+            "createdAt": deployment_state.get("created_at", datetime.now().isoformat()),
+            "technology": deployment_state.get("framework", "Static")
+        }
+        
+        # Store in user deployment history
+        with _LOCK:
+            if user_id not in _USER_DEPLOYMENT_HISTORY:
+                _USER_DEPLOYMENT_HISTORY[user_id] = []
+            
+            # Add to beginning of list (newest first)
+            _USER_DEPLOYMENT_HISTORY[user_id].insert(0, history_entry)
+            
+            # Keep only last 50 deployments per user
+            _USER_DEPLOYMENT_HISTORY[user_id] = _USER_DEPLOYMENT_HISTORY[user_id][:50]
+        
+        logger.info(f"📝 Stored deployment {deployment_id} in history for user {user_id} (status: {history_entry['status']})")
+        
+    except Exception as e:
+        logger.error(f"Error storing deployment history: {e}")
+
 @router.get("/api/quota/status")
 async def get_quota_status(request: Request, user_id: Optional[str] = None, plan: Optional[str] = None):
     """
@@ -818,7 +851,17 @@ async def get_quota_status(request: Request, user_id: Optional[str] = None, plan
         
         # Mock current usage - in production, get from database
         current_runs = 2  # Example: user has made 2 deployments this month
-        active_runs = 1   # Example: 1 deployment currently running
+        
+        # Count actual active deployments from _DEPLOY_STATES FOR THIS USER
+        active_runs = 0
+        with _LOCK:
+            for dep_id, state in _DEPLOY_STATES.items():
+                state_user_id = state.get('user_id', 'unknown')
+                if (state_user_id == user_id and 
+                    state.get('status') in ['initializing', 'routing', 'deploying', 'routing_react', 'routing_secure_baas', 'routing_fullstack']):
+                    active_runs += 1
+        
+        logger.info(f"🔍 User {user_id} active deployments: {active_runs} (from {len(_DEPLOY_STATES)} total tracked states)")
         
         quota_status = deployment_quota_manager.get_quota_status(
             user_id=user_id,
@@ -866,7 +909,17 @@ async def check_deployment_quota(user_id: Optional[str] = None, plan: Optional[s
         
         # Mock current usage - in production, get from database
         current_runs = 2
-        active_runs = 1
+        
+        # Count actual active deployments from _DEPLOY_STATES FOR THIS USER
+        active_runs = 0
+        with _LOCK:
+            for dep_id, state in _DEPLOY_STATES.items():
+                state_user_id = state.get('user_id', 'unknown')
+                if (state_user_id == user_id and 
+                    state.get('status') in ['initializing', 'routing', 'deploying', 'routing_react', 'routing_secure_baas', 'routing_fullstack']):
+                    active_runs += 1
+        
+        logger.info(f"🔍 User {user_id} active deployments: {active_runs} (from {len(_DEPLOY_STATES)} total tracked states)")
         
         # Check both monthly and concurrent limits
         can_deploy_monthly, monthly_reason = deployment_quota_manager.check_monthly_quota(
@@ -918,7 +971,30 @@ async def deploy_to_aws(request: DeployRequest):
             user_id = "demo_user"  # TODO: Get from authenticated user context
             plan_tier = "free"     # TODO: Get from user subscription
             current_runs = 2       # TODO: Get from database
-            active_runs = 1        # TODO: Get from database
+            
+            # Count actual active deployments from _DEPLOY_STATES PER USER
+            active_runs = 0
+            with _LOCK:
+                # Clean up completed/failed deployments first
+                completed_states = []
+                for dep_id, state in _DEPLOY_STATES.items():
+                    status = state.get('status', '')
+                    if status in ['completed', 'failed', 'error']:
+                        completed_states.append(dep_id)
+                
+                # Remove completed deployments
+                for dep_id in completed_states:
+                    del _DEPLOY_STATES[dep_id]
+                    logger.info(f"🧹 Cleaned up completed deployment state: {dep_id}")
+                
+                # Count remaining active deployments FOR THIS USER ONLY
+                for dep_id, state in _DEPLOY_STATES.items():
+                    state_user_id = state.get('user_id', 'unknown')
+                    if (state_user_id == user_id and 
+                        state.get('status') in ['initializing', 'routing', 'deploying', 'routing_react', 'routing_secure_baas', 'routing_fullstack']):
+                        active_runs += 1
+            
+            logger.info(f"🔍 Quota check - User {user_id} active deployments: {active_runs} (from {len(_DEPLOY_STATES)} total states)")
             
             # Validate quota limits
             can_deploy_monthly, monthly_reason = deployment_quota_manager.check_monthly_quota(
@@ -972,26 +1048,35 @@ async def deploy_to_aws(request: DeployRequest):
         analysis = request.analysis
         repo_url = request.repository_url
         
+        logger.info(f"🔍 DEBUG: deployment_id={deployment_id}")
+        logger.info(f"🔍 DEBUG: analysis provided in request: {analysis is not None}")
+        logger.info(f"🔍 DEBUG: repo_url provided in request: {repo_url}")
+        
         if not analysis:
             # Look up analysis data from previous analysis session
             with _LOCK:
+                logger.info(f"🔍 DEBUG: Available analysis sessions: {list(_ANALYSIS_SESSIONS.keys())}")
+                
                 if deployment_id in _ANALYSIS_SESSIONS:
                     stored_session = _ANALYSIS_SESSIONS[deployment_id]
                     analysis = stored_session["analysis"]
                     repo_url = stored_session["repo_url"]
                     logger.info(f"📋 Retrieved analysis data for deployment {deployment_id}")
                 else:
+                    error_msg = f"No analysis data found for deployment_id {deployment_id}. Available sessions: {list(_ANALYSIS_SESSIONS.keys())}. Please analyze the repository first."
+                    logger.error(f"❌ {error_msg}")
                     raise HTTPException(
                         status_code=400, 
-                        detail=f"No analysis data found for deployment_id {deployment_id}. Please analyze the repository first."
+                        detail=error_msg
                     )
         
         logger.info(f"🚀 Starting deployment {deployment_id} with credentials for region {request.aws_region}")
         
-        # Initialize deployment session
+        # Initialize deployment session with user tracking
         with _LOCK:
             _DEPLOY_STATES[deployment_id] = {
                 "status": "initializing",
+                "user_id": user_id,  # Track which user owns this deployment
                 "steps": [{"step": "Deployment Started", "status": "in_progress", "message": "Starting deployment..."}],
                 "logs": ["🚀 Starting streamlined deployment..."],
                 "created_at": datetime.utcnow().isoformat(),
@@ -1178,9 +1263,30 @@ async def deploy_to_aws(request: DeployRequest):
             "using_modular_router": False
         }
         
+    except HTTPException:
+        # Re-raise HTTPExceptions as-is (like 400 errors for missing analysis data)
+        raise
     except Exception as e:
+        import traceback
         logger.error(f"Deployment failed: {e}")
-        raise HTTPException(status_code=500, detail=f"Deployment failed: {str(e)}")
+        logger.error(f"Full traceback: {traceback.format_exc()}")
+        
+        # Try to get more detailed error information
+        error_detail = str(e) if str(e) else "Unknown deployment error occurred"
+        
+        # If deployment_id exists, update its status
+        if 'deployment_id' in locals():
+            try:
+                with _LOCK:
+                    if deployment_id in _DEPLOY_STATES:
+                        _DEPLOY_STATES[deployment_id]["status"] = "failed"
+                        _DEPLOY_STATES[deployment_id]["error"] = error_detail
+                        _DEPLOY_STATES[deployment_id]["logs"].append(f"❌ Deployment failed: {error_detail}")
+                        _DEPLOY_STATES[deployment_id]["failed_at"] = datetime.utcnow().isoformat()
+            except Exception as update_error:
+                logger.error(f"Failed to update deployment state: {update_error}")
+        
+        raise HTTPException(status_code=500, detail=f"Deployment failed: {error_detail}")
 
 def _run_react_deployment(deployment_id: str, analysis: Dict[str, Any], request: DeployRequest):
     """
@@ -1296,11 +1402,16 @@ def _run_react_deployment(deployment_id: str, analysis: Dict[str, Any], request:
                 _DEPLOY_STATES[deployment_id]["cloudfront_url"] = deployment_result.get("cloudfront_url")
                 _DEPLOY_STATES[deployment_id]["distribution_id"] = deployment_result.get("distribution_id")
                 _DEPLOY_STATES[deployment_id]["build_method"] = "direct_react_builder"
+                _DEPLOY_STATES[deployment_id]["website_url"] = deployment_result.get("website_url")  # Store website_url
+                _DEPLOY_STATES[deployment_id]["completed_at"] = datetime.utcnow().isoformat()
                 _DEPLOY_STATES[deployment_id]["logs"].append("🎉 React deployment completed successfully!")
                 _DEPLOY_STATES[deployment_id]["logs"].append(f"✅ Website URL: {deployment_result.get('website_url')}")
                 
                 if deployment_result.get("cloudfront_url"):
                     _DEPLOY_STATES[deployment_id]["logs"].append(f"✅ CloudFront URL: {deployment_result.get('cloudfront_url')}")
+                
+                # Store in deployment history for user dashboard
+                _store_completed_deployment(deployment_id, _DEPLOY_STATES[deployment_id])
                     
             logger.info(f"✅ React deployment {deployment_id} completed successfully")
         else:
@@ -1671,73 +1782,100 @@ def _run_basic_deployment(deployment_id: str, analysis: Dict[str, Any], request:
             _DEPLOY_STATES[deployment_id]["logs"].append(f"🪣 Creating S3 bucket: {bucket_name}")
             _DEPLOY_STATES[deployment_id]["progress"] = 60
         
-        # Import the AWS utilities
-        import sys
-        sys.path.append(str(Path(__file__).parent / "core"))
-        from core.utils import create_s3_bucket, sync_to_s3, create_cloudfront_distribution
+        # Import the AWS utilities with error handling
+        try:
+            import sys
+            sys.path.append(str(Path(__file__).parent / "core"))
+            from core.utils import create_s3_bucket, sync_to_s3, create_cloudfront_distribution
+            
+            with _LOCK:
+                _DEPLOY_STATES[deployment_id]["logs"].append("✅ AWS utilities loaded successfully")
+        except ImportError as import_error:
+            error_msg = f"Failed to import AWS utilities: {import_error}"
+            with _LOCK:
+                _DEPLOY_STATES[deployment_id]["logs"].append(f"❌ {error_msg}")
+            raise Exception(error_msg)
         
-        bucket_created = create_s3_bucket(bucket_name, request.aws_region, aws_credentials)
-        if not bucket_created:
-            raise Exception("Failed to create S3 bucket")
+        # Create S3 bucket with detailed error handling
+        try:
+            bucket_created = create_s3_bucket(bucket_name, request.aws_region, aws_credentials)
+            if not bucket_created:
+                raise Exception("S3 bucket creation returned False - check AWS permissions")
+                
+            with _LOCK:
+                _DEPLOY_STATES[deployment_id]["logs"].append(f"✅ S3 bucket created: {bucket_name}")
+        except Exception as bucket_error:
+            error_msg = f"S3 bucket creation failed: {bucket_error}"
+            with _LOCK:
+                _DEPLOY_STATES[deployment_id]["logs"].append(f"❌ {error_msg}")
+            raise Exception(error_msg)
         
         # Step 4: Upload files to S3
         with _LOCK:
             _DEPLOY_STATES[deployment_id]["logs"].append("📤 Uploading files to S3...")
             _DEPLOY_STATES[deployment_id]["progress"] = 75
         
-        upload_success = sync_to_s3(build_dir, bucket_name, aws_credentials)
-        if not upload_success:
-            raise Exception("Failed to upload files to S3")
+        try:
+            upload_success = sync_to_s3(build_dir, bucket_name, aws_credentials)
+            if not upload_success:
+                raise Exception("S3 file upload returned False - check file permissions and AWS access")
+                
+            with _LOCK:
+                _DEPLOY_STATES[deployment_id]["logs"].append(f"✅ Files uploaded to S3: {bucket_name}")
+        except Exception as upload_error:
+            error_msg = f"S3 file upload failed: {upload_error}"
+            with _LOCK:
+                _DEPLOY_STATES[deployment_id]["logs"].append(f"❌ {error_msg}")
+            raise Exception(error_msg)
         
         # Step 5: Create CloudFront distribution
         with _LOCK:
             _DEPLOY_STATES[deployment_id]["logs"].append("🌐 Creating CloudFront distribution...")
             _DEPLOY_STATES[deployment_id]["progress"] = 90
         
-        cloudfront_result = create_cloudfront_distribution(bucket_name, request.aws_region, aws_credentials)
-        
-        if cloudfront_result.get("success"):
-            deployment_url = cloudfront_result["cloudfront_url"]
-            s3_bucket_url = f"http://{bucket_name}.s3-website-{request.aws_region}.amazonaws.com"
+        try:
+            cloudfront_result = create_cloudfront_distribution(bucket_name, request.aws_region, aws_credentials)
             
-            # Cleanup temp directory
-            shutil.rmtree(temp_dir, ignore_errors=True)
-            
+            if not cloudfront_result.get("success"):
+                error_msg = cloudfront_result.get("error", "CloudFront creation returned unsuccessful result")
+                raise Exception(error_msg)
+                
             with _LOCK:
-                _DEPLOY_STATES[deployment_id]["status"] = "completed"
-                _DEPLOY_STATES[deployment_id]["logs"].append("✅ Deployment completed successfully!")
-                _DEPLOY_STATES[deployment_id]["logs"].append(f"🌐 CloudFront URL: {deployment_url}")
-                _DEPLOY_STATES[deployment_id]["logs"].append(f"🪣 S3 Website URL: {s3_bucket_url}")
-                _DEPLOY_STATES[deployment_id]["progress"] = 100
-                _DEPLOY_STATES[deployment_id]["deployment_url"] = deployment_url
-                _DEPLOY_STATES[deployment_id]["deployment_details"] = {
-                    "cloudfront_url": deployment_url,
-                    "s3_bucket": bucket_name,
-                    "s3_website_url": s3_bucket_url,
-                    "region": request.aws_region,
-                    "distribution_id": cloudfront_result.get("distribution_id")
-                }
-        else:
-            # Fallback to S3 website URL if CloudFront fails
-            s3_website_url = f"http://{bucket_name}.s3-website-{request.aws_region}.amazonaws.com"
-            
-            # Cleanup temp directory
-            shutil.rmtree(temp_dir, ignore_errors=True)
-            
+                _DEPLOY_STATES[deployment_id]["logs"].append(f"✅ CloudFront distribution created")
+        except Exception as cloudfront_error:
+            error_msg = f"CloudFront creation failed: {cloudfront_error}"
             with _LOCK:
-                _DEPLOY_STATES[deployment_id]["status"] = "completed"
-                _DEPLOY_STATES[deployment_id]["logs"].append("✅ Deployment completed (S3 only)!")
-                _DEPLOY_STATES[deployment_id]["logs"].append("⚠️ CloudFront creation failed, using S3 website URL")
-                _DEPLOY_STATES[deployment_id]["logs"].append(f"🌐 S3 Website URL: {s3_website_url}")
-                _DEPLOY_STATES[deployment_id]["progress"] = 100
-                _DEPLOY_STATES[deployment_id]["deployment_url"] = s3_website_url
-                _DEPLOY_STATES[deployment_id]["deployment_details"] = {
-                    "s3_bucket": bucket_name,
-                    "s3_website_url": s3_website_url,
-                    "region": request.aws_region,
-                    "cloudfront_error": cloudfront_result.get("error", "Unknown error")
-                }
+                _DEPLOY_STATES[deployment_id]["logs"].append(f"❌ {error_msg}")
+            raise Exception(error_msg)
         
+        # Deployment successful
+        deployment_url = cloudfront_result["cloudfront_url"]
+        s3_bucket_url = f"http://{bucket_name}.s3-website-{request.aws_region}.amazonaws.com"
+        
+        # Cleanup temp directory
+        shutil.rmtree(temp_dir, ignore_errors=True)
+        
+        with _LOCK:
+            _DEPLOY_STATES[deployment_id]["status"] = "completed"
+            _DEPLOY_STATES[deployment_id]["logs"].append("✅ Deployment completed successfully!")
+            _DEPLOY_STATES[deployment_id]["logs"].append(f"🌐 CloudFront URL: {deployment_url}")
+            _DEPLOY_STATES[deployment_id]["logs"].append(f"🪣 S3 Website URL: {s3_bucket_url}")
+            _DEPLOY_STATES[deployment_id]["progress"] = 100
+            _DEPLOY_STATES[deployment_id]["deployment_url"] = deployment_url
+            _DEPLOY_STATES[deployment_id]["website_url"] = s3_bucket_url
+            _DEPLOY_STATES[deployment_id]["cloudfront_url"] = deployment_url
+            _DEPLOY_STATES[deployment_id]["completed_at"] = datetime.utcnow().isoformat()
+            _DEPLOY_STATES[deployment_id]["deployment_details"] = {
+                "cloudfront_url": deployment_url,
+                "s3_bucket": bucket_name,
+                "s3_website_url": s3_bucket_url,
+                "region": request.aws_region,
+                "distribution_id": cloudfront_result.get("distribution_id")
+            }
+            
+            # Store in deployment history for user dashboard
+            _store_completed_deployment(deployment_id, _DEPLOY_STATES[deployment_id])
+    
     except Exception as e:
         logger.error(f"AWS deployment failed: {e}")
         # Cleanup temp directory on error
@@ -2350,6 +2488,17 @@ if MODULAR_ROUTERS_AVAILABLE:
                             if analysis_result.get('confidence', 0) > 0.8:  # High confidence Node.js detection
                                 recommended_stack = "nodejs-lightsail"
                 
+                # Store analysis data for later deployment use (CRITICAL FIX)
+                with _LOCK:
+                    _ANALYSIS_SESSIONS[deployment_id] = {
+                        "analysis": analysis_result,
+                        "repo_url": repo_url,
+                        "local_repo_path": analysis_result.get('local_repo_path'),
+                        "timestamp": datetime.utcnow().isoformat()
+                    }
+                
+                logger.info(f"📋 Stored analysis session for deployment {deployment_id}")
+                
                 return {
                     "success": True,
                     "deployment_id": deployment_id,
@@ -2530,6 +2679,51 @@ async def get_quota_status():
 
 # Stripe webhook functionality removed
 
+# User deployments endpoint for dashboard/profile
+@app.get("/api/deployments")
+async def get_user_deployments(user_id: str = "demo_user"):
+    """Get deployment history for the current user to display in profile dashboard"""
+    try:
+        with _LOCK:
+            user_deployments = _USER_DEPLOYMENT_HISTORY.get(user_id, [])
+        
+        # Also include any currently active deployments for this user
+        active_deployments = []
+        with _LOCK:
+            for dep_id, state in _DEPLOY_STATES.items():
+                if state.get("user_id") == user_id:
+                    # Convert active deployment to deployment history format
+                    active_deployment = {
+                        "id": dep_id,
+                        "name": state.get("project_name", "Unknown Project"),
+                        "repository": state.get("repository_url", ""),
+                        "status": "building" if state.get("status") in ["analyzing", "deploying", "routing_react"] else "pending",
+                        "createdAt": state.get("created_at", datetime.now().isoformat()),
+                        "technology": state.get("framework", "Static")
+                    }
+                    # Don't show URL for active deployments
+                    active_deployments.append(active_deployment)
+        
+        # Combine completed deployments from history with active ones
+        all_deployments = active_deployments + user_deployments
+        
+        # Sort by creation date (newest first)
+        all_deployments.sort(key=lambda x: x.get("createdAt", ""), reverse=True)
+        
+        logger.info(f"📊 Retrieved {len(all_deployments)} deployments for user {user_id} ({len(active_deployments)} active, {len(user_deployments)} completed)")
+        
+        return {
+            "user_id": user_id,
+            "deployments": all_deployments[:20]  # Limit to last 20 deployments
+        }
+    except Exception as e:
+        logger.error(f"Error fetching user deployments: {e}")
+        return {
+            "user_id": user_id,
+            "deployments": [],
+            "error": str(e)
+        }
+
 # Add basic health check endpoint
 @app.get("/health")
 async def health():
@@ -2538,6 +2732,17 @@ async def health():
 @app.get("/api/health")
 async def api_health():
     return {"status": "healthy", "service": "CodeFlowOps Streamlined API", "version": "2.0.0"}
+
+# Auth-compatible deployment endpoints for frontend profile page
+@app.get("/api/v1/auth/deployments")
+async def get_auth_user_deployments(user_id: str = "demo_user"):
+    """Get deployments for authenticated user - compatible with auth context"""
+    return await get_user_deployments(user_id)
+
+@app.get("/api/v1/auth/github/deployments") 
+async def get_github_user_deployments(user_id: str = "demo_user"):
+    """Get deployments for GitHub OAuth user - compatible with auth context"""
+    return await get_user_deployments(user_id)
 
 # Include the main router
 app.include_router(router)

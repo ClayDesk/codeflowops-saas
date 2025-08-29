@@ -24,24 +24,14 @@ class DeploymentQuotaManager:
         # Plan limits aligned with user pricing model
         self.plan_limits = {
             'free': PlanLimits(
-                monthly_runs=3,
+                monthly_runs=10,  # Generous free tier - exceeds "Up to 5 projects" promise
                 concurrent_runs=1,
-                plan_name='Free'
-            ),
-            'starter': PlanLimits(
-                monthly_runs=50,  # Generous limit for $19/month
-                concurrent_runs=2,
-                plan_name='Starter'
+                plan_name='Free Starter'
             ),
             'pro': PlanLimits(
-                monthly_runs=200,  # Generous limit for $49/month
-                concurrent_runs=5,
-                plan_name='Pro'
-            ),
-            'enterprise': PlanLimits(
-                monthly_runs=-1,  # Unlimited
-                concurrent_runs=10,
-                plan_name='Enterprise'
+                monthly_runs=-1,  # Unlimited projects as promised
+                concurrent_runs=5,  # Professional level concurrency
+                plan_name='CodeFlowOps Pro'
             )
         }
     
@@ -55,7 +45,7 @@ class DeploymentQuotaManager:
         
         Args:
             user_id: User identifier
-            plan_tier: Current subscription plan (free, starter, pro, enterprise)
+            plan_tier: Current subscription plan (free, pro)
             current_runs: Number of runs this month
         
         Returns:

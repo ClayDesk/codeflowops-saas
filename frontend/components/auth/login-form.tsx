@@ -21,9 +21,8 @@ export function LoginForm({ redirectTo = '/deploy' }: LoginFormProps) {
   const [showPassword, setShowPassword] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState('')
-  const [showForgotPassword, setShowForgotPassword] = useState(false)
 
-  const { login, resetPassword } = useAuth()
+  const { login } = useAuth()
   const router = useRouter()
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -49,28 +48,6 @@ export function LoginForm({ redirectTo = '/deploy' }: LoginFormProps) {
     }
   }
 
-  const handleForgotPassword = async () => {
-    if (!username.trim()) {
-      setError('Please enter your username or email address first')
-      return
-    }
-
-    setIsLoading(true)
-    setError('')
-
-    try {
-      // For password reset, we'll assume it's an email if it contains @
-      const emailForReset = username.includes('@') ? username.trim() : `${username.trim()}@example.com`
-      await resetPassword(emailForReset)
-      setShowForgotPassword(true)
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Password reset failed. Please try again.'
-      setError(errorMessage)
-    } finally {
-      setIsLoading(false)
-    }
-  }
-
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900 py-12 px-4 sm:px-6 lg:px-8">
       <Card className="w-full max-w-md">
@@ -82,31 +59,13 @@ export function LoginForm({ redirectTo = '/deploy' }: LoginFormProps) {
         </CardHeader>
 
         <CardContent>
-          {showForgotPassword ? (
-            <div className="space-y-4">
-              <Alert>
+          <form onSubmit={handleSubmit} className="space-y-4">
+            {error && (
+              <Alert variant="destructive">
                 <AlertCircle className="h-4 w-4" />
-                <AlertDescription>
-                  Password reset instructions have been sent to your email address.
-                  Please check your inbox and follow the instructions to reset your password.
-                </AlertDescription>
+                <AlertDescription>{error}</AlertDescription>
               </Alert>
-              <Button
-                onClick={() => setShowForgotPassword(false)}
-                variant="outline"
-                className="w-full"
-              >
-                Back to Login
-              </Button>
-            </div>
-          ) : (
-            <form onSubmit={handleSubmit} className="space-y-4">
-              {error && (
-                <Alert variant="destructive">
-                  <AlertCircle className="h-4 w-4" />
-                  <AlertDescription>{error}</AlertDescription>
-                </Alert>
-              )}
+            )}
 
               <div className="space-y-2">
                 <Label htmlFor="username">Username or Email</Label>
@@ -197,30 +156,23 @@ export function LoginForm({ redirectTo = '/deploy' }: LoginFormProps) {
                 Continue with GitHub
               </Button>
             </form>
-          )}
         </CardContent>
 
         <CardFooter className="flex flex-col space-y-2">
-          {!showForgotPassword && (
-            <>
-              <div className="text-sm text-center text-muted-foreground">
-                Don't have an account?{' '}
-                <Link href="/register" className="text-primary hover:underline">
-                  Sign up
-                </Link>
-              </div>
-              <div className="text-sm text-center">
-                <button
-                  type="button"
-                  onClick={handleForgotPassword}
-                  className="text-muted-foreground hover:underline cursor-pointer"
-                  disabled={isLoading}
-                >
-                  Forgot your password?
-                </button>
-              </div>
-            </>
-          )}
+          <div className="text-sm text-center text-muted-foreground">
+            Don't have an account?{' '}
+            <Link href="/register" className="text-primary hover:underline">
+              Sign up
+            </Link>
+          </div>
+          <div className="text-sm text-center">
+            <Link 
+              href="/reset-password"
+              className="text-muted-foreground hover:underline cursor-pointer"
+            >
+              Forgot your password?
+            </Link>
+          </div>
         </CardFooter>
       </Card>
     </div>

@@ -126,6 +126,22 @@ class AuthResponse(BaseModel):
 class LogoutRequest(BaseModel):
     access_token: str = Field(..., description="Access token to invalidate")
 
+class ForgotPasswordRequest(BaseModel):
+    email: str = Field(..., description="Email address for password reset")
+
+class ForgotPasswordResponse(BaseModel):
+    message: str
+    success: bool = True
+
+class ConfirmResetPasswordRequest(BaseModel):
+    email: str = Field(..., description="Email address")
+    token: str = Field(..., description="Password reset token")
+    new_password: str = Field(..., description="New password")
+
+class ConfirmResetPasswordResponse(BaseModel):
+    message: str
+    success: bool = True
+
 # cognito_provider is already initialized above during import handling
 
 @router.post("/login", response_model=AuthResponse)
@@ -247,6 +263,79 @@ async def logout(request: LogoutRequest):
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Logout error: {str(e)}"
+        )
+
+@router.post("/forgot-password", response_model=ForgotPasswordResponse)
+async def forgot_password(request: ForgotPasswordRequest):
+    """Initiate password reset for user"""
+    if not cognito_provider:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Authentication service not available"
+        )
+    
+    try:
+        # Initiate password reset with Cognito
+        success = await cognito_provider.reset_password(request.email)
+        
+        if not success:
+            # For security, we don't reveal if the email exists or not
+            # Always return success message
+            return ForgotPasswordResponse(
+                message="If an account with that email exists, password reset instructions have been sent.",
+                success=True
+            )
+        
+        return ForgotPasswordResponse(
+            message="Password reset instructions have been sent to your email address.",
+            success=True
+        )
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logging.error(f"Forgot password error: {str(e)}")
+        # For security, don't reveal internal errors to the user
+        return ForgotPasswordResponse(
+            message="If an account with that email exists, password reset instructions have been sent.",
+            success=True
+        )
+
+@router.post("/confirm-reset-password", response_model=ConfirmResetPasswordResponse)
+async def confirm_reset_password(request: ConfirmResetPasswordRequest):
+    """Confirm password reset with token and set new password"""
+    if not cognito_provider:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Authentication service not available"
+        )
+    
+    try:
+        # Use Cognito's confirm_forgot_password
+        success = await cognito_provider.confirm_reset_password(
+            request.email, 
+            request.token, 
+            request.new_password
+        )
+        
+        if not success:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Password reset failed. The reset code may be invalid or expired."
+            )
+        
+        return ConfirmResetPasswordResponse(
+            message="Password has been successfully reset. You can now log in with your new password.",
+            success=True
+        )
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logging.error(f"Confirm reset password error: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Password reset failed. The reset link may be invalid or expired."
         )
 
 @router.get("/me")

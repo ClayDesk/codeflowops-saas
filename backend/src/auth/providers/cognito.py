@@ -394,6 +394,28 @@ class CognitoAuthProvider(AuthProvider):
         except Exception:
             return False
     
+    async def confirm_reset_password(self, email: str, confirmation_code: str, new_password: str) -> bool:
+        """Confirm password reset with confirmation code"""
+        try:
+            secret_hash = self._get_secret_hash(email)
+            params = {
+                'ClientId': self.client_id,
+                'Username': email,
+                'ConfirmationCode': confirmation_code,
+                'Password': new_password
+            }
+            
+            if secret_hash:
+                params['SecretHash'] = secret_hash
+            
+            self.cognito_client.confirm_forgot_password(**params)
+            return True
+        except Exception as e:
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.error(f"Confirm reset password error: {str(e)}")
+            return False
+
     async def change_password(self, user_id: str, old_password: str, new_password: str) -> bool:
         """Change user password"""
         try:

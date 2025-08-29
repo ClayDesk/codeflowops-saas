@@ -34,6 +34,14 @@ class VerifyEmailRequest(BaseModel):
     email: EmailStr
     verification_code: str
 
+class ForgotPasswordRequest(BaseModel):
+    email: EmailStr
+
+class ResetPasswordRequest(BaseModel):
+    email: EmailStr
+    verification_code: str
+    new_password: str
+
 class LoginResponse(BaseModel):
     access_token: str
     refresh_token: Optional[str] = None
@@ -44,6 +52,7 @@ class LoginResponse(BaseModel):
 # Simple in-memory storage
 pending_registrations = {}
 verification_codes = {}
+password_reset_codes = {}
 verified_users = {}
 
 # Create FastAPI app
@@ -71,7 +80,7 @@ async def send_email_code(email: str, code: str) -> bool:
         load_dotenv(os.path.join(os.path.dirname(__file__), '.env'))
         
         # Import email service
-        sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
+        sys.path.insert(0, os.path.dirname(__file__))
         from services.email_service import EmailService
         
         email_service = EmailService()
@@ -275,6 +284,88 @@ async def resend_verification(request: dict):
     }
     
     return {"message": "Verification code resent to your email", "email": email}
+
+@app.post("/api/v1/auth/forgot-password")
+async def forgot_password(request: ForgotPasswordRequest):
+    """Initiate password reset"""
+    logger.info(f"Password reset request for: {request.email}")
+    
+    # Check if user exists (but don't reveal if they don't for security)
+    if request.email not in verified_users:
+        # Still return success for security (don't reveal if email exists)
+        return {"message": "If an account with that email exists, password reset instructions have been sent."}
+    
+    # Generate password reset code
+    reset_code = ''.join(random.choices(string.digits, k=6))
+    logger.info(f"Generated reset code {reset_code} for {request.email}")
+    
+    # Send email
+    email_sent = await send_email_code(request.email, reset_code)
+    if not email_sent:
+        # For security, still return success even if email failed
+        logger.error(f"Failed to send reset email to {request.email}")
+        return {"message": "If an account with that email exists, password reset instructions have been sent."}
+    
+    # Store reset code
+    password_reset_codes[request.email] = {
+        "code": reset_code,
+        "expires_at": datetime.utcnow() + timedelta(hours=24)
+    }
+    
+    return {"message": "If an account with that email exists, password reset instructions have been sent."}
+
+@app.post("/api/v1/auth/confirm-reset-password")
+async def confirm_reset_password(request: ResetPasswordRequest):
+    """Confirm password reset with verification code"""
+    logger.info(f"Password reset confirmation for: {request.email}")
+    
+    # Check if user exists
+    if request.email not in verified_users:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid reset request"
+        )
+    
+    # Check if reset code exists and is valid
+    if request.email not in password_reset_codes:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="No password reset request found or code has expired"
+        )
+    
+    reset_info = password_reset_codes[request.email]
+    
+    # Check if code has expired
+    if datetime.utcnow() > reset_info["expires_at"]:
+        del password_reset_codes[request.email]
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Password reset code has expired. Please request a new one."
+        )
+    
+    # Check if code matches
+    if reset_info["code"] != request.verification_code:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid verification code"
+        )
+    
+    # Validate new password (basic validation)
+    if len(request.new_password) < 8:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Password must be at least 8 characters long"
+        )
+    
+    # Update user password
+    verified_users[request.email]["password"] = request.new_password
+    
+    # Clean up reset code
+    del password_reset_codes[request.email]
+    
+    logger.info(f"Password successfully reset for {request.email}")
+    
+    return {"message": "Password has been successfully reset. You can now log in with your new password."}
 
 @app.get("/")
 async def root():

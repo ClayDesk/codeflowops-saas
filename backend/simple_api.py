@@ -14,13 +14,14 @@ load_dotenv()
 from fastapi import FastAPI, HTTPException, APIRouter, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
-from pydantic import BaseModel
+from pydantic import BaseModel, EmailStr
 from typing import Optional, Dict, Any, List
 import logging
 import uuid
 import time
 import random
-from datetime import datetime
+import string
+from datetime import datetime, timedelta
 import json
 import tempfile
 import os
@@ -179,9 +180,65 @@ class CredentialsRequest(BaseModel):
     aws_secret_key: str
     aws_region: str
 
+# Auth models
+class LoginRequest(BaseModel):
+    email: EmailStr
+    password: str
+
+class RegisterRequest(BaseModel):
+    email: EmailStr
+    password: str
+    full_name: Optional[str] = None
+
+class VerifyEmailRequest(BaseModel):
+    email: EmailStr
+    verification_code: str
+
+class ForgotPasswordRequest(BaseModel):
+    email: EmailStr
+
+class ResetPasswordRequest(BaseModel):
+    email: EmailStr
+    verification_code: str
+    new_password: str
+
+class LoginResponse(BaseModel):
+    access_token: str
+    refresh_token: Optional[str] = None
+    token_type: str = "Bearer"
+    expires_in: int = 3600
+    user: dict
+
 # Create FastAPI app and router
 app = FastAPI(title="CodeFlowOps Simple SaaS API - Streamlined")
 router = APIRouter()
+
+# Auth storage (in-memory for simple implementation)
+pending_registrations = {}
+verification_codes = {}
+password_reset_codes = {}
+verified_users = {}
+
+# Simple email service
+async def send_email_code(email: str, code: str) -> bool:
+    """Send verification code via email"""
+    try:
+        # Load environment
+        from dotenv import load_dotenv
+        load_dotenv(os.path.join(os.path.dirname(__file__), '.env'))
+        
+        # Import email service
+        import sys
+        sys.path.insert(0, os.path.dirname(__file__))
+        from services.email_service import EmailService
+        
+        email_service = EmailService()
+        result = await email_service.send_verification_code(email, code)
+        logger.info(f"Email sent to {email}: {result}")
+        return result
+    except Exception as e:
+        logger.error(f"Email send failed: {e}")
+        return False
 
 # Session management (simplified)
 deployment_sessions = {}
@@ -204,6 +261,259 @@ async def health_check():
         "service": "CodeFlowOps Streamlined API",
         "version": "2.0.0"
     }
+
+# Auth endpoints
+@router.post("/api/v1/auth/register")
+async def register(request: RegisterRequest):
+    """Register new user with email verification"""
+    logger.info(f"Registration attempt: {request.email}")
+    
+    try:
+        # Generate verification code
+        verification_code = ''.join(random.choices(string.digits, k=6))
+        logger.info(f"Generated code {verification_code} for {request.email}")
+        
+        # Send email
+        email_sent = await send_email_code(request.email, verification_code)
+        if not email_sent:
+            raise HTTPException(
+                status_code=500,
+                detail="Failed to send verification email. Please try again."
+            )
+        
+        # Store pending registration
+        pending_registrations[request.email] = {
+            "email": request.email,
+            "password": request.password,
+            "full_name": request.full_name,
+            "created_at": datetime.utcnow()
+        }
+        
+        # Store verification code
+        verification_codes[request.email] = {
+            "code": verification_code,
+            "expires_at": datetime.utcnow() + timedelta(minutes=10)
+        }
+        
+        return {"message": "Registration initiated. Please check your email for verification code.", "email": request.email}
+    
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Registration error: {e}")
+        raise HTTPException(status_code=500, detail=f"Registration failed: {str(e)}")
+
+@router.post("/api/v1/auth/verify-email", response_model=LoginResponse)
+async def verify_email(request: VerifyEmailRequest):
+    """Verify email with code and complete registration"""
+    logger.info(f"Email verification for: {request.email}")
+    
+    if request.email not in pending_registrations:
+        raise HTTPException(status_code=400, detail="No pending registration found")
+    
+    if request.email not in verification_codes:
+        raise HTTPException(status_code=400, detail="No verification code found")
+    
+    # Check code expiry
+    code_info = verification_codes[request.email]
+    if datetime.utcnow() > code_info["expires_at"]:
+        del verification_codes[request.email]
+        raise HTTPException(status_code=400, detail="Verification code expired")
+    
+    # Check code match
+    if code_info["code"] != request.verification_code:
+        raise HTTPException(status_code=400, detail="Invalid verification code")
+    
+    # Move to verified users
+    user_data = pending_registrations[request.email]
+    user_id = str(uuid.uuid4())
+    
+    verified_users[request.email] = {
+        "id": user_id,
+        "email": request.email,
+        "password": user_data["password"],
+        "full_name": user_data.get("full_name", ""),
+        "username": request.email.split("@")[0],
+        "provider": "email",
+        "verified_at": datetime.utcnow().isoformat()
+    }
+    
+    # Cleanup
+    del pending_registrations[request.email]
+    del verification_codes[request.email]
+    
+    # Generate tokens
+    access_token = f"token-{user_id}-{random.randint(100000, 999999)}"
+    refresh_token = f"refresh-{user_id}-{random.randint(100000, 999999)}"
+    
+    user = verified_users[request.email]
+    logger.info(f"Email verification successful for {request.email}")
+    
+    return LoginResponse(
+        access_token=access_token,
+        refresh_token=refresh_token,
+        user={
+            "id": user["id"],
+            "email": user["email"],
+            "username": user["username"],
+            "full_name": user["full_name"],
+            "provider": user["provider"]
+        }
+    )
+
+@router.post("/api/v1/auth/login", response_model=LoginResponse)
+async def login(request: LoginRequest):
+    """Login with email and password"""
+    logger.info(f"Login attempt: {request.email}")
+    
+    # Check if user exists and is verified
+    if request.email not in verified_users:
+        logger.warning(f"User not found: {request.email}")
+        raise HTTPException(
+            status_code=401,
+            detail="Invalid email or password"
+        )
+    
+    user = verified_users[request.email]
+    
+    # Check password (in production, use proper hashing)
+    if user["password"] != request.password:
+        logger.warning(f"Invalid password for {request.email}")
+        raise HTTPException(
+            status_code=401,
+            detail="Invalid email or password"
+        )
+    
+    # Generate tokens
+    access_token = f"token-{user['id']}-{random.randint(100000, 999999)}"
+    refresh_token = f"refresh-{user['id']}-{random.randint(100000, 999999)}"
+    
+    logger.info(f"Login successful for {request.email}")
+    
+    return LoginResponse(
+        access_token=access_token,
+        refresh_token=refresh_token,
+        user={
+            "id": user["id"],
+            "email": user["email"],
+            "username": user["username"],
+            "full_name": user["full_name"],
+            "provider": user["provider"]
+        }
+    )
+
+@router.post("/api/v1/auth/forgot-password")
+async def forgot_password(request: ForgotPasswordRequest):
+    """Initiate password reset"""
+    logger.info(f"Password reset request for: {request.email}")
+    
+    # Check if user exists (but don't reveal if they don't for security)
+    if request.email not in verified_users:
+        # Still return success for security (don't reveal if email exists)
+        return {"message": "If an account with that email exists, password reset instructions have been sent."}
+    
+    # Generate password reset code
+    reset_code = ''.join(random.choices(string.digits, k=6))
+    logger.info(f"Generated reset code {reset_code} for {request.email}")
+    
+    # Send email
+    email_sent = await send_email_code(request.email, reset_code)
+    if not email_sent:
+        # For security, still return success even if email failed
+        logger.error(f"Failed to send reset email to {request.email}")
+        return {"message": "If an account with that email exists, password reset instructions have been sent."}
+    
+    # Store reset code
+    password_reset_codes[request.email] = {
+        "code": reset_code,
+        "expires_at": datetime.utcnow() + timedelta(hours=24)
+    }
+    
+    return {"message": "If an account with that email exists, password reset instructions have been sent."}
+
+@router.post("/api/v1/auth/confirm-reset-password")
+async def confirm_reset_password(request: ResetPasswordRequest):
+    """Confirm password reset with verification code"""
+    logger.info(f"Password reset confirmation for: {request.email}")
+    
+    # Check if user exists
+    if request.email not in verified_users:
+        raise HTTPException(
+            status_code=400,
+            detail="Invalid reset request"
+        )
+    
+    # Check if reset code exists and is valid
+    if request.email not in password_reset_codes:
+        raise HTTPException(
+            status_code=400,
+            detail="No password reset request found or code has expired"
+        )
+    
+    reset_info = password_reset_codes[request.email]
+    
+    # Check if code has expired
+    if datetime.utcnow() > reset_info["expires_at"]:
+        del password_reset_codes[request.email]
+        raise HTTPException(
+            status_code=400,
+            detail="Password reset code has expired. Please request a new one."
+        )
+    
+    # Check if code matches
+    if reset_info["code"] != request.verification_code:
+        raise HTTPException(
+            status_code=400,
+            detail="Invalid verification code"
+        )
+    
+    # Validate new password (basic validation)
+    if len(request.new_password) < 8:
+        raise HTTPException(
+            status_code=400,
+            detail="Password must be at least 8 characters long"
+        )
+    
+    # Update user password
+    verified_users[request.email]["password"] = request.new_password
+    
+    # Clean up reset code
+    del password_reset_codes[request.email]
+    
+    logger.info(f"Password successfully reset for {request.email}")
+    
+    return {"message": "Password has been successfully reset. You can now log in with your new password."}
+
+@router.post("/api/v1/auth/resend-verification")
+async def resend_verification(request: dict):
+    """Resend verification code"""
+    email = request.get("email")
+    logger.info(f"Resend verification for: {email}")
+    
+    if email not in pending_registrations:
+        raise HTTPException(
+            status_code=400,
+            detail="No pending registration found"
+        )
+    
+    # Generate new verification code
+    verification_code = ''.join(random.choices(string.digits, k=6))
+    
+    # Send email
+    email_sent = await send_email_code(email, verification_code)
+    if not email_sent:
+        raise HTTPException(
+            status_code=500,
+            detail="Failed to send verification email"
+        )
+    
+    # Update stored code
+    verification_codes[email] = {
+        "code": verification_code,
+        "expires_at": datetime.utcnow() + timedelta(minutes=10)
+    }
+    
+    return {"message": "Verification code resent to your email", "email": email}
 
 @router.get("/api/v1/pricing")
 async def get_public_pricing(

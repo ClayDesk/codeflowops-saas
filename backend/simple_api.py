@@ -515,6 +515,60 @@ async def resend_verification(request: dict):
     
     return {"message": "Verification code resent to your email", "email": email}
 
+@router.delete("/api/v1/auth/delete-account")
+async def delete_account(request: Request):
+    """Delete user account"""
+    try:
+        # Extract token from Authorization header
+        auth_header = request.headers.get("Authorization")
+        if not auth_header or not auth_header.startswith("Bearer "):
+            raise HTTPException(status_code=401, detail="Missing or invalid authorization header")
+        
+        token = auth_header.split(" ")[1]
+        
+        # Extract user info from token (simplified - in production use proper JWT validation)
+        # For now, we'll extract user ID from token format: token-{user_id}-{random}
+        try:
+            parts = token.split("-")
+            if len(parts) >= 3 and parts[0] == "token":
+                user_id = parts[1]
+            else:
+                raise HTTPException(status_code=401, detail="Invalid token format")
+        except:
+            raise HTTPException(status_code=401, detail="Invalid token")
+        
+        # Find user by ID in verified_users
+        user_email = None
+        for email, user_data in verified_users.items():
+            if user_data.get("id") == user_id:
+                user_email = email
+                break
+        
+        if not user_email:
+            raise HTTPException(status_code=404, detail="User not found")
+        
+        # Delete user from all storage
+        if user_email in verified_users:
+            del verified_users[user_email]
+        
+        # Clean up any pending data
+        if user_email in pending_registrations:
+            del pending_registrations[user_email]
+        if user_email in verification_codes:
+            del verification_codes[user_email]
+        if user_email in password_reset_codes:
+            del password_reset_codes[user_email]
+        
+        logger.info(f"Account deleted successfully for {user_email}")
+        
+        return {"message": "Account deleted successfully"}
+    
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Account deletion error: {e}")
+        raise HTTPException(status_code=500, detail=f"Account deletion failed: {str(e)}")
+
 @router.get("/api/v1/pricing")
 async def get_public_pricing(
     country: Optional[str] = None,

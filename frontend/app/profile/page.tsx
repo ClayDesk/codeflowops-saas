@@ -67,6 +67,8 @@ function ProfilePageContent() {
   })
   const [isUploadingPicture, setIsUploadingPicture] = useState(false)
   const [activeTab, setActiveTab] = useState('overview')
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+  const [isDeletingAccount, setIsDeletingAccount] = useState(false)
 
   // Fetch user data from API
   useEffect(() => {
@@ -219,6 +221,45 @@ function ProfilePageContent() {
   const handleRemoveProfilePicture = () => {
     removeProfilePicture()
     console.log('Profile picture removed successfully')
+  }
+
+  // Handle account deletion
+  const handleDeleteAccount = async () => {
+    if (!showDeleteConfirm) {
+      setShowDeleteConfirm(true)
+      return
+    }
+
+    try {
+      setIsDeletingAccount(true)
+      
+      // Make API call to delete account
+      const response = await fetch('/api/v1/auth/delete-account', {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('access_token')}`
+        }
+      })
+
+      if (response.ok) {
+        // Clear local storage and redirect to home
+        localStorage.removeItem('access_token')
+        localStorage.removeItem('refresh_token')
+        localStorage.removeItem('user')
+        
+        alert('Your account has been successfully deleted.')
+        window.location.href = '/'
+      } else {
+        throw new Error('Failed to delete account')
+      }
+    } catch (error) {
+      console.error('Error deleting account:', error)
+      alert('Failed to delete account. Please try again or contact support.')
+    } finally {
+      setIsDeletingAccount(false)
+      setShowDeleteConfirm(false)
+    }
   }
 
   if (!isAuthenticated) {
@@ -619,53 +660,13 @@ function ProfilePageContent() {
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div className="space-y-3">
-                    <Button variant="outline" className="w-full justify-start dark:text-white dark:border-gray-600 dark:hover:bg-gray-700">
+                    <Button 
+                      variant="outline" 
+                      className="w-full justify-start dark:text-white dark:border-gray-600 dark:hover:bg-gray-700"
+                      onClick={() => window.location.href = '/reset-password'}
+                    >
                       Change Password
                     </Button>
-                    <Button variant="outline" className="w-full justify-start dark:text-white dark:border-gray-600 dark:hover:bg-gray-700">
-                      Two-Factor Authentication
-                    </Button>
-                    <Button variant="outline" className="w-full justify-start dark:text-white dark:border-gray-600 dark:hover:bg-gray-700">
-                      Connected Accounts
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-
-              {/* Notification Settings */}
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Mail className="h-5 w-5" />
-                    Notifications
-                  </CardTitle>
-                  <CardDescription>
-                    Configure your notification preferences
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="space-y-3">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="font-medium">Deployment Updates</p>
-                        <p className="text-sm text-muted-foreground">Get notified when deployments complete</p>
-                      </div>
-                      <input type="checkbox" defaultChecked className="rounded" />
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="font-medium">Weekly Reports</p>
-                        <p className="text-sm text-muted-foreground">Receive weekly deployment summaries</p>
-                      </div>
-                      <input type="checkbox" defaultChecked className="rounded" />
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="font-medium">Security Alerts</p>
-                        <p className="text-sm text-muted-foreground">Important security notifications</p>
-                      </div>
-                      <input type="checkbox" defaultChecked className="rounded" />
-                    </div>
                   </div>
                 </CardContent>
               </Card>
@@ -687,9 +688,9 @@ function ProfilePageContent() {
               </Card>
 
               {/* Danger Zone */}
-              <Card className="border-red-200">
+              <Card className="border-red-200 dark:border-red-800">
                 <CardHeader>
-                  <CardTitle className="flex items-center gap-2 text-red-600">
+                  <CardTitle className="flex items-center gap-2 text-red-600 dark:text-red-400">
                     <XCircle className="h-5 w-5" />
                     Danger Zone
                   </CardTitle>
@@ -699,16 +700,36 @@ function ProfilePageContent() {
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div className="space-y-3">
-                    <Button variant="outline" className="w-full justify-start border-red-200 text-red-600 hover:bg-red-50 dark:border-red-800 dark:text-red-400 dark:hover:bg-red-950 dark:hover:text-red-300">
-                      Download Account Data
+                    <Button 
+                      variant="destructive" 
+                      className="w-full justify-start text-white dark:text-white"
+                      onClick={handleDeleteAccount}
+                      disabled={isDeletingAccount}
+                    >
+                      {isDeletingAccount ? (
+                        <>
+                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                          Deleting Account...
+                        </>
+                      ) : showDeleteConfirm ? (
+                        'Click Again to Confirm Delete'
+                      ) : (
+                        'Delete Account'
+                      )}
                     </Button>
-                    <Button variant="destructive" className="w-full justify-start text-white dark:text-white">
-                      Delete Account
-                    </Button>
+                    {showDeleteConfirm && (
+                      <Button 
+                        variant="outline" 
+                        className="w-full justify-start"
+                        onClick={() => setShowDeleteConfirm(false)}
+                      >
+                        Cancel
+                      </Button>
+                    )}
                   </div>
-                  <Alert className="border-red-200">
+                  <Alert className="border-red-200 dark:border-red-800">
                     <XCircle className="h-4 w-4" />
-                    <AlertDescription className="text-red-600">
+                    <AlertDescription className="text-red-600 dark:text-red-400">
                       Account deletion is permanent and cannot be undone.
                     </AlertDescription>
                   </Alert>

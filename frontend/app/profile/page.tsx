@@ -67,8 +67,6 @@ function ProfilePageContent() {
   })
   const [isUploadingPicture, setIsUploadingPicture] = useState(false)
   const [activeTab, setActiveTab] = useState('overview')
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
-  const [isDeletingAccount, setIsDeletingAccount] = useState(false)
 
   // Fetch user data from API
   useEffect(() => {
@@ -223,43 +221,22 @@ function ProfilePageContent() {
     console.log('Profile picture removed successfully')
   }
 
-  // Handle account deletion
-  const handleDeleteAccount = async () => {
-    if (!showDeleteConfirm) {
-      setShowDeleteConfirm(true)
-      return
-    }
+  // Handle contact us
+  const handleContactUs = () => {
+    // Open email client or redirect to contact page
+    const subject = encodeURIComponent('Account Deletion Request')
+    const body = encodeURIComponent(`Hello CodeFlowOps Support,
 
-    try {
-      setIsDeletingAccount(true)
-      
-      // Make API call to delete account
-      const response = await fetch('/api/v1/auth/delete-account', {
-        method: 'DELETE',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('access_token')}`
-        }
-      })
+I would like to request the deletion of my account.
 
-      if (response.ok) {
-        // Clear local storage and redirect to home
-        localStorage.removeItem('access_token')
-        localStorage.removeItem('refresh_token')
-        localStorage.removeItem('user')
-        
-        alert('Your account has been successfully deleted.')
-        window.location.href = '/'
-      } else {
-        throw new Error('Failed to delete account')
-      }
-    } catch (error) {
-      console.error('Error deleting account:', error)
-      alert('Failed to delete account. Please try again or contact support.')
-    } finally {
-      setIsDeletingAccount(false)
-      setShowDeleteConfirm(false)
-    }
+Account Email: ${user?.email}
+Account Name: ${user?.full_name}
+
+Please confirm the deletion of my account and all associated data.
+
+Thank you.`)
+    
+    window.location.href = `mailto:support@codeflowops.com?subject=${subject}&body=${body}`
   }
 
   if (!isAuthenticated) {
@@ -687,50 +664,32 @@ function ProfilePageContent() {
                 </CardContent>
               </Card>
 
-              {/* Danger Zone */}
-              <Card className="border-red-200 dark:border-red-800">
+              {/* Support Zone */}
+              <Card className="border-orange-200 dark:border-orange-800">
                 <CardHeader>
-                  <CardTitle className="flex items-center gap-2 text-red-600 dark:text-red-400">
-                    <XCircle className="h-5 w-5" />
-                    Danger Zone
+                  <CardTitle className="flex items-center gap-2 text-orange-600 dark:text-orange-400">
+                    <Mail className="h-5 w-5" />
+                    Support
                   </CardTitle>
                   <CardDescription>
-                    Irreversible actions that affect your account
+                    Need help with your account? Contact our support team
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div className="space-y-3">
                     <Button 
-                      variant="destructive" 
-                      className="w-full justify-start text-white dark:text-white"
-                      onClick={handleDeleteAccount}
-                      disabled={isDeletingAccount}
+                      variant="outline" 
+                      className="w-full justify-start border-orange-200 text-orange-600 hover:bg-orange-50 dark:border-orange-800 dark:text-orange-400 dark:hover:bg-orange-950 dark:hover:text-orange-300"
+                      onClick={handleContactUs}
                     >
-                      {isDeletingAccount ? (
-                        <>
-                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                          Deleting Account...
-                        </>
-                      ) : showDeleteConfirm ? (
-                        'Click Again to Confirm Delete'
-                      ) : (
-                        'Delete Account'
-                      )}
+                      <Mail className="h-4 w-4 mr-2" />
+                      Contact Support for Account Deletion
                     </Button>
-                    {showDeleteConfirm && (
-                      <Button 
-                        variant="outline" 
-                        className="w-full justify-start"
-                        onClick={() => setShowDeleteConfirm(false)}
-                      >
-                        Cancel
-                      </Button>
-                    )}
                   </div>
-                  <Alert className="border-red-200 dark:border-red-800">
-                    <XCircle className="h-4 w-4" />
-                    <AlertDescription className="text-red-600 dark:text-red-400">
-                      Account deletion is permanent and cannot be undone.
+                  <Alert className="border-orange-200 dark:border-orange-800">
+                    <Mail className="h-4 w-4" />
+                    <AlertDescription className="text-orange-600 dark:text-orange-400">
+                      For account deletion requests, please contact our support team. We'll help you safely remove your account and all associated data.
                     </AlertDescription>
                   </Alert>
                 </CardContent>

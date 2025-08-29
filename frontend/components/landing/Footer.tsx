@@ -13,13 +13,9 @@ import {
 const footerLinks = {
   product: [
     { name: 'Features', href: '#features' },
-    { name: 'How it Works', href: '#how-it-works' },
-    { name: 'Changelog', href: '/changelog' },
-    { name: 'Roadmap', href: '/roadmap' }
+    { name: 'How it Works', href: '#how-it-works' }
   ],
   resources: [
-    { name: 'Documentation', href: 'https://docs.codeflowops.com' },
-    { name: 'API Reference', href: 'https://api.codeflowops.com/docs' },
     { name: 'Tutorials', href: '/tutorials' },
     { name: 'Blog', href: '/blog' },
     { name: 'Community', href: '/community' }
@@ -35,7 +31,6 @@ const footerLinks = {
     { name: 'Privacy Policy', href: '/privacy' },
     { name: 'Terms of Service', href: '/terms' },
     { name: 'Cookie Policy', href: '/cookies' },
-    { name: 'Security', href: '/security' },
     { name: 'Compliance', href: '/compliance' }
   ]
 }
@@ -43,17 +38,17 @@ const footerLinks = {
 const socialLinks = [
   {
     name: 'GitHub',
-    href: 'https://github.com/codeflowops',
+    href: 'https://github.com/claydesk',
     icon: Github
   },
   {
     name: 'Twitter',
-    href: 'https://twitter.com/codeflowops',
+    href: 'https://twitter.com/claydesk',
     icon: Twitter
   },
   {
     name: 'LinkedIn',
-    href: 'https://linkedin.com/company/codeflowops',
+    href: 'https://linkedin.com/company/claydesk',
     icon: Linkedin
   }
 ]
@@ -81,16 +76,12 @@ export function Footer() {
               
               <div className="space-y-2 text-sm text-gray-400">
                 <div className="flex items-center">
-                  <Mail className="w-4 h-4 mr-2" />
-                  hello@codeflowops.com
-                </div>
-                <div className="flex items-center">
                   <Phone className="w-4 h-4 mr-2" />
-                  +1 (555) 123-4567
+                  +1 (703) 646-3043
                 </div>
                 <div className="flex items-center">
                   <MapPin className="w-4 h-4 mr-2" />
-                  San Francisco, CA
+                  45 Burgundy Hills Lane, Middletown, CT 06457
                 </div>
               </div>
             </div>
@@ -170,31 +161,11 @@ export function Footer() {
           </div>
         </div>
 
-        {/* Newsletter */}
-        <div className="border-t border-gray-800 py-8">
-          <div className="max-w-md">
-            <h3 className="font-semibold text-white mb-4">Stay updated</h3>
-            <p className="text-gray-400 text-sm mb-4">
-              Get the latest updates, feature releases, and deployment tips delivered to your inbox.
-            </p>
-            <div className="flex">
-              <input
-                type="email"
-                placeholder="Enter your email"
-                className="flex-1 px-4 py-2 bg-gray-800 border border-gray-700 rounded-l-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-white placeholder-gray-400"
-              />
-              <button className="px-6 py-2 bg-blue-600 text-white rounded-r-lg hover:bg-blue-700 transition-colors">
-                Subscribe
-              </button>
-            </div>
-          </div>
-        </div>
-
         {/* Bottom section */}
         <div className="border-t border-gray-800 py-6">
           <div className="flex flex-col md:flex-row justify-between items-center">
             <div className="text-gray-400 text-sm">
-              © {new Date().getFullYear()} CodeFlowOps. All rights reserved.
+              © {new Date().getFullYear()} CodeFlowOps by ClayDesk LLC. All rights reserved.
             </div>
             
             <div className="flex items-center space-x-6 mt-4 md:mt-0">

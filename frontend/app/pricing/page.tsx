@@ -89,12 +89,12 @@ export default function PricingPage() {
               
               <div className="mt-6">
                 <div className="flex items-center justify-center">
-                  <span className="text-5xl font-bold text-gray-900 dark:text-white">$12</span>
+                  <span className="text-5xl font-bold text-gray-900 dark:text-white">$19</span>
                   <span className="text-gray-600 dark:text-gray-300 ml-2">/month</span>
                 </div>
                 <div className="flex items-center justify-center mt-2 text-sm text-green-600 dark:text-green-400">
                   <Clock className="w-4 h-4 mr-1" />
-                  14-day free trial
+                  7-day free trial
                 </div>
               </div>
             </CardHeader>
@@ -152,7 +152,7 @@ export default function PricingPage() {
             <div>
               <h3 className="font-semibold mb-2 dark:text-white">How does the free trial work?</h3>
               <p className="text-gray-600 dark:text-gray-300 text-sm">
-                Get full access to all Pro features for 14 days. No credit card required to start.
+                Get full access to all Pro features for 7 days. No credit card required to start.
               </p>
             </div>
             <div>

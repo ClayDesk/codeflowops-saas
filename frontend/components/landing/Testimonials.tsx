@@ -1,11 +1,14 @@
+'use client'
+
 import { Star, Quote } from 'lucide-react'
+import { useRouter } from 'next/navigation'
 
 const testimonials = [
   {
     name: 'Sarah Chen',
     role: 'Frontend Developer',
     company: 'TechCorp',
-    avatar: 'https://images.unsplash.com/photo-1494790108755-2616b612b1a4?w=64&h=64&fit=crop&crop=face',
+    avatar: 'https://ui-avatars.com/api/?name=Sarah+Chen&background=3b82f6&color=ffffff&size=64',
     content: 'CodeFlowOps saved me hours of DevOps work. I can now deploy my React apps in minutes instead of struggling with AWS configurations for hours.',
     rating: 5
   },
@@ -52,6 +55,8 @@ const testimonials = [
 ]
 
 export function Testimonials() {
+  const router = useRouter()
+
   return (
     <section id="testimonials" className="py-20 bg-white dark:bg-gray-900">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -139,12 +144,12 @@ export function Testimonials() {
             <p className="text-blue-100 mb-6 max-w-2xl mx-auto">
               Start your deployment journey today and see why developers love CodeFlowOps.
             </p>
-            <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <button className="bg-white text-blue-600 px-8 py-3 rounded-lg font-semibold hover:bg-blue-50 transition-colors">
+            <div className="flex justify-center">
+              <button 
+                onClick={() => router.push('/pricing')}
+                className="bg-white text-blue-600 px-8 py-3 rounded-lg font-semibold hover:bg-blue-50 transition-colors"
+              >
                 Start Free Trial
-              </button>
-              <button className="border-2 border-white text-white px-8 py-3 rounded-lg font-semibold hover:bg-white/10 transition-colors">
-                Schedule Demo
               </button>
             </div>
           </div>

@@ -251,41 +251,25 @@ export default function AboutPage() {
               {/* CEO */}
               <div className="text-center p-6 border rounded-lg hover:shadow-lg transition-shadow">
                 <div className="w-24 h-24 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full mx-auto mb-4 flex items-center justify-center">
-                  <span className="text-white font-bold text-2xl">AK</span>
+                  <span className="text-white font-bold text-2xl">SR</span>
                 </div>
-                <h3 className="font-bold text-lg">Alex Kumar</h3>
-                <p className="text-blue-600 font-medium mb-2">CEO & Co-Founder</p>
+                <h3 className="font-bold text-lg">Syed Raza</h3>
+                <p className="text-blue-600 font-medium mb-2">CEO & Founder</p>
                 <p className="text-sm text-slate-600 dark:text-slate-400 mb-4">
-                  Former Principal Engineer at Amazon Web Services. 15+ years building scalable cloud infrastructure.
+                  Visionary entrepreneur and technology leader. Passionate about democratizing DevOps and empowering developers worldwide.
                 </p>
-                <div className="flex justify-center space-x-2">
-                  <Button variant="outline" size="sm">
-                    <Linkedin className="h-4 w-4" />
-                  </Button>
-                  <Button variant="outline" size="sm">
-                    <Twitter className="h-4 w-4" />
-                  </Button>
-                </div>
               </div>
 
               {/* CTO */}
               <div className="text-center p-6 border rounded-lg hover:shadow-lg transition-shadow">
                 <div className="w-24 h-24 bg-gradient-to-br from-green-500 to-teal-600 rounded-full mx-auto mb-4 flex items-center justify-center">
-                  <span className="text-white font-bold text-2xl">SC</span>
+                  <span className="text-white font-bold text-2xl">MG</span>
                 </div>
-                <h3 className="font-bold text-lg">Sarah Chen</h3>
+                <h3 className="font-bold text-lg">Myra Gul</h3>
                 <p className="text-green-600 font-medium mb-2">CTO & Co-Founder</p>
                 <p className="text-sm text-slate-600 dark:text-slate-400 mb-4">
-                  AI/ML expert from Google Brain. PhD in Computer Science, specialized in distributed systems.
+                  Principal Infrastructure Engineer with deep expertise in scalable systems and cloud architecture.
                 </p>
-                <div className="flex justify-center space-x-2">
-                  <Button variant="outline" size="sm">
-                    <Linkedin className="h-4 w-4" />
-                  </Button>
-                  <Button variant="outline" size="sm">
-                    <Github className="h-4 w-4" />
-                  </Button>
-                </div>
               </div>
 
               {/* VP Engineering */}
@@ -298,34 +282,18 @@ export default function AboutPage() {
                 <p className="text-sm text-slate-600 dark:text-slate-400 mb-4">
                   Former Staff Engineer at Netflix. Expert in microservices architecture and platform engineering.
                 </p>
-                <div className="flex justify-center space-x-2">
-                  <Button variant="outline" size="sm">
-                    <Linkedin className="h-4 w-4" />
-                  </Button>
-                  <Button variant="outline" size="sm">
-                    <Github className="h-4 w-4" />
-                  </Button>
-                </div>
               </div>
 
               {/* VP Product */}
               <div className="text-center p-6 border rounded-lg hover:shadow-lg transition-shadow">
                 <div className="w-24 h-24 bg-gradient-to-br from-orange-500 to-red-600 rounded-full mx-auto mb-4 flex items-center justify-center">
-                  <span className="text-white font-bold text-2xl">EP</span>
+                  <span className="text-white font-bold text-2xl">QS</span>
                 </div>
-                <h3 className="font-bold text-lg">Emily Park</h3>
+                <h3 className="font-bold text-lg">Qasim Shah</h3>
                 <p className="text-orange-600 font-medium mb-2">VP of Product</p>
                 <p className="text-sm text-slate-600 dark:text-slate-400 mb-4">
-                  Product leader from Stripe. 12+ years designing developer tools and platform experiences.
+                  Product strategist with expertise in developer tools and user experience design. Passionate about creating intuitive solutions.
                 </p>
-                <div className="flex justify-center space-x-2">
-                  <Button variant="outline" size="sm">
-                    <Linkedin className="h-4 w-4" />
-                  </Button>
-                  <Button variant="outline" size="sm">
-                    <Twitter className="h-4 w-4" />
-                  </Button>
-                </div>
               </div>
 
               {/* Head of Security */}
@@ -338,14 +306,6 @@ export default function AboutPage() {
                 <p className="text-sm text-slate-600 dark:text-slate-400 mb-4">
                   Cybersecurity veteran from CrowdStrike. CISSP certified with expertise in cloud security.
                 </p>
-                <div className="flex justify-center space-x-2">
-                  <Button variant="outline" size="sm">
-                    <Linkedin className="h-4 w-4" />
-                  </Button>
-                  <Button variant="outline" size="sm">
-                    <Twitter className="h-4 w-4" />
-                  </Button>
-                </div>
               </div>
 
               {/* Head of Customer Success */}
@@ -358,14 +318,6 @@ export default function AboutPage() {
                 <p className="text-sm text-slate-600 dark:text-slate-400 mb-4">
                   Customer experience leader from Atlassian. Passionate about developer relations and community building.
                 </p>
-                <div className="flex justify-center space-x-2">
-                  <Button variant="outline" size="sm">
-                    <Linkedin className="h-4 w-4" />
-                  </Button>
-                  <Button variant="outline" size="sm">
-                    <Twitter className="h-4 w-4" />
-                  </Button>
-                </div>
               </div>
             </div>
           </CardContent>
@@ -505,7 +457,7 @@ export default function AboutPage() {
                   </div>
                   <div className="flex items-center">
                     <Mail className="h-4 w-4 mr-3 text-slate-500" />
-                    <span>hello@claydesk.com</span>
+                    <span>info@claydesk.com</span>
                   </div>
                   <div className="flex items-center">
                     <Globe className="h-4 w-4 mr-3 text-slate-500" />
@@ -552,8 +504,8 @@ export default function AboutPage() {
             </p>
             <div className="flex flex-col sm:flex-row justify-center gap-4">
               <Button size="lg" variant="secondary" className="bg-white text-blue-600 hover:bg-blue-50">
-                <Users className="h-5 w-5 mr-2" />
-                View Open Positions
+                <Rocket className="h-5 w-5 mr-2" />
+                Start Free Trial
               </Button>
               <Button size="lg" variant="outline" className="border-white text-white hover:bg-white/10">
                 <Mail className="h-5 w-5 mr-2" />
@@ -567,12 +519,6 @@ export default function AboutPage() {
         <div className="text-center text-sm text-slate-500 border-t pt-8">
           <p>
             Thank you for taking the time to learn about CodeFlowOps. We're excited to be part of your development journey.
-          </p>
-          <p className="mt-2">
-            Questions? Reach out to us at <a href="mailto:hello@claydesk.com" className="text-blue-600 hover:underline">hello@claydesk.com</a>
-          </p>
-          <p className="mt-4 font-semibold">
-            © 2025 ClayDesk LLC. Built with ❤️ for developers worldwide.
           </p>
         </div>
       </div>

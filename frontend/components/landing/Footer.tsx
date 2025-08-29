@@ -13,7 +13,7 @@ import {
 const footerLinks = {
   product: [
     { name: 'Features', href: '#features' },
-    { name: 'How it Works', href: '#how-it-works' }
+    { name: 'How it Works', href: '/tutorials' }
   ],
   resources: [
     { name: 'Tutorials', href: '/tutorials' },

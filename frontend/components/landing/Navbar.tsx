@@ -36,7 +36,7 @@ export function Navbar() {
               Features
             </Link>
             <Link
-              href="#how-it-works"
+              href="/tutorials"
               className="text-gray-600 hover:text-gray-900 dark:text-gray-300 dark:hover:text-white font-medium transition-colors"
             >
               How it Works
@@ -104,7 +104,7 @@ export function Navbar() {
                 Features
               </Link>
               <Link
-                href="#how-it-works"
+                href="/tutorials"
                 className="block px-3 py-2 text-gray-600 hover:text-gray-900 dark:text-gray-300 dark:hover:text-white font-medium transition-colors"
                 onClick={() => setIsOpen(false)}
               >

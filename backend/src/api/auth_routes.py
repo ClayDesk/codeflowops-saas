@@ -111,8 +111,8 @@ class LoginRequest(BaseModel):
     password: str = Field(..., description="Password")
 
 class RegisterRequest(BaseModel):
-    username: str = Field(..., description="Username")
-    email: str = Field(..., description="Email address")
+    username: str = Field(..., description="Username (display name)")
+    email: str = Field(..., description="Email address (used as Cognito username)")
     password: str = Field(..., description="Password")
     full_name: Optional[str] = Field(None, description="Full name")
 
@@ -196,9 +196,9 @@ async def register(request: RegisterRequest):
         )
     
     try:
-        # Register with Cognito
+        # Register with Cognito - use email as username (AWS Cognito requirement)
         user_data = {
-            "username": request.username,
+            "username": request.email,  # Use email as username for Cognito
             "email": request.email,
             "password": request.password,
             "full_name": request.full_name

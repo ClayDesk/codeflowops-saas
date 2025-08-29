@@ -15,7 +15,7 @@ interface RegisterFormProps {
   redirectTo?: string
 }
 
-export function RegisterForm({ redirectTo = '/smart-deploy' }: RegisterFormProps) {
+export function RegisterForm({ redirectTo = '/deploy' }: RegisterFormProps) {
   const [formData, setFormData] = useState({
     username: '',
     email: '',

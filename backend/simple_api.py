@@ -975,17 +975,30 @@ async def deploy_to_aws(request: DeployRequest):
             # Count actual active deployments from _DEPLOY_STATES PER USER
             active_runs = 0
             with _LOCK:
-                # Clean up completed/failed deployments first
+                # Clean up OLD completed/failed deployments (keep them for 10 minutes for polling)
                 completed_states = []
+                current_time = datetime.utcnow()
                 for dep_id, state in _DEPLOY_STATES.items():
                     status = state.get('status', '')
                     if status in ['completed', 'failed', 'error']:
-                        completed_states.append(dep_id)
+                        # Only clean up if completed more than 10 minutes ago
+                        completed_at = state.get('completed_at') or state.get('failed_at')
+                        if completed_at:
+                            try:
+                                completed_time = datetime.fromisoformat(completed_at.replace('Z', '+00:00'))
+                                if (current_time - completed_time.replace(tzinfo=None)).total_seconds() > 600:  # 10 minutes
+                                    completed_states.append(dep_id)
+                            except:
+                                # If timestamp parsing fails, clean up old entries
+                                completed_states.append(dep_id)
+                        else:
+                            # If no timestamp, clean up (old entry)
+                            completed_states.append(dep_id)
                 
-                # Remove completed deployments
+                # Remove old completed deployments
                 for dep_id in completed_states:
                     del _DEPLOY_STATES[dep_id]
-                    logger.info(f"🧹 Cleaned up completed deployment state: {dep_id}")
+                    logger.info(f"🧹 Cleaned up old completed deployment state: {dep_id}")
                 
                 # Count remaining active deployments FOR THIS USER ONLY
                 for dep_id, state in _DEPLOY_STATES.items():
@@ -1902,7 +1915,19 @@ async def get_deployment_status(deployment_id: str):
 async def get_deployment_result(deployment_id: str):
     """Get deployment result - supports both in-progress and completed deployments"""
     if deployment_id not in _DEPLOY_STATES:
-        raise HTTPException(status_code=404, detail="Deployment not found")
+        # Check if this deployment might have been recently completed and cleaned up
+        logger.warning(f"Deployment {deployment_id} not found in active states - may have been cleaned up")
+        
+        # Return a helpful error message instead of 404
+        return JSONResponse(
+            status_code=410,  # Gone - resource was available but has been removed
+            content={
+                "error": "Deployment state has been cleaned up",
+                "message": "This deployment completed more than 10 minutes ago and its state has been cleaned up. For persistent deployment history, check your dashboard.",
+                "deployment_id": deployment_id,
+                "suggestion": "Check your deployment dashboard for historical deployment information."
+            }
+        )
     
     deployment = _DEPLOY_STATES[deployment_id]
     
@@ -1929,7 +1954,7 @@ async def get_deployment_result(deployment_id: str):
         response["completed_at"] = deployment.get("completed_at") or response["timestamp"]
     elif deployment["status"] == "failed":
         response["error"] = deployment.get("error", "Deployment failed")
-        response["failed_at"] = response["timestamp"]
+        response["failed_at"] = deployment.get("failed_at") or response["timestamp"]
     
     return response
 
@@ -2466,9 +2491,8 @@ if MODULAR_ROUTERS_AVAILABLE:
                 from enhanced_repository_analyzer import EnhancedRepositoryAnalyzer
                 analyzer = EnhancedRepositoryAnalyzer()
                 
-                # Analyze repository
-                deployment_id_temp = f"temp-{deployment_id}"
-                analysis_result = await analyzer.analyze_repository_comprehensive(repo_url, deployment_id_temp)
+                # Analyze repository (use the same deployment_id, not temp-)
+                analysis_result = await analyzer.analyze_repository_comprehensive(repo_url, deployment_id)
                 
                 # Get stack recommendation
                 recommended_stack = "react-static"  # Default for React apps
@@ -2498,6 +2522,10 @@ if MODULAR_ROUTERS_AVAILABLE:
                     }
                 
                 logger.info(f"📋 Stored analysis session for deployment {deployment_id}")
+                
+                # Update the analysis_result to ensure it has the correct deployment_id
+                if isinstance(analysis_result, dict):
+                    analysis_result['deployment_id'] = deployment_id
                 
                 return {
                     "success": True,

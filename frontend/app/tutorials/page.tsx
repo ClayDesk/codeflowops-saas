@@ -25,20 +25,12 @@ export default function TutorialsPage() {
       thumbnail: 'https://img.youtube.com/vi/fDp5-NGNEqo/maxresdefault.jpg'
     },
     {
-      id: 'fDp5-NGNEqo',
+      id: 'E-6KSTq_k6o',
       title: 'Deploy React Applications with CodeFlowOps',
       description: 'Step-by-step guide to deploying React apps including Next.js, Vite, and Create React App projects.',
-      duration: '8:30',
+      duration: '10:45',
       views: '8.7K',
-      thumbnail: 'https://img.youtube.com/vi/fDp5-NGNEqo/maxresdefault.jpg'
-    },
-    {
-      id: 'fDp5-NGNEqo',
-      title: 'Laravel Deployment with CodeFlowOps',
-      description: 'Complete guide to deploying Laravel applications with automatic database setup and SSL certificates.',
-      duration: '12:15',
-      views: '6.2K',
-      thumbnail: 'https://img.youtube.com/vi/fDp5-NGNEqo/maxresdefault.jpg'
+      thumbnail: 'https://img.youtube.com/vi/E-6KSTq_k6o/maxresdefault.jpg'
     }
   ]
 
@@ -51,14 +43,14 @@ export default function TutorialsPage() {
             Learn CodeFlowOps
           </h1>
           <p className="text-xl mb-8 text-blue-100">
-            Master deployment automation with our step-by-step video tutorials
+            Master React and static site deployment with our step-by-step video tutorials
           </p>
           <button
             onClick={() => playVideo('featured')}
             className="bg-white text-blue-600 hover:bg-gray-100 px-8 py-3 rounded-lg font-semibold flex items-center gap-2 mx-auto transition-colors"
           >
             <Play className="h-5 w-5" />
-            Watch Main Demo
+            Watch React Demo
           </button>
         </div>
       </div>
@@ -75,8 +67,8 @@ export default function TutorialsPage() {
             <div className="aspect-video bg-gray-100 dark:bg-gray-700">
               {playingVideos['featured'] ? (
                 <iframe
-                  src="https://www.youtube.com/embed/fDp5-NGNEqo?autoplay=1&rel=0"
-                  title="CodeFlowOps Static Site Demo"
+                  src="https://www.youtube.com/embed/E-6KSTq_k6o?autoplay=1&rel=0"
+                  title="Deploy React Applications with CodeFlowOps"
                   className="w-full h-full"
                   frameBorder="0"
                   allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
@@ -88,8 +80,8 @@ export default function TutorialsPage() {
                   onClick={() => playVideo('featured')}
                 >
                   <img 
-                    src="https://img.youtube.com/vi/fDp5-NGNEqo/maxresdefault.jpg"
-                    alt="CodeFlowOps Demo"
+                    src="https://img.youtube.com/vi/E-6KSTq_k6o/maxresdefault.jpg"
+                    alt="Deploy React Applications with CodeFlowOps"
                     className="w-full h-full object-cover"
                   />
                   <div className="absolute inset-0 bg-black bg-opacity-40 flex items-center justify-center group-hover:bg-opacity-50 transition-all">
@@ -102,10 +94,10 @@ export default function TutorialsPage() {
             </div>
             <div className="p-6">
               <h3 className="text-2xl font-bold mb-2 dark:text-white">
-                CodeFlowOps Static Site Demo
+                Deploy React Applications with CodeFlowOps
               </h3>
               <p className="text-gray-600 dark:text-gray-400 mb-4">
-                See how to deploy static websites in under 3 minutes with zero configuration
+                Complete guide to deploying React apps including Next.js, Vite, and Create React App projects
               </p>
               <div className="flex gap-4">
                 <button
@@ -113,10 +105,10 @@ export default function TutorialsPage() {
                   className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg flex items-center gap-2 transition-colors"
                 >
                   <Play className="h-4 w-4" />
-                  {playingVideos['featured'] ? 'Playing...' : 'Watch Now (8:30)'}
+                  {playingVideos['featured'] ? 'Playing...' : 'Watch Now (10:45)'}
                 </button>
                 <button
-                  onClick={() => openInYoutube('fDp5-NGNEqo', 'CodeFlowOps Demo')}
+                  onClick={() => openInYoutube('E-6KSTq_k6o', 'Deploy React Applications')}
                   className="border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 px-6 py-2 rounded-lg flex items-center gap-2 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
                 >
                   <ExternalLink className="h-4 w-4" />
@@ -133,7 +125,7 @@ export default function TutorialsPage() {
             All Tutorials
           </h2>
           
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-4xl mx-auto">
             {videos.map((video, index) => (
               <div key={index} className="bg-white dark:bg-gray-800 rounded-lg shadow-lg overflow-hidden">
                 <div className="aspect-video bg-gray-100 dark:bg-gray-700">

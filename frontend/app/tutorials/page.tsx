@@ -59,53 +59,55 @@ export default function TutorialsPage() {
   const VideoCard = ({ video }: { video: typeof videoTutorials[0] }) => {
     const [showVideo, setShowVideo] = useState(false)
     
+    const handlePlayVideo = () => {
+      console.log(`Playing video: ${video.title}`)
+      setShowVideo(true)
+    }
+    
     return (
-      <Card className="group hover:shadow-lg transition-all duration-300 dark:bg-gray-800 dark:border-gray-700">
-        <div className="relative">
-          <div className="aspect-video bg-gray-100 dark:bg-gray-700 rounded-t-lg overflow-hidden">
-            {showVideo ? (
-              <iframe
-                src={`https://www.youtube.com/embed/${video.youtubeId}?autoplay=1`}
-                title={video.title}
-                className="w-full h-full"
-                frameBorder="0"
-                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                allowFullScreen
+      <Card className="overflow-hidden dark:bg-gray-800 dark:border-gray-700">
+        <div className="aspect-video bg-gray-100 dark:bg-gray-700">
+          {showVideo ? (
+            <iframe
+              src={`https://www.youtube.com/embed/${video.youtubeId}?autoplay=1`}
+              title={video.title}
+              className="w-full h-full"
+              frameBorder="0"
+              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+              allowFullScreen
+            />
+          ) : (
+            <div className="relative w-full h-full">
+              <img 
+                src={video.thumbnail}
+                alt={video.title}
+                className="w-full h-full object-cover"
               />
-            ) : (
-              <div 
-                className="w-full h-full bg-cover bg-center relative cursor-pointer group"
-                style={{ backgroundImage: `url(${video.thumbnail})` }}
-                onClick={() => {
-                  console.log(`Video card clicked: ${video.title}`)
-                  setShowVideo(true)
-                }}
-              >
-                <div className="absolute inset-0 bg-black bg-opacity-30 flex items-center justify-center group-hover:bg-opacity-20 transition-all">
-                  <div className="bg-red-600 rounded-full p-4 group-hover:scale-110 transition-transform">
-                    <Play className="h-8 w-8 text-white ml-1" />
-                  </div>
-                </div>
+              <div className="absolute inset-0 bg-black bg-opacity-40 flex items-center justify-center">
+                <button
+                  onClick={handlePlayVideo}
+                  className="bg-red-600 hover:bg-red-700 rounded-full p-4 transition-all hover:scale-110"
+                >
+                  <Play className="h-12 w-12 text-white ml-1" />
+                </button>
               </div>
-            )}
-            {video.featured && (
-              <Badge className="absolute top-3 left-3 bg-red-500 text-white">
-                <Star className="h-3 w-3 mr-1" />
-                Featured
-              </Badge>
-            )}
-            {!showVideo && (
+              {video.featured && (
+                <Badge className="absolute top-3 left-3 bg-red-500 text-white">
+                  <Star className="h-3 w-3 mr-1" />
+                  Featured
+                </Badge>
+              )}
               <div className="absolute bottom-3 right-3 bg-black bg-opacity-75 text-white text-xs px-2 py-1 rounded">
                 {video.duration}
               </div>
-            )}
-          </div>
+            </div>
+          )}
         </div>
         <CardHeader className="pb-3">
-          <CardTitle className="text-lg group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
+          <CardTitle className="text-lg">
             {video.title}
           </CardTitle>
-          <CardDescription className="text-sm line-clamp-2">
+          <CardDescription className="text-sm">
             {video.description}
           </CardDescription>
         </CardHeader>
@@ -123,11 +125,8 @@ export default function TutorialsPage() {
             </div>
           </div>
           <Button 
-            className="w-full group-hover:bg-blue-600 transition-colors"
-            onClick={() => {
-              console.log(`Video card button clicked: ${video.title}`)
-              setShowVideo(true)
-            }}
+            className="w-full"
+            onClick={handlePlayVideo}
           >
             <Play className="h-4 w-4 mr-2" />
             {showVideo ? 'Playing...' : 'Watch Tutorial'}
@@ -206,26 +205,29 @@ export default function TutorialsPage() {
                   allowFullScreen
                 />
               ) : (
-                <div 
-                  className="w-full h-full bg-cover bg-center relative cursor-pointer group"
-                  style={{ backgroundImage: 'url(https://img.youtube.com/vi/fDp5-NGNEqo/maxresdefault.jpg)' }}
-                  onClick={() => {
-                    console.log('Featured video clicked!')
-                    setShowFeaturedVideo(true)
-                  }}
-                >
-                  <div className="absolute inset-0 bg-black bg-opacity-40 flex items-center justify-center group-hover:bg-opacity-30 transition-all">
+                <div className="relative w-full h-full">
+                  <img 
+                    src="https://img.youtube.com/vi/fDp5-NGNEqo/maxresdefault.jpg"
+                    alt="CodeFlowOps Demo"
+                    className="w-full h-full object-cover"
+                  />
+                  <div className="absolute inset-0 bg-black bg-opacity-40 flex items-center justify-center">
                     <div className="text-center text-white">
-                      <div className="bg-red-600 rounded-full p-6 mx-auto mb-4 group-hover:scale-110 transition-transform">
+                      <button
+                        onClick={() => {
+                          console.log('Featured video clicked!')
+                          setShowFeaturedVideo(true)
+                        }}
+                        className="bg-red-600 hover:bg-red-700 rounded-full p-6 mx-auto mb-4 transition-all hover:scale-110"
+                      >
                         <Play className="h-12 w-12 text-white ml-1" />
-                      </div>
+                      </button>
                       <h3 className="text-2xl font-bold mb-2">CodeFlowOps Static Site Demo</h3>
                       <p className="text-blue-100 mb-4">See how to deploy static websites in under 3 minutes</p>
                       <Button 
                         size="lg" 
                         className="bg-white text-blue-600 hover:bg-gray-100"
-                        onClick={(e) => {
-                          e.stopPropagation()
+                        onClick={() => {
                           console.log('Featured video button clicked!')
                           setShowFeaturedVideo(true)
                         }}

@@ -24,6 +24,7 @@ export default function TutorialsPage() {
   const [activeCategory, setActiveCategory] = useState('all')
   const [showFeaturedVideo, setShowFeaturedVideo] = useState(false)
   const [featuredVideoLoading, setFeaturedVideoLoading] = useState(false)
+  const [debugClicks, setDebugClicks] = useState(0)
 
   const handleFeaturedVideoPlay = (e?: React.MouseEvent) => {
     if (e) {
@@ -31,11 +32,15 @@ export default function TutorialsPage() {
       e.stopPropagation()
     }
     console.log('Featured video clicked!')
+    alert('Featured video clicked!') // Debug alert
+    setDebugClicks(prev => prev + 1)
     setFeaturedVideoLoading(true)
     setShowFeaturedVideo(true)
   }
 
   const handleOpenFeaturedInNewTab = () => {
+    console.log('Opening featured video in new tab')
+    alert('Opening YouTube') // Debug alert
     window.open('https://www.youtube.com/watch?v=fDp5-NGNEqo', '_blank')
   }
 
@@ -79,6 +84,7 @@ export default function TutorialsPage() {
       e.preventDefault()
       e.stopPropagation()
       console.log(`Playing video: ${video.title}`)
+      alert(`Playing video: ${video.title}`) // Debug alert
       setIsLoading(true)
       setShowVideo(true)
     }
@@ -86,6 +92,8 @@ export default function TutorialsPage() {
     const handleOpenInNewTab = (e: React.MouseEvent) => {
       e.preventDefault()
       e.stopPropagation()
+      console.log('Opening video in new tab')
+      alert('Opening YouTube') // Debug alert
       window.open(`https://www.youtube.com/watch?v=${video.youtubeId}`, '_blank')
     }
     
@@ -184,11 +192,16 @@ export default function TutorialsPage() {
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
       {/* Debug info - remove in production */}
-      {process.env.NODE_ENV === 'development' && (
-        <div className="fixed top-4 right-4 bg-black text-white p-2 rounded text-xs z-50">
-          Featured Video: {showFeaturedVideo ? 'ON' : 'OFF'}
-        </div>
-      )}
+      <div className="fixed top-4 right-4 bg-black text-white p-2 rounded text-xs z-50">
+        Featured Video: {showFeaturedVideo ? 'ON' : 'OFF'} | Clicks: {debugClicks}
+        <br />
+        <button 
+          onClick={() => alert('Test button works!')}
+          className="bg-red-500 text-white px-2 py-1 mt-1 rounded text-xs"
+        >
+          TEST CLICK
+        </button>
+      </div>
       
       {/* Hero Section */}
       <div className="bg-gradient-to-r from-blue-600 to-purple-700 text-white">

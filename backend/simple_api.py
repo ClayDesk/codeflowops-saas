@@ -156,6 +156,7 @@ class RepoAnalysisRequest(BaseModel):
 class DeployRequest(BaseModel):
     deployment_id: Optional[str] = None
     analysis_id: Optional[str] = None  # Alternative field name from frontend
+    user_id: Optional[str] = None  # User identifier for deployment history
     aws_access_key: Optional[str] = None
     aws_secret_key: Optional[str] = None
     aws_access_key_id: Optional[str] = None  # Alternative field name from frontend
@@ -967,8 +968,8 @@ async def deploy_to_aws(request: DeployRequest):
         
         # CHECK QUOTA BEFORE PROCEEDING (if quota manager is available)
         if QUOTA_MANAGER_AVAILABLE:
-            # For now, use demo values - in production, get from auth token
-            user_id = "demo_user"  # TODO: Get from authenticated user context
+            # Get user_id from request or generate session-based ID
+            user_id = request.user_id or f"session_{uuid.uuid4().hex[:8]}"
             plan_tier = "free"     # TODO: Get from user subscription
             current_runs = 2       # TODO: Get from database
             
@@ -2817,6 +2818,17 @@ async def get_auth_user_deployments(user_id: str = "demo_user"):
 async def get_github_user_deployments(user_id: str = "demo_user"):
     """Get deployments for GitHub OAuth user - compatible with auth context"""
     return await get_user_deployments(user_id)
+
+# Clear deployment history endpoint
+@app.delete("/api/deployments/{user_id}/clear")
+async def clear_user_deployment_history(user_id: str):
+    """Clear deployment history for a specific user"""
+    with _LOCK:
+        if user_id in _USER_DEPLOYMENT_HISTORY:
+            _USER_DEPLOYMENT_HISTORY[user_id] = []
+    
+    logger.info(f"🗑️ Cleared deployment history for user {user_id}")
+    return {"message": f"Deployment history cleared for user {user_id}"}
 
 # Include the main router
 app.include_router(router)

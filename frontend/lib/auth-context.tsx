@@ -425,26 +425,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   // Fetch user deployments
   const fetchUserDeployments = async () => {
     try {
-      const token = getStoredToken()
+      // Get user ID (fallback to session-based ID if no user)
+      const userId = user?.id || `session_${Date.now()}`
       
-      let response
-      if (user?.provider === 'github' || !token) {
-        // Use GitHub-compatible deployments endpoint
-        response = await fetch(`${API_BASE}/api/v1/auth/github/deployments`, {
-          credentials: 'include',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-        })
-      } else {
-        // Use token-based auth for regular Cognito users
-        response = await fetch(`${API_BASE}/api/v1/auth/deployments`, {
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json',
-          },
-        })
-      }
+      // Use the simple deployments endpoint that works consistently
+      const response = await fetch(`${API_BASE}/api/deployments?user_id=${userId}`, {
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      })
 
       if (!response.ok) {
         throw new Error('Failed to fetch deployments')
@@ -461,15 +450,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   // Clear user deployment history
   const clearDeploymentHistory = async () => {
     try {
-      const token = getStoredToken()
-      if (!token) {
-        throw new Error('No access token found')
-      }
-
-      const response = await fetch(`${API_BASE}/api/v1/auth/deployments/clear`, {
+      // Get user ID (fallback to session-based ID if no user)
+      const userId = user?.id || `session_${Date.now()}`
+      
+      const response = await fetch(`${API_BASE}/api/deployments/${userId}/clear`, {
         method: 'DELETE',
         headers: {
-          'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
         },
       })

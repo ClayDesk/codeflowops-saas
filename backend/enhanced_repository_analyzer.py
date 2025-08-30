@@ -100,31 +100,15 @@ class EnhancedRepositoryAnalyzer:
             logger.info(f"🔍 Quick framework detection: {quick_framework}")
             
             if quick_framework not in ["react", "static"]:
-                # Framework type mapping for user-friendly messages
-                framework_names = {
-                    "laravel": "Laravel PHP",
-                    "python": "Python",
-                    "vue": "Vue.js", 
-                    "angular": "Angular",
-                    "nodejs": "Node.js",
-                    "javascript": "JavaScript",
-                    "ruby": "Ruby",
-                    "java": "Java",
-                    "unknown": "Unknown"
-                }
-                
-                detected_name = framework_names.get(quick_framework, quick_framework.title())
-                
-                logger.info(f"🚫 Blocking unsupported repository type: {detected_name}")
+                logger.info(f"🚫 Blocking unsupported repository type: {quick_framework}")
                 return {
                     "success": False,
-                    "error": f"Repository type not supported: {detected_name}",
-                    "message": f"This {detected_name} project cannot be deployed through our platform.",
-                    "supported_types": [
-                        "React applications (Create React App, Vite, Next.js)",
-                        "Static websites (HTML, CSS, JavaScript)"
+                    "error": "Only Static and React GitHub repositories are allowed",
+                    "message": "This platform only supports Static websites and React applications.",
+                    "allowed_types": [
+                        "Static websites (HTML, CSS, JavaScript)",
+                        "React applications (Create React App, Vite, Next.js)"
                     ],
-                    "detected_type": detected_name,
                     "repository_url": repo_url,
                     "analysis_time_seconds": pipeline_result.get("analysis_time_seconds", 0)
                 }

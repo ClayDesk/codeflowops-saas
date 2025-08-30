@@ -164,17 +164,16 @@ export default function ModularRepositoryAnalysis() {
         {analyzeRepo.error && (
           <div className="p-4 bg-red-100 border border-red-300 rounded text-red-700">
             <div className="flex items-start space-x-2">
-              <span className="text-xl">❌</span>
+              <span className="text-xl">🚫</span>
               <div>
-                <p className="font-semibold">Repository Not Supported</p>
-                <p className="mt-1">{analyzeRepo.error.message}</p>
+                <p className="font-semibold">Only Static and React Repositories Allowed</p>
+                <p className="mt-1">This platform only supports Static websites and React applications.</p>
                 
-                {/* Show supported types - simple fallback for now */}
                 <div className="mt-3">
-                  <p className="font-medium text-sm">Supported repository types:</p>
+                  <p className="font-medium text-sm">Allowed repository types:</p>
                   <ul className="list-disc list-inside text-sm mt-1 space-y-1">
-                    <li className="text-green-700">✅ React applications (Create React App, Vite, Next.js)</li>
                     <li className="text-green-700">✅ Static websites (HTML, CSS, JavaScript)</li>
+                    <li className="text-green-700">✅ React applications (Create React App, Vite, Next.js)</li>
                   </ul>
                 </div>
               </div>

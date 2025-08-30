@@ -23,6 +23,21 @@ import {
 export default function TutorialsPage() {
   const [activeCategory, setActiveCategory] = useState('all')
   const [showFeaturedVideo, setShowFeaturedVideo] = useState(false)
+  const [featuredVideoLoading, setFeaturedVideoLoading] = useState(false)
+
+  const handleFeaturedVideoPlay = (e?: React.MouseEvent) => {
+    if (e) {
+      e.preventDefault()
+      e.stopPropagation()
+    }
+    console.log('Featured video clicked!')
+    setFeaturedVideoLoading(true)
+    setShowFeaturedVideo(true)
+  }
+
+  const handleOpenFeaturedInNewTab = () => {
+    window.open('https://www.youtube.com/watch?v=fDp5-NGNEqo', '_blank')
+  }
 
   const videoTutorials = [
     {
@@ -58,26 +73,44 @@ export default function TutorialsPage() {
 
   const VideoCard = ({ video }: { video: typeof videoTutorials[0] }) => {
     const [showVideo, setShowVideo] = useState(false)
+    const [isLoading, setIsLoading] = useState(false)
     
-    const handlePlayVideo = () => {
+    const handlePlayVideo = (e: React.MouseEvent) => {
+      e.preventDefault()
+      e.stopPropagation()
       console.log(`Playing video: ${video.title}`)
+      setIsLoading(true)
       setShowVideo(true)
+    }
+
+    const handleOpenInNewTab = (e: React.MouseEvent) => {
+      e.preventDefault()
+      e.stopPropagation()
+      window.open(`https://www.youtube.com/watch?v=${video.youtubeId}`, '_blank')
     }
     
     return (
       <Card className="overflow-hidden dark:bg-gray-800 dark:border-gray-700">
         <div className="aspect-video bg-gray-100 dark:bg-gray-700">
           {showVideo ? (
-            <iframe
-              src={`https://www.youtube.com/embed/${video.youtubeId}?autoplay=1`}
-              title={video.title}
-              className="w-full h-full"
-              frameBorder="0"
-              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-              allowFullScreen
-            />
-          ) : (
             <div className="relative w-full h-full">
+              <iframe
+                src={`https://www.youtube.com/embed/${video.youtubeId}?autoplay=1&rel=0`}
+                title={video.title}
+                className="w-full h-full"
+                frameBorder="0"
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                allowFullScreen
+                onLoad={() => setIsLoading(false)}
+              />
+              {isLoading && (
+                <div className="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center">
+                  <div className="text-white">Loading video...</div>
+                </div>
+              )}
+            </div>
+          ) : (
+            <div className="relative w-full h-full cursor-pointer" onClick={handlePlayVideo}>
               <img 
                 src={video.thumbnail}
                 alt={video.title}
@@ -86,7 +119,8 @@ export default function TutorialsPage() {
               <div className="absolute inset-0 bg-black bg-opacity-40 flex items-center justify-center">
                 <button
                   onClick={handlePlayVideo}
-                  className="bg-red-600 hover:bg-red-700 rounded-full p-4 transition-all hover:scale-110"
+                  className="bg-red-600 hover:bg-red-700 rounded-full p-4 transition-all hover:scale-110 focus:outline-none focus:ring-2 focus:ring-red-500"
+                  aria-label={`Play ${video.title}`}
                 >
                   <Play className="h-12 w-12 text-white ml-1" />
                 </button>
@@ -124,13 +158,24 @@ export default function TutorialsPage() {
               </span>
             </div>
           </div>
-          <Button 
-            className="w-full"
-            onClick={handlePlayVideo}
-          >
-            <Play className="h-4 w-4 mr-2" />
-            {showVideo ? 'Playing...' : 'Watch Tutorial'}
-          </Button>
+          <div className="flex gap-2">
+            <Button 
+              className="flex-1"
+              onClick={handlePlayVideo}
+              disabled={isLoading}
+            >
+              <Play className="h-4 w-4 mr-2" />
+              {showVideo ? 'Playing...' : isLoading ? 'Loading...' : 'Watch Here'}
+            </Button>
+            <Button 
+              variant="outline"
+              onClick={handleOpenInNewTab}
+              className="px-3"
+              title="Open in YouTube"
+            >
+              <ExternalLink className="h-4 w-4" />
+            </Button>
+          </div>
         </CardContent>
       </Card>
     )
@@ -161,7 +206,7 @@ export default function TutorialsPage() {
                 className="bg-white text-blue-600 hover:bg-gray-100"
                 onClick={() => {
                   console.log('Hero button clicked!')
-                  setShowFeaturedVideo(true)
+                  handleFeaturedVideoPlay()
                   // Scroll to featured video section
                   document.getElementById('featured-video')?.scrollIntoView({ 
                     behavior: 'smooth' 
@@ -196,16 +241,24 @@ export default function TutorialsPage() {
           <Card className="max-w-4xl mx-auto overflow-hidden shadow-xl dark:bg-gray-800 dark:border-gray-700">
             <div className="aspect-video bg-gray-100 dark:bg-gray-700">
               {showFeaturedVideo ? (
-                <iframe
-                  src="https://www.youtube.com/embed/fDp5-NGNEqo?autoplay=1"
-                  title="CodeFlowOps Static Site Demo"
-                  className="w-full h-full"
-                  frameBorder="0"
-                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                  allowFullScreen
-                />
-              ) : (
                 <div className="relative w-full h-full">
+                  <iframe
+                    src="https://www.youtube.com/embed/fDp5-NGNEqo?autoplay=1&rel=0"
+                    title="CodeFlowOps Static Site Demo"
+                    className="w-full h-full"
+                    frameBorder="0"
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                    allowFullScreen
+                    onLoad={() => setFeaturedVideoLoading(false)}
+                  />
+                  {featuredVideoLoading && (
+                    <div className="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center">
+                      <div className="text-white">Loading video...</div>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div className="relative w-full h-full cursor-pointer" onClick={handleFeaturedVideoPlay}>
                   <img 
                     src="https://img.youtube.com/vi/fDp5-NGNEqo/maxresdefault.jpg"
                     alt="CodeFlowOps Demo"
@@ -214,27 +267,34 @@ export default function TutorialsPage() {
                   <div className="absolute inset-0 bg-black bg-opacity-40 flex items-center justify-center">
                     <div className="text-center text-white">
                       <button
-                        onClick={() => {
-                          console.log('Featured video clicked!')
-                          setShowFeaturedVideo(true)
-                        }}
-                        className="bg-red-600 hover:bg-red-700 rounded-full p-6 mx-auto mb-4 transition-all hover:scale-110"
+                        onClick={handleFeaturedVideoPlay}
+                        className="bg-red-600 hover:bg-red-700 rounded-full p-6 mx-auto mb-4 transition-all hover:scale-110 focus:outline-none focus:ring-2 focus:ring-red-500"
+                        aria-label="Play CodeFlowOps demo video"
                       >
                         <Play className="h-12 w-12 text-white ml-1" />
                       </button>
                       <h3 className="text-2xl font-bold mb-2">CodeFlowOps Static Site Demo</h3>
                       <p className="text-blue-100 mb-4">See how to deploy static websites in under 3 minutes</p>
-                      <Button 
-                        size="lg" 
-                        className="bg-white text-blue-600 hover:bg-gray-100"
-                        onClick={() => {
-                          console.log('Featured video button clicked!')
-                          setShowFeaturedVideo(true)
-                        }}
-                      >
-                        <Play className="h-5 w-5 mr-2" />
-                        Watch Now (8:30)
-                      </Button>
+                      <div className="flex gap-2 justify-center">
+                        <Button 
+                          size="lg" 
+                          className="bg-white text-blue-600 hover:bg-gray-100"
+                          onClick={handleFeaturedVideoPlay}
+                          disabled={featuredVideoLoading}
+                        >
+                          <Play className="h-5 w-5 mr-2" />
+                          {featuredVideoLoading ? 'Loading...' : 'Watch Now (8:30)'}
+                        </Button>
+                        <Button 
+                          size="lg"
+                          variant="outline"
+                          className="border-white text-white hover:bg-white hover:text-blue-600"
+                          onClick={handleOpenFeaturedInNewTab}
+                        >
+                          <ExternalLink className="h-5 w-5 mr-2" />
+                          YouTube
+                        </Button>
+                      </div>
                     </div>
                   </div>
                 </div>

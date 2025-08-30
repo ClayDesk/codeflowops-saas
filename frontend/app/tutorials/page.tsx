@@ -76,7 +76,10 @@ export default function TutorialsPage() {
               <div 
                 className="w-full h-full bg-cover bg-center relative cursor-pointer group"
                 style={{ backgroundImage: `url(${video.thumbnail})` }}
-                onClick={() => setShowVideo(true)}
+                onClick={() => {
+                  console.log(`Video card clicked: ${video.title}`)
+                  setShowVideo(true)
+                }}
               >
                 <div className="absolute inset-0 bg-black bg-opacity-30 flex items-center justify-center group-hover:bg-opacity-20 transition-all">
                   <div className="bg-red-600 rounded-full p-4 group-hover:scale-110 transition-transform">
@@ -121,7 +124,10 @@ export default function TutorialsPage() {
           </div>
           <Button 
             className="w-full group-hover:bg-blue-600 transition-colors"
-            onClick={() => setShowVideo(true)}
+            onClick={() => {
+              console.log(`Video card button clicked: ${video.title}`)
+              setShowVideo(true)
+            }}
           >
             <Play className="h-4 w-4 mr-2" />
             {showVideo ? 'Playing...' : 'Watch Tutorial'}
@@ -133,6 +139,13 @@ export default function TutorialsPage() {
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+      {/* Debug info - remove in production */}
+      {process.env.NODE_ENV === 'development' && (
+        <div className="fixed top-4 right-4 bg-black text-white p-2 rounded text-xs z-50">
+          Featured Video: {showFeaturedVideo ? 'ON' : 'OFF'}
+        </div>
+      )}
+      
       {/* Hero Section */}
       <div className="bg-gradient-to-r from-blue-600 to-purple-700 text-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
@@ -147,7 +160,14 @@ export default function TutorialsPage() {
               <Button 
                 size="lg" 
                 className="bg-white text-blue-600 hover:bg-gray-100"
-                onClick={() => setShowFeaturedVideo(true)}
+                onClick={() => {
+                  console.log('Hero button clicked!')
+                  setShowFeaturedVideo(true)
+                  // Scroll to featured video section
+                  document.getElementById('featured-video')?.scrollIntoView({ 
+                    behavior: 'smooth' 
+                  })
+                }}
               >
                 <Play className="h-5 w-5 mr-2" />
                 Watch Main Demo
@@ -164,7 +184,7 @@ export default function TutorialsPage() {
       {/* Main Content */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         {/* Featured Video */}
-        <div className="mb-12">
+        <div className="mb-12" id="featured-video">
           <div className="text-center mb-8">
             <h2 className="text-3xl font-bold text-gray-900 dark:text-white mb-4">
               Featured Tutorial
@@ -189,7 +209,10 @@ export default function TutorialsPage() {
                 <div 
                   className="w-full h-full bg-cover bg-center relative cursor-pointer group"
                   style={{ backgroundImage: 'url(https://img.youtube.com/vi/fDp5-NGNEqo/maxresdefault.jpg)' }}
-                  onClick={() => setShowFeaturedVideo(true)}
+                  onClick={() => {
+                    console.log('Featured video clicked!')
+                    setShowFeaturedVideo(true)
+                  }}
                 >
                   <div className="absolute inset-0 bg-black bg-opacity-40 flex items-center justify-center group-hover:bg-opacity-30 transition-all">
                     <div className="text-center text-white">
@@ -198,7 +221,15 @@ export default function TutorialsPage() {
                       </div>
                       <h3 className="text-2xl font-bold mb-2">CodeFlowOps Static Site Demo</h3>
                       <p className="text-blue-100 mb-4">See how to deploy static websites in under 3 minutes</p>
-                      <Button size="lg" className="bg-white text-blue-600 hover:bg-gray-100">
+                      <Button 
+                        size="lg" 
+                        className="bg-white text-blue-600 hover:bg-gray-100"
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          console.log('Featured video button clicked!')
+                          setShowFeaturedVideo(true)
+                        }}
+                      >
                         <Play className="h-5 w-5 mr-2" />
                         Watch Now (8:30)
                       </Button>

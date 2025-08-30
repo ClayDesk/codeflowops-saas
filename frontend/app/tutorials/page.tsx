@@ -1,11 +1,17 @@
 'use client'
 
-import React from 'react'
-import { Play, ExternalLink, Clock, Eye, BookOpen, Users } from 'lucide-react'
+import React, { useState } from 'react'
+import { Play, ExternalLink, Clock, Eye } from 'lucide-react'
 
 export default function TutorialsPage() {
-  const openVideo = (videoId: string, title: string) => {
-    console.log(`Opening video: ${title}`)
+  const [playingVideos, setPlayingVideos] = useState<{ [key: string]: boolean }>({})
+
+  const playVideo = (videoId: string) => {
+    setPlayingVideos(prev => ({ ...prev, [videoId]: true }))
+  }
+
+  const openInYoutube = (videoId: string, title: string) => {
+    console.log(`Opening video in YouTube: ${title}`)
     window.open(`https://www.youtube.com/watch?v=${videoId}`, '_blank')
   }
 
@@ -48,7 +54,7 @@ export default function TutorialsPage() {
             Master deployment automation with our step-by-step video tutorials
           </p>
           <button
-            onClick={() => openVideo('fDp5-NGNEqo', 'Main Demo')}
+            onClick={() => playVideo('featured')}
             className="bg-white text-blue-600 hover:bg-gray-100 px-8 py-3 rounded-lg font-semibold flex items-center gap-2 mx-auto transition-colors"
           >
             <Play className="h-5 w-5" />
@@ -66,20 +72,33 @@ export default function TutorialsPage() {
           </h2>
           
           <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg overflow-hidden max-w-4xl mx-auto">
-            <div 
-              className="relative cursor-pointer group"
-              onClick={() => openVideo('fDp5-NGNEqo', 'CodeFlowOps Demo')}
-            >
-              <img 
-                src="https://img.youtube.com/vi/fDp5-NGNEqo/maxresdefault.jpg"
-                alt="CodeFlowOps Demo"
-                className="w-full h-64 md:h-96 object-cover"
-              />
-              <div className="absolute inset-0 bg-black bg-opacity-40 flex items-center justify-center group-hover:bg-opacity-50 transition-all">
-                <button className="bg-red-600 hover:bg-red-700 rounded-full p-6 transition-all hover:scale-110 shadow-lg">
-                  <Play className="h-12 w-12 text-white ml-1" />
-                </button>
-              </div>
+            <div className="aspect-video bg-gray-100 dark:bg-gray-700">
+              {playingVideos['featured'] ? (
+                <iframe
+                  src="https://www.youtube.com/embed/fDp5-NGNEqo?autoplay=1&rel=0"
+                  title="CodeFlowOps Static Site Demo"
+                  className="w-full h-full"
+                  frameBorder="0"
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                  allowFullScreen
+                />
+              ) : (
+                <div 
+                  className="relative cursor-pointer group w-full h-full"
+                  onClick={() => playVideo('featured')}
+                >
+                  <img 
+                    src="https://img.youtube.com/vi/fDp5-NGNEqo/maxresdefault.jpg"
+                    alt="CodeFlowOps Demo"
+                    className="w-full h-full object-cover"
+                  />
+                  <div className="absolute inset-0 bg-black bg-opacity-40 flex items-center justify-center group-hover:bg-opacity-50 transition-all">
+                    <button className="bg-red-600 hover:bg-red-700 rounded-full p-6 transition-all hover:scale-110 shadow-lg">
+                      <Play className="h-12 w-12 text-white ml-1" />
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
             <div className="p-6">
               <h3 className="text-2xl font-bold mb-2 dark:text-white">
@@ -90,14 +109,14 @@ export default function TutorialsPage() {
               </p>
               <div className="flex gap-4">
                 <button
-                  onClick={() => openVideo('fDp5-NGNEqo', 'CodeFlowOps Demo')}
+                  onClick={() => playVideo('featured')}
                   className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg flex items-center gap-2 transition-colors"
                 >
                   <Play className="h-4 w-4" />
-                  Watch Now (8:30)
+                  {playingVideos['featured'] ? 'Playing...' : 'Watch Now (8:30)'}
                 </button>
                 <button
-                  onClick={() => openVideo('fDp5-NGNEqo', 'CodeFlowOps Demo')}
+                  onClick={() => openInYoutube('fDp5-NGNEqo', 'CodeFlowOps Demo')}
                   className="border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 px-6 py-2 rounded-lg flex items-center gap-2 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
                 >
                   <ExternalLink className="h-4 w-4" />
@@ -117,23 +136,36 @@ export default function TutorialsPage() {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {videos.map((video, index) => (
               <div key={index} className="bg-white dark:bg-gray-800 rounded-lg shadow-lg overflow-hidden">
-                <div 
-                  className="relative cursor-pointer group"
-                  onClick={() => openVideo(video.id, video.title)}
-                >
-                  <img 
-                    src={video.thumbnail}
-                    alt={video.title}
-                    className="w-full h-48 object-cover"
-                  />
-                  <div className="absolute inset-0 bg-black bg-opacity-40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                    <button className="bg-red-600 hover:bg-red-700 rounded-full p-4 transition-all hover:scale-110">
-                      <Play className="h-8 w-8 text-white ml-1" />
-                    </button>
-                  </div>
-                  <div className="absolute bottom-2 right-2 bg-black bg-opacity-75 text-white text-xs px-2 py-1 rounded">
-                    {video.duration}
-                  </div>
+                <div className="aspect-video bg-gray-100 dark:bg-gray-700">
+                  {playingVideos[video.id + index] ? (
+                    <iframe
+                      src={`https://www.youtube.com/embed/${video.id}?autoplay=1&rel=0`}
+                      title={video.title}
+                      className="w-full h-full"
+                      frameBorder="0"
+                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                      allowFullScreen
+                    />
+                  ) : (
+                    <div 
+                      className="relative cursor-pointer group w-full h-full"
+                      onClick={() => playVideo(video.id + index)}
+                    >
+                      <img 
+                        src={video.thumbnail}
+                        alt={video.title}
+                        className="w-full h-full object-cover"
+                      />
+                      <div className="absolute inset-0 bg-black bg-opacity-40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                        <button className="bg-red-600 hover:bg-red-700 rounded-full p-4 transition-all hover:scale-110">
+                          <Play className="h-8 w-8 text-white ml-1" />
+                        </button>
+                      </div>
+                      <div className="absolute bottom-2 right-2 bg-black bg-opacity-75 text-white text-xs px-2 py-1 rounded">
+                        {video.duration}
+                      </div>
+                    </div>
+                  )}
                 </div>
                 <div className="p-4">
                   <h3 className="text-lg font-bold mb-2 dark:text-white">
@@ -156,14 +188,14 @@ export default function TutorialsPage() {
                   </div>
                   <div className="flex gap-2">
                     <button
-                      onClick={() => openVideo(video.id, video.title)}
+                      onClick={() => playVideo(video.id + index)}
                       className="flex-1 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center justify-center gap-2 transition-colors"
                     >
                       <Play className="h-4 w-4" />
-                      Watch Tutorial
+                      {playingVideos[video.id + index] ? 'Playing...' : 'Watch Tutorial'}
                     </button>
                     <button
-                      onClick={() => openVideo(video.id, video.title)}
+                      onClick={() => openInYoutube(video.id, video.title)}
                       className="px-3 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
                       title="Open in YouTube"
                     >
@@ -173,59 +205,6 @@ export default function TutorialsPage() {
                 </div>
               </div>
             ))}
-          </div>
-        </div>
-
-        {/* Additional Resources */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6 text-center">
-            <div className="w-12 h-12 bg-blue-100 dark:bg-blue-900 rounded-lg flex items-center justify-center mx-auto mb-4">
-              <BookOpen className="h-6 w-6 text-blue-600 dark:text-blue-400" />
-            </div>
-            <h3 className="text-lg font-bold mb-2 dark:text-white">Documentation</h3>
-            <p className="text-gray-600 dark:text-gray-400 mb-4 text-sm">
-              Comprehensive guides and API references
-            </p>
-            <button 
-              onClick={() => window.open('https://docs.codeflowops.com', '_blank')}
-              className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
-            >
-              View Docs
-            </button>
-          </div>
-
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6 text-center">
-            <div className="w-12 h-12 bg-green-100 dark:bg-green-900 rounded-lg flex items-center justify-center mx-auto mb-4">
-              <svg className="h-6 w-6 text-green-600 dark:text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-            </div>
-            <h3 className="text-lg font-bold mb-2 dark:text-white">Example Projects</h3>
-            <p className="text-gray-600 dark:text-gray-400 mb-4 text-sm">
-              Ready-to-deploy sample applications
-            </p>
-            <button 
-              onClick={() => window.open('https://github.com/codeflowops/examples', '_blank')}
-              className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
-            >
-              Get Examples
-            </button>
-          </div>
-
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6 text-center">
-            <div className="w-12 h-12 bg-purple-100 dark:bg-purple-900 rounded-lg flex items-center justify-center mx-auto mb-4">
-              <Users className="h-6 w-6 text-purple-600 dark:text-purple-400" />
-            </div>
-            <h3 className="text-lg font-bold mb-2 dark:text-white">Community</h3>
-            <p className="text-gray-600 dark:text-gray-400 mb-4 text-sm">
-              Join our developer community for support
-            </p>
-            <button 
-              onClick={() => window.open('https://discord.gg/codeflowops', '_blank')}
-              className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
-            >
-              Join Discord
-            </button>
           </div>
         </div>
       </div>

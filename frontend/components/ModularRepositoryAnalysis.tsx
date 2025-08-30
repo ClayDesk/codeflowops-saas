@@ -174,12 +174,25 @@ export default function ModularRepositoryAnalysis() {
           <h3 className="text-lg font-semibold mb-4">🎯 Analysis Results</h3>
           
           {/* Deployment Support Warning */}
-          {analysis.supported_for_deployment === false && analysis.deployment_message && (
+          {(analysis.supported_for_deployment === false && analysis.deployment_message) || 
+           (analysis.supported_for_deployment === undefined && analysis.projectType && !['react', 'static'].includes(analysis.projectType.toLowerCase())) ? (
             <div className="mb-4 p-3 bg-orange-100 border border-orange-300 rounded text-orange-800">
               <div className="flex items-center">
                 <span className="text-lg mr-2">⚠️</span>
-                <span className="font-medium">{analysis.deployment_message}</span>
+                <span className="font-medium">
+                  {analysis.deployment_message || 
+                   `This ${analysis.projectType} project is not supported for deployment. Only React apps and Static sites can be deployed.`}
+                </span>
               </div>
+            </div>
+          ) : null}
+          
+          {/* Debug: Show analysis structure for troubleshooting */}
+          {process.env.NODE_ENV === 'development' && (
+            <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded text-blue-800 text-xs">
+              <strong>Debug Info:</strong> supported_for_deployment: {String(analysis.supported_for_deployment)}, 
+              deployment_message: {analysis.deployment_message || 'null'}, 
+              projectType: {analysis.projectType}
             </div>
           )}
           
@@ -289,20 +302,26 @@ export default function ModularRepositoryAnalysis() {
             <button
               onClick={handleDeploy}
               disabled={
-                !analysis.supported_for_deployment || 
+                // Check new deployment support field first, then fallback to projectType check
+                (analysis.supported_for_deployment === false) ||
+                (analysis.supported_for_deployment === undefined && analysis.projectType && !['react', 'static'].includes(analysis.projectType.toLowerCase())) ||
                 !projectName || 
                 !credentials.aws_access_key || 
                 smartDeploy.isPending
               }
               className={`w-full px-4 py-3 rounded font-medium ${
-                analysis.supported_for_deployment
+                // Determine if deployment is supported
+                (analysis.supported_for_deployment === true) || 
+                (analysis.supported_for_deployment === undefined && analysis.projectType && ['react', 'static'].includes(analysis.projectType.toLowerCase()))
                   ? 'bg-green-500 text-white hover:bg-green-600 disabled:opacity-50'
                   : 'bg-gray-400 text-white cursor-not-allowed'
               }`}
             >
               {smartDeploy.isPending 
                 ? 'Deploying...' 
-                : analysis.supported_for_deployment
+                : // Check if deployment is supported
+                  (analysis.supported_for_deployment === true) || 
+                  (analysis.supported_for_deployment === undefined && analysis.projectType && ['react', 'static'].includes(analysis.projectType.toLowerCase()))
                   ? `🚀 Deploy ${analysis.stack_detected} Application`
                   : '🚫 Deployment Not Available'
               }

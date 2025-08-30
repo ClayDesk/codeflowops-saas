@@ -162,8 +162,23 @@ export default function ModularRepositoryAnalysis() {
         </div>
 
         {analyzeRepo.error && (
-          <div className="p-3 bg-red-100 border border-red-300 rounded text-red-700">
-            Analysis failed: {analyzeRepo.error.message}
+          <div className="p-4 bg-red-100 border border-red-300 rounded text-red-700">
+            <div className="flex items-start space-x-2">
+              <span className="text-xl">❌</span>
+              <div>
+                <p className="font-semibold">Repository Not Supported</p>
+                <p className="mt-1">{analyzeRepo.error.message}</p>
+                
+                {/* Show supported types - simple fallback for now */}
+                <div className="mt-3">
+                  <p className="font-medium text-sm">Supported repository types:</p>
+                  <ul className="list-disc list-inside text-sm mt-1 space-y-1">
+                    <li className="text-green-700">✅ React applications (Create React App, Vite, Next.js)</li>
+                    <li className="text-green-700">✅ Static websites (HTML, CSS, JavaScript)</li>
+                  </ul>
+                </div>
+              </div>
+            </div>
           </div>
         )}
       </div>
@@ -186,15 +201,6 @@ export default function ModularRepositoryAnalysis() {
               </div>
             </div>
           ) : null}
-          
-          {/* Debug: Show analysis structure for troubleshooting */}
-          {process.env.NODE_ENV === 'development' && (
-            <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded text-blue-800 text-xs">
-              <strong>Debug Info:</strong> supported_for_deployment: {String(analysis.supported_for_deployment)}, 
-              deployment_message: {analysis.deployment_message || 'null'}, 
-              projectType: {analysis.projectType}
-            </div>
-          )}
           
           <div className="grid md:grid-cols-2 gap-4">
             {/* Stack Detection */}

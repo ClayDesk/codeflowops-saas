@@ -94,6 +94,41 @@ class EnhancedRepositoryAnalyzer:
             intelligence_profile = pipeline_result["intelligence_profile"]
             local_repo_path = pipeline_result["local_repo_path"]
             
+            # EARLY BLOCKING: Check if repository type is supported for deployment
+            logger.info("🛡️ Checking repository type support...")
+            quick_framework = self._quick_framework_detection(Path(local_repo_path))
+            logger.info(f"🔍 Quick framework detection: {quick_framework}")
+            
+            if quick_framework not in ["react", "static"]:
+                # Framework type mapping for user-friendly messages
+                framework_names = {
+                    "laravel": "Laravel PHP",
+                    "python": "Python",
+                    "vue": "Vue.js", 
+                    "angular": "Angular",
+                    "nodejs": "Node.js",
+                    "javascript": "JavaScript",
+                    "ruby": "Ruby",
+                    "java": "Java",
+                    "unknown": "Unknown"
+                }
+                
+                detected_name = framework_names.get(quick_framework, quick_framework.title())
+                
+                logger.info(f"🚫 Blocking unsupported repository type: {detected_name}")
+                return {
+                    "success": False,
+                    "error": f"Repository type not supported: {detected_name}",
+                    "message": f"This {detected_name} project cannot be deployed through our platform.",
+                    "supported_types": [
+                        "React applications (Create React App, Vite, Next.js)",
+                        "Static websites (HTML, CSS, JavaScript)"
+                    ],
+                    "detected_type": detected_name,
+                    "repository_url": repo_url,
+                    "analysis_time_seconds": pipeline_result.get("analysis_time_seconds", 0)
+                }
+            
             # Phase 2: Stack Composer - Convert to deployment blueprint
             logger.info("🔧 Phase 2: Stack Blueprint Composition")
             
@@ -152,12 +187,6 @@ class EnhancedRepositoryAnalyzer:
                 "enhancements": legacy_analysis["enhancements"],
                 "validation": legacy_analysis["validation"],
                 
-                # Frontend compatibility - add projectType info with deployment support
-                "project_type_info": self._get_frontend_project_type(stack_blueprint),
-                "projectType": self._get_frontend_project_type(stack_blueprint).get("project_type", "unknown"),
-                "supported_for_deployment": self._get_frontend_project_type(stack_blueprint).get("supported_for_deployment", False),
-                "deployment_message": self._get_frontend_project_type(stack_blueprint).get("deployment_message"),
-                
                 # Metadata
                 "analysis_time_seconds": pipeline_result["analysis_time_seconds"],
                 "analyzer_version": "2.0.0-intelligence-pipeline-stack-composer",
@@ -168,6 +197,19 @@ class EnhancedRepositoryAnalyzer:
                     "deployment_ready": True
                 }
             }
+            
+            # Add deployment support info after creating the main result
+            project_type_info = self._get_frontend_project_type(stack_blueprint)
+            logger.info(f"🎯 Project type analysis: {project_type_info}")
+            
+            result.update({
+                "project_type_info": project_type_info,
+                "projectType": project_type_info.get("project_type", "unknown"),
+                "supported_for_deployment": project_type_info.get("supported_for_deployment", False),
+                "deployment_message": project_type_info.get("deployment_message")
+            })
+            
+            return result
             
         except Exception as e:
             logger.error(f"💥 Enhanced analysis failed: {e}")
@@ -221,6 +263,76 @@ class EnhancedRepositoryAnalyzer:
             "supported_for_deployment": supported_for_deployment,
             "deployment_message": deployment_message
         }
+    
+    def _quick_framework_detection(self, repo_path: Path) -> str:
+        """
+        Quick framework detection to block unsupported repos early
+        Returns: 'react', 'static', or the detected unsupported framework name
+        """
+        try:
+            # Check for React indicators first (most common supported type)
+            package_json_path = repo_path / "package.json"
+            if package_json_path.exists():
+                try:
+                    import json
+                    with open(package_json_path, 'r', encoding='utf-8') as f:
+                        package_data = json.load(f)
+                    
+                    dependencies = {
+                        **package_data.get("dependencies", {}),
+                        **package_data.get("devDependencies", {})
+                    }
+                    
+                    # React detection
+                    if "react" in dependencies or "react-dom" in dependencies:
+                        return "react"
+                    
+                    # Next.js detection (treat as React)
+                    if "next" in dependencies:
+                        return "react"
+                    
+                    # If has package.json but no React, likely other JS framework
+                    if "vue" in dependencies:
+                        return "vue"
+                    if "@angular/core" in dependencies:
+                        return "angular"
+                    if "express" in dependencies:
+                        return "nodejs"
+                    
+                    # Has package.json but unknown framework
+                    return "javascript"
+                    
+                except Exception:
+                    pass
+            
+            # Check for static site indicators
+            html_files = list(repo_path.glob("*.html"))
+            if html_files:
+                # Check for PHP files that would indicate dynamic site
+                php_files = list(repo_path.rglob("*.php"))
+                if not php_files:
+                    return "static"
+            
+            # Check for Laravel indicators
+            if (repo_path / "artisan").exists() or (repo_path / "composer.json").exists():
+                return "laravel"
+            
+            # Check for Python frameworks
+            if (repo_path / "requirements.txt").exists() or (repo_path / "pyproject.toml").exists():
+                return "python"
+            
+            # Check for other indicators
+            if (repo_path / "Gemfile").exists():
+                return "ruby"
+            
+            if (repo_path / "pom.xml").exists() or (repo_path / "build.gradle").exists():
+                return "java"
+            
+            return "unknown"
+            
+        except Exception as e:
+            logger.warning(f"Quick framework detection failed: {e}")
+            return "unknown"
     
     def _convert_to_legacy_format(self, intelligence_profile: Dict[str, Any], 
                                  stack_blueprint: Dict[str, Any], repo_url: str, deployment_id: str) -> Dict[str, Any]:

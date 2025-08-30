@@ -173,6 +173,16 @@ export default function ModularRepositoryAnalysis() {
         <div className="bg-white border border-gray-200 rounded-lg p-6">
           <h3 className="text-lg font-semibold mb-4">🎯 Analysis Results</h3>
           
+          {/* Deployment Support Warning */}
+          {analysis.supported_for_deployment === false && analysis.deployment_message && (
+            <div className="mb-4 p-3 bg-orange-100 border border-orange-300 rounded text-orange-800">
+              <div className="flex items-center">
+                <span className="text-lg mr-2">⚠️</span>
+                <span className="font-medium">{analysis.deployment_message}</span>
+              </div>
+            </div>
+          )}
+          
           <div className="grid md:grid-cols-2 gap-4">
             {/* Stack Detection */}
             <div className="space-y-2">
@@ -278,10 +288,24 @@ export default function ModularRepositoryAnalysis() {
             {/* Deploy Button */}
             <button
               onClick={handleDeploy}
-              disabled={!projectName || !credentials.aws_access_key || smartDeploy.isPending}
-              className="w-full px-4 py-3 bg-green-500 text-white rounded hover:bg-green-600 disabled:opacity-50 font-medium"
+              disabled={
+                !analysis.supported_for_deployment || 
+                !projectName || 
+                !credentials.aws_access_key || 
+                smartDeploy.isPending
+              }
+              className={`w-full px-4 py-3 rounded font-medium ${
+                analysis.supported_for_deployment
+                  ? 'bg-green-500 text-white hover:bg-green-600 disabled:opacity-50'
+                  : 'bg-gray-400 text-white cursor-not-allowed'
+              }`}
             >
-              {smartDeploy.isPending ? 'Deploying...' : `🚀 Deploy ${analysis.stack_detected} Application`}
+              {smartDeploy.isPending 
+                ? 'Deploying...' 
+                : analysis.supported_for_deployment
+                  ? `🚀 Deploy ${analysis.stack_detected} Application`
+                  : '🚫 Deployment Not Available'
+              }
             </button>
 
             {smartDeploy.error && (

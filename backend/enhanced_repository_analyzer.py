@@ -152,8 +152,11 @@ class EnhancedRepositoryAnalyzer:
                 "enhancements": legacy_analysis["enhancements"],
                 "validation": legacy_analysis["validation"],
                 
-                # Frontend compatibility - add projectType field expected by frontend
-                "projectType": self._get_frontend_project_type(stack_blueprint),
+                # Frontend compatibility - add projectType info with deployment support
+                "project_type_info": self._get_frontend_project_type(stack_blueprint),
+                "projectType": self._get_frontend_project_type(stack_blueprint).get("project_type", "unknown"),
+                "supported_for_deployment": self._get_frontend_project_type(stack_blueprint).get("supported_for_deployment", False),
+                "deployment_message": self._get_frontend_project_type(stack_blueprint).get("deployment_message"),
                 
                 # Metadata
                 "analysis_time_seconds": pipeline_result["analysis_time_seconds"],
@@ -174,10 +177,14 @@ class EnhancedRepositoryAnalyzer:
                 "analyzer_version": "2.0.0-intelligence-pipeline"
             }
     
-    def _get_frontend_project_type(self, stack_blueprint: Dict[str, Any]) -> str:
-        """Convert framework name to frontend-expected projectType format"""
+    def _get_frontend_project_type(self, stack_blueprint: Dict[str, Any]) -> Dict[str, Any]:
+        """Convert framework name to frontend-expected projectType format with deployment support info"""
         if not stack_blueprint or not stack_blueprint.get("services"):
-            return "unknown"
+            return {
+                "project_type": "unknown",
+                "supported_for_deployment": False,
+                "deployment_message": "Unable to determine project type for deployment."
+            }
         
         primary_service = stack_blueprint["services"][0]
         framework_name = primary_service.get("framework", {}).get("name", "").lower()
@@ -189,7 +196,7 @@ class EnhancedRepositoryAnalyzer:
             "fastapi": "fastapi",
             "python": "python",
             "react": "react",
-            "nextjs": "nextjs",
+            "nextjs": "react",  # Next.js is treated as React for deployment
             "vue": "vue",
             "angular": "angular",
             "laravel": "laravel",
@@ -197,7 +204,23 @@ class EnhancedRepositoryAnalyzer:
             "static-site": "static"
         }
         
-        return framework_mapping.get(framework_name, "unknown")
+        project_type = framework_mapping.get(framework_name, "unknown")
+        
+        # Determine deployment support - only React and Static are supported
+        supported_for_deployment = project_type in ["react", "static"]
+        
+        deployment_message = None
+        if not supported_for_deployment:
+            if project_type == "unknown":
+                deployment_message = "This project type could not be identified for deployment. Only React apps and Static sites are currently supported."
+            else:
+                deployment_message = f"This {project_type.title()} project is not supported for deployment. Only React apps and Static sites can be deployed."
+        
+        return {
+            "project_type": project_type,
+            "supported_for_deployment": supported_for_deployment,
+            "deployment_message": deployment_message
+        }
     
     def _convert_to_legacy_format(self, intelligence_profile: Dict[str, Any], 
                                  stack_blueprint: Dict[str, Any], repo_url: str, deployment_id: str) -> Dict[str, Any]:

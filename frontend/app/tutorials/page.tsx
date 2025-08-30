@@ -1,386 +1,209 @@
 'use client'
 
-import React, { useState } from 'react'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { 
-  Play, 
-  Clock, 
-  Users, 
-  BookOpen, 
-  Code, 
-  Rocket, 
-  Globe, 
-  Github,
-  ExternalLink,
-  ChevronRight,
-  Star,
-  Download
-} from 'lucide-react'
+import React from 'react'
+import { Play, ExternalLink, Clock, Eye } from 'lucide-react'
 
 export default function TutorialsPage() {
-  const [activeCategory, setActiveCategory] = useState('all')
-  const [showFeaturedVideo, setShowFeaturedVideo] = useState(false)
-  const [featuredVideoLoading, setFeaturedVideoLoading] = useState(false)
-  const [debugClicks, setDebugClicks] = useState(0)
-
-  const handleFeaturedVideoPlay = (e?: React.MouseEvent) => {
-    if (e) {
-      e.preventDefault()
-      e.stopPropagation()
-    }
-    console.log('Featured video clicked!')
-    alert('Featured video clicked!') // Debug alert
-    setDebugClicks(prev => prev + 1)
-    setFeaturedVideoLoading(true)
-    setShowFeaturedVideo(true)
+  const openVideo = (videoId: string, title: string) => {
+    console.log(`Opening video: ${title}`)
+    window.open(`https://www.youtube.com/watch?v=${videoId}`, '_blank')
   }
 
-  const handleOpenFeaturedInNewTab = () => {
-    console.log('Opening featured video in new tab')
-    alert('Opening YouTube') // Debug alert
-    window.open('https://www.youtube.com/watch?v=fDp5-NGNEqo', '_blank')
-  }
-
-  const videoTutorials = [
+  const videos = [
     {
-      id: 'static-demo',
+      id: 'fDp5-NGNEqo',
       title: 'CodeFlowOps Static Site Demo - Deploy in Minutes',
       description: 'Watch how CodeFlowOps automatically analyzes, builds, and deploys your static websites to AWS with zero configuration.',
       duration: '8:30',
-      thumbnail: 'https://img.youtube.com/vi/fDp5-NGNEqo/maxresdefault.jpg',
-      youtubeId: 'fDp5-NGNEqo',
-      featured: true,
       views: '12.5K',
-      category: 'static'
+      thumbnail: 'https://img.youtube.com/vi/fDp5-NGNEqo/maxresdefault.jpg'
     },
     {
-      id: 'react-demo',
+      id: 'fDp5-NGNEqo',
       title: 'Deploy React Applications with CodeFlowOps',
       description: 'Step-by-step guide to deploying React apps including Next.js, Vite, and Create React App projects.',
       duration: '8:30',
-      thumbnail: 'https://img.youtube.com/vi/fDp5-NGNEqo/maxresdefault.jpg',
-      youtubeId: 'fDp5-NGNEqo',
       views: '8.7K',
-      category: 'react'
+      thumbnail: 'https://img.youtube.com/vi/fDp5-NGNEqo/maxresdefault.jpg'
     }
   ]
-
-  const categories = [
-    { id: 'all', name: 'All Tutorials', icon: Rocket },
-    { id: 'static', name: 'Static Sites', icon: Globe },
-    { id: 'react', name: 'React Apps', icon: Code }
-  ]
-
-  const filteredVideos = activeCategory === 'all' ? videoTutorials : videoTutorials.filter(video => video.category === activeCategory)
-
-  const VideoCard = ({ video }: { video: typeof videoTutorials[0] }) => {
-    const [showVideo, setShowVideo] = useState(false)
-    const [isLoading, setIsLoading] = useState(false)
-    
-    const handlePlayVideo = (e: React.MouseEvent) => {
-      e.preventDefault()
-      e.stopPropagation()
-      console.log(`Playing video: ${video.title}`)
-      alert(`Playing video: ${video.title}`) // Debug alert
-      setIsLoading(true)
-      setShowVideo(true)
-    }
-
-    const handleOpenInNewTab = (e: React.MouseEvent) => {
-      e.preventDefault()
-      e.stopPropagation()
-      console.log('Opening video in new tab')
-      alert('Opening YouTube') // Debug alert
-      window.open(`https://www.youtube.com/watch?v=${video.youtubeId}`, '_blank')
-    }
-    
-    return (
-      <Card className="overflow-hidden dark:bg-gray-800 dark:border-gray-700">
-        <div className="aspect-video bg-gray-100 dark:bg-gray-700">
-          {showVideo ? (
-            <div className="relative w-full h-full">
-              <iframe
-                src={`https://www.youtube.com/embed/${video.youtubeId}?autoplay=1&rel=0`}
-                title={video.title}
-                className="w-full h-full"
-                frameBorder="0"
-                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-                allowFullScreen
-                onLoad={() => setIsLoading(false)}
-              />
-              {isLoading && (
-                <div className="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center">
-                  <div className="text-white">Loading video...</div>
-                </div>
-              )}
-            </div>
-          ) : (
-            <div className="relative w-full h-full cursor-pointer" onClick={handlePlayVideo}>
-              <img 
-                src={video.thumbnail}
-                alt={video.title}
-                className="w-full h-full object-cover"
-              />
-              <div className="absolute inset-0 bg-black bg-opacity-40 flex items-center justify-center">
-                <button
-                  onClick={handlePlayVideo}
-                  className="bg-red-600 hover:bg-red-700 rounded-full p-4 transition-all hover:scale-110 focus:outline-none focus:ring-2 focus:ring-red-500"
-                  aria-label={`Play ${video.title}`}
-                >
-                  <Play className="h-12 w-12 text-white ml-1" />
-                </button>
-              </div>
-              {video.featured && (
-                <Badge className="absolute top-3 left-3 bg-red-500 text-white">
-                  <Star className="h-3 w-3 mr-1" />
-                  Featured
-                </Badge>
-              )}
-              <div className="absolute bottom-3 right-3 bg-black bg-opacity-75 text-white text-xs px-2 py-1 rounded">
-                {video.duration}
-              </div>
-            </div>
-          )}
-        </div>
-        <CardHeader className="pb-3">
-          <CardTitle className="text-lg">
-            {video.title}
-          </CardTitle>
-          <CardDescription className="text-sm">
-            {video.description}
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="pt-0">
-          <div className="flex items-center justify-between text-sm text-gray-500 dark:text-gray-400 mb-4">
-            <div className="flex items-center gap-4">
-              <span className="flex items-center gap-1">
-                <Clock className="h-4 w-4" />
-                {video.duration}
-              </span>
-              <span className="flex items-center gap-1">
-                <Users className="h-4 w-4" />
-                {video.views} views
-              </span>
-            </div>
-          </div>
-          <div className="flex gap-2">
-            <Button 
-              className="flex-1"
-              onClick={handlePlayVideo}
-              disabled={isLoading}
-            >
-              <Play className="h-4 w-4 mr-2" />
-              {showVideo ? 'Playing...' : isLoading ? 'Loading...' : 'Watch Here'}
-            </Button>
-            <Button 
-              variant="outline"
-              onClick={handleOpenInNewTab}
-              className="px-3"
-              title="Open in YouTube"
-            >
-              <ExternalLink className="h-4 w-4" />
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
-    )
-  }
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
-      {/* Debug info - remove in production */}
-      <div className="fixed top-4 right-4 bg-black text-white p-2 rounded text-xs z-50">
-        Featured Video: {showFeaturedVideo ? 'ON' : 'OFF'} | Clicks: {debugClicks}
-        <br />
-        <button 
-          onClick={() => alert('Test button works!')}
-          className="bg-red-500 text-white px-2 py-1 mt-1 rounded text-xs"
-        >
-          TEST CLICK
-        </button>
-      </div>
-      
       {/* Hero Section */}
-      <div className="bg-gradient-to-r from-blue-600 to-purple-700 text-white">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
-          <div className="text-center">
-            <h1 className="text-4xl md:text-5xl font-bold mb-6">
-              Learn CodeFlowOps
-            </h1>
-            <p className="text-xl md:text-2xl mb-8 text-blue-100 max-w-3xl mx-auto">
-              Master static site and React deployment with our comprehensive video tutorials
-            </p>
-            <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <Button 
-                size="lg" 
-                className="bg-white text-blue-600 hover:bg-gray-100"
-                onClick={() => {
-                  console.log('Hero button clicked!')
-                  handleFeaturedVideoPlay()
-                  // Scroll to featured video section
-                  document.getElementById('featured-video')?.scrollIntoView({ 
-                    behavior: 'smooth' 
-                  })
-                }}
-              >
-                <Play className="h-5 w-5 mr-2" />
-                Watch Main Demo
-              </Button>
-              <Button size="lg" variant="outline" className="border-white text-white hover:bg-white hover:text-blue-600">
-                <BookOpen className="h-5 w-5 mr-2" />
-                Documentation
-              </Button>
-            </div>
-          </div>
+      <div className="bg-gradient-to-r from-blue-600 to-purple-700 text-white py-16">
+        <div className="max-w-4xl mx-auto px-4 text-center">
+          <h1 className="text-4xl md:text-5xl font-bold mb-6">
+            Learn CodeFlowOps
+          </h1>
+          <p className="text-xl mb-8 text-blue-100">
+            Master static site and React deployment with our video tutorials
+          </p>
         </div>
       </div>
 
       {/* Main Content */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+      <div className="max-w-6xl mx-auto px-4 py-12">
         {/* Featured Video */}
-        <div className="mb-12" id="featured-video">
-          <div className="text-center mb-8">
-            <h2 className="text-3xl font-bold text-gray-900 dark:text-white mb-4">
-              Featured Tutorial
-            </h2>
-            <p className="text-lg text-gray-600 dark:text-gray-400">
-              Learn how to deploy static sites and React applications with CodeFlowOps
-            </p>
-          </div>
-          
-          <Card className="max-w-4xl mx-auto overflow-hidden shadow-xl dark:bg-gray-800 dark:border-gray-700">
-            <div className="aspect-video bg-gray-100 dark:bg-gray-700">
-              {showFeaturedVideo ? (
-                <div className="relative w-full h-full">
-                  <iframe
-                    src="https://www.youtube.com/embed/fDp5-NGNEqo?autoplay=1&rel=0"
-                    title="CodeFlowOps Static Site Demo"
-                    className="w-full h-full"
-                    frameBorder="0"
-                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-                    allowFullScreen
-                    onLoad={() => setFeaturedVideoLoading(false)}
-                  />
-                  {featuredVideoLoading && (
-                    <div className="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center">
-                      <div className="text-white">Loading video...</div>
-                    </div>
-                  )}
-                </div>
-              ) : (
-                <div className="relative w-full h-full cursor-pointer" onClick={handleFeaturedVideoPlay}>
-                  <img 
-                    src="https://img.youtube.com/vi/fDp5-NGNEqo/maxresdefault.jpg"
-                    alt="CodeFlowOps Demo"
-                    className="w-full h-full object-cover"
-                  />
-                  <div className="absolute inset-0 bg-black bg-opacity-40 flex items-center justify-center">
-                    <div className="text-center text-white">
-                      <button
-                        onClick={handleFeaturedVideoPlay}
-                        className="bg-red-600 hover:bg-red-700 rounded-full p-6 mx-auto mb-4 transition-all hover:scale-110 focus:outline-none focus:ring-2 focus:ring-red-500"
-                        aria-label="Play CodeFlowOps demo video"
-                      >
-                        <Play className="h-12 w-12 text-white ml-1" />
-                      </button>
-                      <h3 className="text-2xl font-bold mb-2">CodeFlowOps Static Site Demo</h3>
-                      <p className="text-blue-100 mb-4">See how to deploy static websites in under 3 minutes</p>
-                      <div className="flex gap-2 justify-center">
-                        <Button 
-                          size="lg" 
-                          className="bg-white text-blue-600 hover:bg-gray-100"
-                          onClick={handleFeaturedVideoPlay}
-                          disabled={featuredVideoLoading}
-                        >
-                          <Play className="h-5 w-5 mr-2" />
-                          {featuredVideoLoading ? 'Loading...' : 'Watch Now (8:30)'}
-                        </Button>
-                        <Button 
-                          size="lg"
-                          variant="outline"
-                          className="border-white text-white hover:bg-white hover:text-blue-600"
-                          onClick={handleOpenFeaturedInNewTab}
-                        >
-                          <ExternalLink className="h-5 w-5 mr-2" />
-                          YouTube
-                        </Button>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              )}
-            </div>
-          </Card>
-        </div>
-
-        {/* Tutorial Categories */}
-        <div className="mb-8">
-          <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-6">
-            Tutorial Categories
+        <div className="mb-12">
+          <h2 className="text-3xl font-bold text-gray-900 dark:text-white mb-8 text-center">
+            Featured Tutorial
           </h2>
           
-          <div className="flex flex-wrap gap-3 mb-8">
-            {categories.map((category) => (
-              <Button
-                key={category.id}
-                variant={activeCategory === category.id ? "default" : "outline"}
-                onClick={() => setActiveCategory(category.id)}
-                className="flex items-center gap-2"
-              >
-                <category.icon className="h-4 w-4" />
-                {category.name}
-              </Button>
-            ))}
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg overflow-hidden max-w-4xl mx-auto">
+            <div className="relative">
+              <img 
+                src="https://img.youtube.com/vi/fDp5-NGNEqo/maxresdefault.jpg"
+                alt="CodeFlowOps Demo"
+                className="w-full h-64 md:h-96 object-cover"
+              />
+              <div className="absolute inset-0 bg-black bg-opacity-40 flex items-center justify-center">
+                <button
+                  onClick={() => openVideo('fDp5-NGNEqo', 'CodeFlowOps Demo')}
+                  className="bg-red-600 hover:bg-red-700 rounded-full p-6 transition-all hover:scale-110 shadow-lg"
+                >
+                  <Play className="h-12 w-12 text-white ml-1" />
+                </button>
+              </div>
+            </div>
+            <div className="p-6">
+              <h3 className="text-2xl font-bold mb-2 dark:text-white">
+                CodeFlowOps Static Site Demo
+              </h3>
+              <p className="text-gray-600 dark:text-gray-400 mb-4">
+                See how to deploy static websites in under 3 minutes with zero configuration
+              </p>
+              <div className="flex gap-4">
+                <button
+                  onClick={() => openVideo('fDp5-NGNEqo', 'CodeFlowOps Demo')}
+                  className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg flex items-center gap-2 transition-colors"
+                >
+                  <Play className="h-4 w-4" />
+                  Watch Now (8:30)
+                </button>
+                <button
+                  onClick={() => openVideo('fDp5-NGNEqo', 'CodeFlowOps Demo')}
+                  className="border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 px-6 py-2 rounded-lg flex items-center gap-2 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+                >
+                  <ExternalLink className="h-4 w-4" />
+                  Open in YouTube
+                </button>
+              </div>
+            </div>
           </div>
         </div>
 
         {/* Video Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {filteredVideos.map((video) => (
-            <VideoCard key={video.id} video={video} />
-          ))}
+        <div className="mb-12">
+          <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-8">
+            All Tutorials
+          </h2>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {videos.map((video, index) => (
+              <div key={index} className="bg-white dark:bg-gray-800 rounded-lg shadow-lg overflow-hidden">
+                <div className="relative">
+                  <img 
+                    src={video.thumbnail}
+                    alt={video.title}
+                    className="w-full h-48 object-cover"
+                  />
+                  <div className="absolute inset-0 bg-black bg-opacity-40 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity cursor-pointer"
+                       onClick={() => openVideo(video.id, video.title)}>
+                    <button className="bg-red-600 hover:bg-red-700 rounded-full p-4 transition-all hover:scale-110">
+                      <Play className="h-8 w-8 text-white ml-1" />
+                    </button>
+                  </div>
+                  <div className="absolute bottom-2 right-2 bg-black bg-opacity-75 text-white text-xs px-2 py-1 rounded">
+                    {video.duration}
+                  </div>
+                </div>
+                <div className="p-4">
+                  <h3 className="text-lg font-bold mb-2 dark:text-white">
+                    {video.title}
+                  </h3>
+                  <p className="text-gray-600 dark:text-gray-400 text-sm mb-4">
+                    {video.description}
+                  </p>
+                  <div className="flex items-center justify-between text-sm text-gray-500 dark:text-gray-400 mb-4">
+                    <div className="flex items-center gap-4">
+                      <span className="flex items-center gap-1">
+                        <Clock className="h-4 w-4" />
+                        {video.duration}
+                      </span>
+                      <span className="flex items-center gap-1">
+                        <Eye className="h-4 w-4" />
+                        {video.views} views
+                      </span>
+                    </div>
+                  </div>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => openVideo(video.id, video.title)}
+                      className="flex-1 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center justify-center gap-2 transition-colors"
+                    >
+                      <Play className="h-4 w-4" />
+                      Watch Tutorial
+                    </button>
+                    <button
+                      onClick={() => openVideo(video.id, video.title)}
+                      className="px-3 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+                    >
+                      <ExternalLink className="h-4 w-4" />
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
 
         {/* Additional Resources */}
-        <div className="mt-16 grid grid-cols-1 md:grid-cols-3 gap-6">
-          <Card className="text-center p-6 dark:bg-gray-800 dark:border-gray-700">
-            <BookOpen className="h-12 w-12 mx-auto mb-4 text-blue-600" />
-            <h3 className="text-xl font-bold mb-2 dark:text-white">Documentation</h3>
-            <p className="text-gray-600 dark:text-gray-400 mb-4">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6 text-center">
+            <div className="w-12 h-12 bg-blue-100 dark:bg-blue-900 rounded-lg flex items-center justify-center mx-auto mb-4">
+              <svg className="h-6 w-6 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.246 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+              </svg>
+            </div>
+            <h3 className="text-lg font-bold mb-2 dark:text-white">Documentation</h3>
+            <p className="text-gray-600 dark:text-gray-400 mb-4 text-sm">
               Comprehensive guides and API references
             </p>
-            <Button variant="outline" className="w-full">
-              <ExternalLink className="h-4 w-4 mr-2" />
+            <button className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
               View Docs
-            </Button>
-          </Card>
+            </button>
+          </div>
 
-          <Card className="text-center p-6 dark:bg-gray-800 dark:border-gray-700">
-            <Github className="h-12 w-12 mx-auto mb-4 text-blue-600" />
-            <h3 className="text-xl font-bold mb-2 dark:text-white">Example Projects</h3>
-            <p className="text-gray-600 dark:text-gray-400 mb-4">
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6 text-center">
+            <div className="w-12 h-12 bg-green-100 dark:bg-green-900 rounded-lg flex items-center justify-center mx-auto mb-4">
+              <svg className="h-6 w-6 text-green-600 dark:text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+            </div>
+            <h3 className="text-lg font-bold mb-2 dark:text-white">Example Projects</h3>
+            <p className="text-gray-600 dark:text-gray-400 mb-4 text-sm">
               Ready-to-deploy sample applications
             </p>
-            <Button variant="outline" className="w-full">
-              <Download className="h-4 w-4 mr-2" />
+            <button className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
               Get Examples
-            </Button>
-          </Card>
+            </button>
+          </div>
 
-          <Card className="text-center p-6 dark:bg-gray-800 dark:border-gray-700">
-            <Users className="h-12 w-12 mx-auto mb-4 text-blue-600" />
-            <h3 className="text-xl font-bold mb-2 dark:text-white">Community</h3>
-            <p className="text-gray-600 dark:text-gray-400 mb-4">
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6 text-center">
+            <div className="w-12 h-12 bg-purple-100 dark:bg-purple-900 rounded-lg flex items-center justify-center mx-auto mb-4">
+              <svg className="h-6 w-6 text-purple-600 dark:text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+              </svg>
+            </div>
+            <h3 className="text-lg font-bold mb-2 dark:text-white">Community</h3>
+            <p className="text-gray-600 dark:text-gray-400 mb-4 text-sm">
               Join our developer community for support
             </p>
-            <Button variant="outline" className="w-full">
-              <ExternalLink className="h-4 w-4 mr-2" />
+            <button className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
               Join Discord
-            </Button>
-          </Card>
+            </button>
+          </div>
         </div>
       </div>
     </div>

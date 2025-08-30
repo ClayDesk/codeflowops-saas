@@ -188,27 +188,31 @@ async def github_login(request: Request):
             "ip": request.client.host if request.client else "unknown"
         })
         
-        # Build GitHub OAuth URL
+        # Build GitHub OAuth URL with session ID in state parameter for better reliability
+        # Include session_id in state parameter as backup to cookies
+        state_with_session = f"{state}:{session_id}"
+        
         github_url = (
             f"https://github.com/login/oauth/authorize"
             f"?client_id={GITHUB_CLIENT_ID}"
             f"&redirect_uri={GITHUB_CALLBACK_URL}"
             f"&scope=read:user user:email"
-            f"&state={state}"
+            f"&state={state_with_session}"
         )
         
         logger.info(f"🔗 Redirecting to GitHub OAuth for session {session_id}")
         
         # Redirect to GitHub
         response = RedirectResponse(url=github_url)
+        # Set cookie with more permissive settings
         response.set_cookie(
             key="github_session_id", 
             value=session_id,
             max_age=600,  # 10 minutes
             httponly=True,
-            secure=True,  # Set to True in production with HTTPS
-            samesite="lax",
-            domain=".codeflowops.com"  # Allow cookie to work across subdomains
+            secure=True,  # HTTPS only
+            samesite="none",  # Allow cross-site requests for OAuth
+            domain=None  # Don't specify domain to work with current domain
         )
         
         return response
@@ -247,21 +251,41 @@ async def github_callback(
                 url=f"{FRONTEND_URL}/login?error=missing_parameters"
             )
         
-        # Verify state parameter
-        session_id = request.cookies.get("github_session_id")
-        logger.info(f"🔑 Session ID from cookie: {'✅ present' if session_id else '❌ missing'}")
+        # Verify state parameter and extract session ID
+        session_id = None
+        original_state = None
         
-        if not session_id or not session_exists(session_id):
-            logger.warning("❌ Invalid or missing session in GitHub callback")
+        # Try to extract session ID from state parameter (backup method)
+        if ":" in state:
+            parts = state.split(":", 1)
+            if len(parts) == 2:
+                original_state, session_id_from_state = parts
+                logger.info(f"🔑 Session ID extracted from state: {session_id_from_state}")
+                session_id = session_id_from_state
+        
+        # Fallback to cookie if state parsing failed
+        if not session_id:
+            session_id = request.cookies.get("github_session_id")
+            original_state = state
+            logger.info(f"🔑 Using session ID from cookie: {'✅ present' if session_id else '❌ missing'}")
+        
+        if not session_id:
+            logger.warning("❌ No session ID found in state parameter or cookie")
             return RedirectResponse(
-                url=f"{FRONTEND_URL}/login?error=invalid_session"
+                url=f"{FRONTEND_URL}/login?error=invalid_session&reason=no_session_id"
+            )
+        
+        if not session_exists(session_id):
+            logger.warning(f"❌ Session {session_id} not found in storage")
+            return RedirectResponse(
+                url=f"{FRONTEND_URL}/login?error=invalid_session&reason=session_not_found"
             )
         
         session_data = get_session(session_id)
-        if session_data["state"] != state:
-            logger.warning("❌ State parameter mismatch in GitHub callback")
+        if session_data["state"] != original_state:
+            logger.warning(f"❌ State parameter mismatch. Expected: {session_data['state']}, Got: {original_state}")
             return RedirectResponse(
-                url=f"{FRONTEND_URL}/login?error=state_mismatch"
+                url=f"{FRONTEND_URL}/login?error=state_mismatch&expected={session_data['state']}&got={original_state}"
             )
         
         logger.info("✅ State verification successful, exchanging code for token...")

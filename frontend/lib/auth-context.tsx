@@ -317,6 +317,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const token = getStoredToken()
       
       if (user?.provider === 'github' || !token) {
+        // First check auth status to avoid 401 errors
+        const statusResponse = await fetch(`${API_BASE}/api/v1/auth/status`, {
+          credentials: 'include', // Include cookies for GitHub OAuth
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        })
+        
+        if (statusResponse.ok) {
+          const statusData = await statusResponse.json()
+          if (!statusData.authenticated) {
+            // User not authenticated, redirect to GitHub OAuth
+            window.location.href = statusData.login_url || `${API_BASE}/api/v1/auth/github`
+            return
+          }
+        }
+        
         // Try GitHub OAuth endpoint with cookies
         userResponse = await fetch(`${API_BASE}/api/v1/auth/github/user`, {
           credentials: 'include', // Include cookies for GitHub OAuth
@@ -614,6 +631,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   // Function to check GitHub authentication
   const checkGitHubAuth = async (): Promise<boolean> => {
     try {
+      // First check auth status to avoid 401 errors
+      const statusResponse = await fetch(`${API_BASE}/api/v1/auth/status`, {
+        credentials: 'include', // Include cookies
+      })
+
+      if (statusResponse.ok) {
+        const statusData = await statusResponse.json()
+        if (!statusData.authenticated) {
+          // User not authenticated
+          return false
+        }
+      }
+
+      // If status indicates authenticated, try to get user details
       const response = await fetch(`${API_BASE}/api/v1/auth/github/user`, {
         credentials: 'include', // Include cookies
       })
@@ -727,6 +758,7 @@ export function useRequireAuth() {
 
   useEffect(() => {
     if (!auth.loading && !auth.isAuthenticated) {
+      // Redirect to clean login page (no error parameters)
       router.push('/login')
     }
   }, [auth.loading, auth.isAuthenticated, router])

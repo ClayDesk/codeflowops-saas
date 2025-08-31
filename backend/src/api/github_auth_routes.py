@@ -204,7 +204,7 @@ async def github_login(request: Request):
         response.set_cookie(
             key="github_session_id", 
             value=session_id,
-            max_age=600,  # 10 minutes
+            max_age=1800,  # 30 minutes (extended from 10 minutes)
             httponly=True,
             secure=True,  # Set to True in production with HTTPS
             samesite="lax",
@@ -251,15 +251,28 @@ async def github_callback(
         session_id = request.cookies.get("github_session_id")
         logger.info(f"🔑 Session ID from cookie: {'✅ present' if session_id else '❌ missing'}")
         
-        if not session_id or not session_exists(session_id):
-            logger.warning("❌ Invalid or missing session in GitHub callback")
+        if not session_id:
+            logger.warning("❌ No github_session_id cookie found")
             return RedirectResponse(
-                url=f"{FRONTEND_URL}/login?error=invalid_session"
+                url=f"{FRONTEND_URL}/login?error=invalid_session&reason=no_cookie"
+            )
+            
+        if not session_exists(session_id):
+            logger.warning(f"❌ Session {session_id} does not exist in database")
+            return RedirectResponse(
+                url=f"{FRONTEND_URL}/login?error=invalid_session&reason=session_not_found"
             )
         
         session_data = get_session(session_id)
-        if session_data["state"] != state:
-            logger.warning("❌ State parameter mismatch in GitHub callback")
+        if not session_data:
+            logger.warning(f"❌ Could not retrieve session data for {session_id}")
+            return RedirectResponse(
+                url=f"{FRONTEND_URL}/login?error=invalid_session&reason=session_data_missing"
+            )
+            
+        stored_state = session_data.get("state")
+        if stored_state != state:
+            logger.warning(f"❌ State parameter mismatch: stored={stored_state}, received={state}")
             return RedirectResponse(
                 url=f"{FRONTEND_URL}/login?error=state_mismatch"
             )
@@ -343,10 +356,71 @@ async def github_callback(
         logger.info("💾 Attempting to store user in Cognito...")
         cognito_user_data = await create_or_update_github_user_in_cognito(github_user)
         
-        if cognito_user_data:
+        if cognito_user_data and COGNITO_AVAILABLE:
             logger.info("✅ User successfully stored in Cognito!")
-        else:
-            logger.warning("⚠️ Failed to store user in Cognito, using session storage")
+            
+            # Now authenticate the user with Cognito to get proper tokens
+            try:
+                logger.info("🔐 Authenticating user with Cognito to get tokens...")
+                from ..auth.providers.cognito import CognitoAuthProvider
+                
+                cognito_provider = CognitoAuthProvider()
+                auth_result = await cognito_provider.authenticate(
+                    username=github_user.email,  # Cognito username is email
+                    password='GitHubOAuth123!'    # Password we set for OAuth users
+                )
+                
+                if auth_result.success:
+                    logger.info(f"🎉 Cognito authentication successful for {github_user.login}")
+                    
+                    # Use Cognito tokens instead of manual session
+                    response = RedirectResponse(url=f"{FRONTEND_URL}/deploy")
+                    
+                    # Set Cognito tokens as secure cookies
+                    response.set_cookie(
+                        key="access_token",
+                        value=auth_result.access_token,
+                        max_age=auth_result.expires_in,
+                        httponly=True,
+                        secure=True,
+                        samesite="lax",
+                        domain=".codeflowops.com"
+                    )
+                    
+                    if auth_result.refresh_token:
+                        response.set_cookie(
+                            key="refresh_token", 
+                            value=auth_result.refresh_token,
+                            max_age=86400 * 30,  # 30 days
+                            httponly=True,
+                            secure=True,
+                            samesite="lax",
+                            domain=".codeflowops.com"
+                        )
+                    
+                    # Also store user info for convenience
+                    response.set_cookie(
+                        key="user_info",
+                        value=f"{auth_result.email}|{auth_result.username}",
+                        max_age=auth_result.expires_in,
+                        httponly=False,  # Allow frontend to read user info
+                        secure=True,
+                        samesite="lax",
+                        domain=".codeflowops.com"
+                    )
+                    
+                    return response
+                    
+                else:
+                    logger.error(f"❌ Cognito authentication failed: {auth_result.error_message}")
+                    # Fall back to session storage
+                    
+            except Exception as cognito_auth_error:
+                logger.error(f"❌ Error during Cognito authentication: {cognito_auth_error}")
+                # Fall back to session storage
+        
+        # Fallback to session storage if Cognito is not available or authentication failed
+        logger.warning("⚠️ Using session storage fallback")
         
         # Create a session token
         session_token = f"github-session-{uuid.uuid4()}"
@@ -361,13 +435,8 @@ async def github_callback(
         
         set_session(session_token, session_data)
         
-        if cognito_user_data:
-            logger.info(f"🎉 GitHub authentication complete - user {github_user.login} stored in Cognito")
-        else:
-            logger.info(f"🎉 GitHub authentication complete - user {github_user.login} using session storage")
-        
-        # Redirect to frontend homepage with session token
-        response = RedirectResponse(url=f"{FRONTEND_URL}/")
+        # Redirect to frontend deploy page after successful authentication
+        response = RedirectResponse(url=f"{FRONTEND_URL}/deploy")
         response.set_cookie(
             key="codeflowops_session",
             value=session_token,
@@ -395,31 +464,145 @@ async def github_callback(
 async def get_github_user(request: Request):
     """Get current GitHub authenticated user"""
     try:
-        session_token = request.cookies.get("codeflowops_session")
+        # Log all cookies for debugging
+        cookies = dict(request.cookies)
+        logger.info(f"🍪 All cookies received: {list(cookies.keys())}")
         
-        if not session_token or not session_exists(session_token):
+        # First try to use Cognito tokens
+        access_token = request.cookies.get("access_token")
+        logger.info(f"🔑 Access token: {'✅ present' if access_token else '❌ missing'}")
+        
+        if access_token and COGNITO_AVAILABLE:
+            try:
+                logger.info("🔍 Validating user with Cognito access token")
+                from ..auth.providers.cognito import CognitoAuthProvider
+                
+                cognito_provider = CognitoAuthProvider()
+                user_info = await cognito_provider.validate_token(access_token)
+                
+                if user_info:
+                    logger.info(f"✅ Valid Cognito token for user: {user_info.get('email')}")
+                    return {
+                        "authenticated": True,
+                        "user": {
+                            "id": user_info.get("sub"),
+                            "email": user_info.get("email"),
+                            "username": user_info.get("cognito:username"),
+                            "name": user_info.get("name"),
+                            "provider": "github",
+                            "auth_method": "cognito"
+                        }
+                    }
+                else:
+                    logger.warning("❌ Invalid Cognito access token")
+                    
+            except Exception as cognito_error:
+                logger.error(f"❌ Error validating Cognito token: {cognito_error}")
+        
+        # Fallback to session storage method
+        logger.info("🔍 Falling back to session storage authentication")
+        session_token = request.cookies.get("codeflowops_session")
+        logger.info(f"🔑 Session token from cookie: {'✅ present' if session_token else '❌ missing'}")
+        
+        if not session_token:
+            logger.warning("❌ No session token provided")
+            # Return more detailed error for debugging
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Not authenticated"
+                detail={
+                    "error": "not_authenticated",
+                    "message": "No authentication tokens found",
+                    "debug": {
+                        "access_token_present": bool(access_token),
+                        "session_token_present": bool(session_token),
+                        "cognito_available": COGNITO_AVAILABLE,
+                        "cookies_received": list(cookies.keys())
+                    }
+                }
             )
         
+        # Get session data
         session_data = get_session(session_token)
-        user_data = session_data["user"]
+        if not session_data:
+            logger.warning(f"❌ Session {session_token} not found or expired")
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail={
+                    "error": "session_not_found",
+                    "message": "Session not found or expired", 
+                    "session_token": session_token[:10] + "..." if len(session_token) > 10 else session_token
+                }
+            )
+        
+        user_data = session_data.get("user", {})
+        logger.info(f"✅ Valid session for user: {user_data.get('email', 'unknown')}")
         
         return {
-            "user": user_data,
             "authenticated": True,
-            "provider": "github"
+            "user": {
+                "id": user_data.get("user_id") or user_data.get("id"),
+                "email": user_data.get("email"),
+                "username": user_data.get("username") or user_data.get("login"),
+                "name": user_data.get("full_name") or user_data.get("name"),
+                "avatar_url": user_data.get("avatar_url"),
+                "provider": user_data.get("provider", "github"),
+                "auth_method": "session"
+            }
         }
         
     except HTTPException:
+        # Re-raise HTTP exceptions (401 Unauthorized)
         raise
     except Exception as e:
-        logger.error(f"Error getting GitHub user: {e}")
+        logger.error(f"❌ Unexpected error in get_github_user: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to get user information"
+            detail="Internal server error"
         )
+
+@router.get("/auth/status")
+async def get_auth_status(request: Request):
+    """Get authentication status (public endpoint)"""
+    try:
+        # Check authentication without throwing 401
+        cookies = dict(request.cookies)
+        access_token = request.cookies.get("access_token")
+        session_token = request.cookies.get("codeflowops_session")
+        
+        # Try Cognito first
+        cognito_authenticated = False
+        if access_token and COGNITO_AVAILABLE:
+            try:
+                from ..auth.providers.cognito import CognitoAuthProvider
+                cognito_provider = CognitoAuthProvider()
+                user_info = await cognito_provider.validate_token(access_token)
+                cognito_authenticated = bool(user_info)
+            except:
+                cognito_authenticated = False
+        
+        # Try session storage
+        session_authenticated = False
+        if session_token:
+            session_data = get_session(session_token)
+            session_authenticated = bool(session_data)
+        
+        return {
+            "authenticated": cognito_authenticated or session_authenticated,
+            "auth_method": "cognito" if cognito_authenticated else ("session" if session_authenticated else None),
+            "has_access_token": bool(access_token),
+            "has_session_token": bool(session_token),
+            "cognito_available": COGNITO_AVAILABLE,
+            "login_url": f"{request.base_url}api/v1/auth/github",
+            "cookies_count": len(cookies)
+        }
+        
+    except Exception as e:
+        logger.error(f"❌ Error checking auth status: {e}")
+        return {
+            "authenticated": False,
+            "error": str(e),
+            "login_url": f"{request.base_url}api/v1/auth/github"
+        }
 
 @router.post("/auth/github/logout")
 async def github_logout(request: Request):
@@ -441,15 +624,60 @@ async def github_logout(request: Request):
 
 # Health check endpoint
 @router.get("/auth/github/health")
-async def github_auth_health():
-    """Health check for GitHub auth service"""
-    return {
-        "status": "healthy",
-        "service": "github_auth",
-        "github_client_configured": bool(GITHUB_CLIENT_ID and GITHUB_CLIENT_SECRET),
-        "callback_url": GITHUB_CALLBACK_URL,
-        "cognito_available": COGNITO_AVAILABLE
-    }
+async def github_health():
+    """Health check for GitHub auth system"""
+    try:
+        # Test session storage functionality
+        test_session_id = "health_check_test"
+        test_data = {"test": "data", "timestamp": datetime.utcnow().isoformat()}
+        
+        # Get database path for debugging
+        db_path = getattr(session_storage, 'db_path', 'unknown')
+        
+        # Count total sessions in database for debugging
+        try:
+            import sqlite3
+            with sqlite3.connect(db_path) as conn:
+                cursor = conn.cursor()
+                cursor.execute("SELECT COUNT(*) FROM github_sessions")
+                total_sessions = cursor.fetchone()[0]
+        except Exception:
+            total_sessions = "unknown"
+        
+        # Try to create and retrieve a session
+        try:
+            set_session(test_session_id, test_data)
+            retrieved_data = get_session(test_session_id)
+            
+            session_storage_working = retrieved_data is not None
+            if session_storage_working:
+                delete_session(test_session_id)  # Cleanup
+                
+            return {
+                "status": "healthy",
+                "service": "GitHub OAuth Authentication",
+                "cognito_available": COGNITO_AVAILABLE,
+                "session_storage_working": session_storage_working,
+                "test_data_match": retrieved_data == test_data if session_storage_working else False,
+                "database_path": db_path,
+                "total_sessions": total_sessions
+            }
+        except Exception as session_error:
+            return {
+                "status": "unhealthy",
+                "service": "GitHub OAuth Authentication", 
+                "session_storage_working": False,
+                "session_error": str(session_error),
+                "database_path": db_path,
+                "total_sessions": total_sessions
+            }
+    except Exception as e:
+        return {
+            "status": "unhealthy",
+            "service": "GitHub OAuth Authentication", 
+            "error": str(e),
+            "session_storage_working": False
+        }
 
 # Debug endpoint to test Cognito integration
 @router.get("/auth/me")

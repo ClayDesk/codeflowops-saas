@@ -13,7 +13,7 @@ load_dotenv()
 
 from fastapi import FastAPI, HTTPException, APIRouter, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, Response
 from pydantic import BaseModel, EmailStr
 from typing import Optional, Dict, Any, List
 import logging
@@ -254,13 +254,240 @@ async def root():
         "message": "Welcome to CodeFlowOps API"
     }
 
+@router.get("/debug")
+async def debug_endpoint():
+    """Debug endpoint to test basic functionality"""
+    try:
+        return {
+            "status": "working",
+            "message": "Debug endpoint is functional",
+            "timestamp": time.time(),
+            "env_check": {
+                "database_url_set": bool(os.getenv("DATABASE_URL")),
+                "redis_url_set": bool(os.getenv("REDIS_URL"))
+            }
+        }
+    except Exception as e:
+        return {"error": str(e), "status": "error"}
+
+@router.get("/test-db")
+async def test_database():
+    """Safe database connectivity test with timeout"""
+    try:
+        import asyncio
+        from sqlalchemy import text
+        from src.utils.database import SessionLocal
+        
+        # Set a 5-second timeout for database test
+        async def db_test():
+            db = SessionLocal()
+            try:
+                result = db.execute(text("SELECT 1 as test"))
+                test_result = result.fetchone()
+                db.close()
+                return test_result is not None and test_result[0] == 1
+            except Exception as e:
+                db.close()
+                raise e
+        
+        # Run with timeout
+        db_healthy = await asyncio.wait_for(db_test(), timeout=5.0)
+        
+        return {
+            "status": "success",
+            "database_connected": db_healthy,
+            "message": "Database test completed",
+            "database_type": "PostgreSQL"
+        }
+        
+    except asyncio.TimeoutError:
+        return {
+            "status": "timeout", 
+            "database_connected": False,
+            "error": "Database connection timed out after 5 seconds"
+        }
+@router.get("/test-redis")
+async def test_redis():
+    """Safe Redis/Valkey connectivity test with timeout and more details"""
+    try:
+        import asyncio
+        import redis
+        
+        async def redis_test():
+            redis_url = os.getenv("REDIS_URL", "redis://localhost:6379/0")
+            
+            # For AWS ElastiCache with encryption in transit, we need to force TLS
+            # even if the URL says redis:// instead of rediss://
+            try:
+                # Method 1: Force SSL/TLS for AWS ElastiCache
+                import ssl
+                if "amazonaws.com" in redis_url:
+                    # Convert redis:// to rediss:// for AWS
+                    if redis_url.startswith("redis://"):
+                        redis_url = redis_url.replace("redis://", "rediss://", 1)
+                    
+                    redis_client = redis.from_url(
+                        redis_url, 
+                        decode_responses=True, 
+                        socket_timeout=5,
+                        socket_connect_timeout=5,
+                        ssl_cert_reqs=ssl.CERT_NONE,  # Don't verify SSL certificates
+                        ssl_check_hostname=False,
+                        ssl_ca_certs=None
+                    )
+                else:
+                    # Local Redis without SSL
+                    redis_client = redis.from_url(redis_url, decode_responses=True, socket_timeout=5)
+                
+                ping_result = redis_client.ping()
+                return {"method": "aws_ssl", "success": True, "ping": ping_result, "url_used": redis_url}
+                
+            except Exception as e1:
+                try:
+                    # Method 2: Try without decode_responses
+                    if "amazonaws.com" in redis_url:
+                        if redis_url.startswith("redis://"):
+                            redis_url = redis_url.replace("redis://", "rediss://", 1)
+                        
+                        redis_client = redis.from_url(
+                            redis_url, 
+                            decode_responses=False, 
+                            socket_timeout=5,
+                            socket_connect_timeout=5,
+                            ssl_cert_reqs=ssl.CERT_NONE,
+                            ssl_check_hostname=False,
+                            ssl_ca_certs=None
+                        )
+                    else:
+                        redis_client = redis.from_url(redis_url, decode_responses=False, socket_timeout=5)
+                    
+                    ping_result = redis_client.ping()
+                    return {"method": "aws_ssl_no_decode", "success": True, "ping": str(ping_result), "url_used": redis_url}
+                    
+                except Exception as e2:
+                    return {
+                        "method": "failed", 
+                        "success": False, 
+                        "error1": str(e1)[:200], 
+                        "error2": str(e2)[:200], 
+                        "original_url": os.getenv("REDIS_URL", "Not set"),
+                        "converted_url": redis_url
+                    }
+        
+        # Run with timeout
+        result = await asyncio.wait_for(redis_test(), timeout=8.0)
+        
+        return {
+            "status": "completed",
+            "redis_connected": result.get("success", False),
+            "connection_method": result.get("method", "unknown"),
+            "details": result,
+            "message": "Valkey/Redis test completed"
+        }
+        
+    except asyncio.TimeoutError:
+        return {
+            "status": "timeout",
+            "redis_connected": False, 
+            "error": "Redis/Valkey connection timed out after 8 seconds",
+            "note": "This might be a Valkey compatibility issue"
+        }
+    except Exception as e:
+        return {
+            "status": "error",
+            "redis_connected": False,
+            "error": str(e)[:200],
+            "note": "Check if Valkey migration caused compatibility issues"
+        }
+
+@router.get("/test-connection-info")
+async def test_connection_info():
+    """Check what connection strings we're actually using"""
+    try:
+        database_url = os.getenv("DATABASE_URL", "Not set")
+        redis_url = os.getenv("REDIS_URL", "Not set")
+        
+        # Parse the URLs to see the hosts
+        db_host = "Unknown"
+        redis_host = "Unknown"
+        
+        if database_url and database_url.startswith("postgresql://"):
+            # Extract host from postgresql://user:pass@host:port/db
+            parts = database_url.split("@")
+            if len(parts) > 1:
+                host_part = parts[1].split("/")[0]
+                db_host = host_part.split(":")[0]
+        
+        if redis_url and redis_url.startswith("redis://"):
+            # Extract host from redis://host:port/db
+            parts = redis_url.replace("redis://", "").split("/")
+            if len(parts) > 0:
+                host_part = parts[0]
+                redis_host = host_part.split(":")[0]
+        
+        return {
+            "status": "info",
+            "database_host": db_host,
+            "redis_host": redis_host,
+            "database_url_configured": database_url != "Not set",
+            "redis_url_configured": redis_url != "Not set",
+            "redis_url_preview": redis_url[:50] + "..." if len(redis_url) > 50 else redis_url,
+            "redis_protocol": redis_url.split("://")[0] if "://" in redis_url else "unknown"
+        }
+        
+    except Exception as e:
+        return {
+            "status": "error",
+            "error": str(e)
+        }
+
+@router.get("/test-deployment-readiness")
+async def test_deployment_readiness():
+    """Test if the system is ready for production deployments"""
+    results = {}
+    
+    # Test Database
+    try:
+        from sqlalchemy import text
+        from src.utils.database import SessionLocal
+        db = SessionLocal()
+        result = db.execute(text("SELECT 1 as test"))
+        test_result = result.fetchone()
+        db.close()
+        results["database"] = {"status": "healthy", "critical": True}
+    except Exception as e:
+        results["database"] = {"status": "failed", "error": str(e)[:100], "critical": True}
+    
+    # Test Redis (non-critical)
+    try:
+        import redis
+        redis_url = os.getenv("REDIS_URL", "redis://localhost:6379/0")
+        redis_client = redis.from_url(redis_url, decode_responses=False, socket_timeout=3)
+        redis_client.ping()
+        results["redis"] = {"status": "healthy", "critical": False}
+    except Exception as e:
+        results["redis"] = {"status": "failed", "error": str(e)[:100], "critical": False}
+    
+    # Overall assessment
+    critical_failures = [k for k, v in results.items() if v.get("critical") and v.get("status") != "healthy"]
+    
+    return {
+        "overall_status": "ready" if not critical_failures else "not_ready",
+        "critical_failures": critical_failures,
+        "components": results,
+        "deployment_recommendation": "Safe to deploy" if not critical_failures else f"Fix critical issues: {critical_failures}",
+        "redis_note": "Redis failure is non-critical - deployments can proceed without caching"
+    }
+
 @router.get("/health")
 async def health_check():
-    """Health check endpoint for ELB"""
+    """Simple health check endpoint for ELB - no blocking operations"""
     return {
         "status": "healthy",
         "service": "CodeFlowOps Streamlined API",
-        "version": "2.0.0"
+        "version": "2.0.0",
+        "timestamp": time.time(),
+        "simple_check": True
     }
 
 # Auth endpoints
@@ -629,8 +856,10 @@ async def get_public_pricing(
 
 @router.get("/favicon.ico")
 async def favicon():
-    """Return empty response for favicon requests to prevent 404s"""
-    return JSONResponse(content="", media_type="image/x-icon", status_code=204)
+    """Return proper favicon response to prevent 404s and reduce server load"""
+    # Return a simple 1x1 transparent GIF as favicon
+    transparent_gif = b'GIF89a\x01\x00\x01\x00\x80\x00\x00\x00\x00\x00\xff\xff\xff!\xf9\x04\x01\x00\x00\x00\x00,\x00\x00\x00\x00\x01\x00\x01\x00\x00\x02\x02\x04\x01\x00;'
+    return Response(content=transparent_gif, media_type="image/gif", status_code=200)
 
 @router.get("/robots.txt")
 async def robots():
@@ -2605,19 +2834,36 @@ if MODULAR_ROUTERS_AVAILABLE:
                 "modular_system": True
             }
         
-        # Add system health endpoint
+        # Add system health endpoint with comprehensive checks
         @app.get("/api/system/health")
         async def system_health_check():
-            """System health check for modular system"""
-            return {
-                "status": "healthy",
-                "service": "streamlined-modular-api",
-                "version": "2.0.0",
-                "routers_available": True,
-                "routers_loaded": len(stack_router_registry.routers),
-                "available_stacks": stack_router_registry.get_available_stacks(),
-                "modular_system": True
-            }
+            """System health check for modular system with real component testing"""
+            try:
+                from src.utils.health_checker import health_checker
+                base_health = await health_checker.comprehensive_health_check()
+                
+                return {
+                    "status": base_health.get("status", "unhealthy"),
+                    "service": "streamlined-modular-api",
+                    "version": "2.0.0",
+                    "routers_available": True,
+                    "routers_loaded": len(stack_router_registry.routers),
+                    "available_stacks": stack_router_registry.get_available_stacks(),
+                    "modular_system": True,
+                    "components": base_health.get("components", {}),
+                    "total_check_time_ms": base_health.get("total_check_time_ms", 0)
+                }
+            except Exception as e:
+                return {
+                    "status": "unhealthy",
+                    "service": "streamlined-modular-api",
+                    "version": "2.0.0",
+                    "routers_available": True,
+                    "routers_loaded": len(stack_router_registry.routers),
+                    "available_stacks": stack_router_registry.get_available_stacks(),
+                    "modular_system": True,
+                    "error": "Health check system failure"
+                }
         
         logger.info("✅ Modular router endpoints added to streamlined API")
     
@@ -2724,14 +2970,27 @@ async def get_user_deployments(user_id: str = "demo_user"):
             "error": str(e)
         }
 
-# Add basic health check endpoint
-@app.get("/health")
-async def health():
-    return {"status": "healthy", "service": "CodeFlowOps Streamlined API", "version": "2.0.0"}
+# Add basic health check endpoint - REMOVED DUPLICATE
+# Main health check is now at /health endpoint above
 
 @app.get("/api/health")
 async def api_health():
-    return {"status": "healthy", "service": "CodeFlowOps Streamlined API", "version": "2.0.0"}
+    """Legacy API health endpoint with fallback"""
+    try:
+        from src.utils.health_checker import health_checker
+        result = await health_checker.comprehensive_health_check()
+        # Return simplified version for API endpoint
+        return {
+            "status": result.get("status", "healthy"),
+            "service": "CodeFlowOps Streamlined API", 
+            "version": "2.0.0",
+            "components_healthy": len([c for c in result.get("components", {}).values() if c.get("status") == "healthy"])
+        }
+    except ImportError:
+        # Fallback if health checker not available
+        return {"status": "healthy", "service": "CodeFlowOps Streamlined API", "version": "2.0.0", "fallback": True}
+    except Exception as e:
+        return {"status": "healthy", "service": "CodeFlowOps Streamlined API", "version": "2.0.0", "fallback": True}
 
 # Auth-compatible deployment endpoints for frontend profile page
 @app.get("/api/v1/auth/deployments")

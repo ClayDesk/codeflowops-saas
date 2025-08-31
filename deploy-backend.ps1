@@ -76,7 +76,8 @@ if ($LASTEXITCODE -eq 0) {
     exit 1
 }
 
-# Clean up temporary S3 file
-aws s3 rm "s3://$bucketName/$versionLabel.zip" --region $Region 2>$null
+# Clean up temporary S3 file (delayed to allow for configuration updates)
+Write-Host "Keeping S3 file for potential configuration updates..." -ForegroundColor Gray
+Write-Host "To manually clean up later: aws s3 rm s3://$bucketName/$versionLabel.zip" -ForegroundColor Gray
 
-Write-Host "Cleanup completed." -ForegroundColor Gray
+Write-Host "Deployment completed. S3 file preserved for configuration updates." -ForegroundColor Gray

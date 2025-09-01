@@ -81,8 +81,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const isAuthenticated = !!user
 
-  // API base URL
-  const API_BASE = process.env.NEXT_PUBLIC_API_URL || process.env.REACT_APP_API_URL || 'https://api.codeflowops.com'
+  // API base URL - using direct EB URL to bypass routing issues
+  const API_BASE = process.env.NEXT_PUBLIC_API_URL || process.env.REACT_APP_API_URL || 'http://codeflowops.us-east-1.elasticbeanstalk.com'
 
   // Storage keys
   const ACCESS_TOKEN_KEY = 'codeflowops_access_token'

@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>GitHub OAuth Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; }
+        button { 
+            padding: 10px 20px; 
+            background: #24292e; 
+            color: white; 
+            border: none; 
+            border-radius: 5px; 
+            cursor: pointer;
+            font-size: 16px;
+        }
+        button:hover { background: #444; }
+        .info { 
+            background: #f6f8fa; 
+            padding: 15px; 
+            border-radius: 5px; 
+            margin: 10px 0;
+        }
+    </style>
+</head>
+<body>
+    <h1>GitHub OAuth Test</h1>
+    
+    <div class="info">
+        <h3>Configuration:</h3>
+        <p><strong>OAuth Start:</strong> http://codeflowops.us-east-1.elasticbeanstalk.com/api/v1/auth/github</p>
+        <p><strong>Callback URL:</strong> http://codeflowops.us-east-1.elasticbeanstalk.com/api/v1/auth/status</p>
+        <p><strong>Client ID:</strong> Ov23li4xEOeDgSAMz2rg</p>
+    </div>
+
+    <button onclick="startOAuth()">Login with GitHub</button>
+    
+    <div id="result" style="margin-top: 20px;"></div>
+
+    <script>
+        function startOAuth() {
+            window.location.href = 'http://codeflowops.us-east-1.elasticbeanstalk.com/api/v1/auth/github';
+        }
+
+        // Check if we came back from OAuth
+        const urlParams = new URLSearchParams(window.location.search);
+        if (urlParams.has('authenticated')) {
+            document.getElementById('result').innerHTML = `
+                <div style="background: #d4edda; padding: 10px; border-radius: 5px; color: #155724;">
+                    ✅ OAuth Success! Authentication: ${urlParams.get('authenticated')}
+                </div>
+            `;
+        } else if (urlParams.has('error')) {
+            document.getElementById('result').innerHTML = `
+                <div style="background: #f8d7da; padding: 10px; border-radius: 5px; color: #721c24;">
+                    ❌ OAuth Error: ${urlParams.get('error')}
+                </div>
+            `;
+        }
+    </script>
+</body>
+</html>

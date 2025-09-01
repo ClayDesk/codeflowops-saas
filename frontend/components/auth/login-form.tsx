@@ -1,7 +1,7 @@
 'use client'
 
-import { useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { useState, useEffect } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { useAuth } from '@/lib/auth-context'
 import { Button } from '@/components/ui/button'
@@ -22,8 +22,33 @@ export function LoginForm({ redirectTo = '/deploy' }: LoginFormProps) {
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState('')
 
-  const { login } = useAuth()
+  const { login, isAuthenticated, loading } = useAuth()
   const router = useRouter()
+  const searchParams = useSearchParams()
+
+  // Check for OAuth success and redirect
+  useEffect(() => {
+    const authenticated = searchParams.get('authenticated')
+    if (authenticated === 'true' && !loading) {
+      // Give the auth context a moment to update, then redirect
+      setTimeout(() => {
+        if (isAuthenticated) {
+          router.push(redirectTo)
+        } else {
+          // If still not authenticated after OAuth success, force a page reload
+          // to trigger fresh auth check
+          window.location.reload()
+        }
+      }, 1000)
+    }
+  }, [searchParams, isAuthenticated, loading, router, redirectTo])
+
+  // Auto-redirect if already authenticated
+  useEffect(() => {
+    if (isAuthenticated && !loading) {
+      router.push(redirectTo)
+    }
+  }, [isAuthenticated, loading, router, redirectTo])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -147,7 +172,7 @@ export function LoginForm({ redirectTo = '/deploy' }: LoginFormProps) {
                 variant="outline"
                 className="w-full"
                 onClick={() => {
-                  const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'https://api.codeflowops.com'
+                  const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://codeflowops.us-east-1.elasticbeanstalk.com'
                   window.location.href = `${API_BASE}/api/v1/auth/github`
                 }}
                 disabled={isLoading}

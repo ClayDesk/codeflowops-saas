@@ -16,8 +16,8 @@ export function GitHubLogin({ onSuccess, className }: GitHubLoginProps) {
   const handleGitHubLogin = () => {
     setLoading(true)
     
-    // Redirect to GitHub OAuth
-    const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'https://api.codeflowops.com'
+    // Redirect to GitHub OAuth - using direct EB URL to bypass routing issues
+    const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://codeflowops.us-east-1.elasticbeanstalk.com'
     window.location.href = `${API_BASE}/api/v1/auth/github`
   }
 

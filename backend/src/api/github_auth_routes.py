@@ -48,6 +48,19 @@ class GitHubLinkRequest(BaseModel):
     github_access_token: str = Field(..., description="GitHub access token")
 
 
+@router.get("/status")
+async def auth_status():
+    """
+    Get authentication status
+    Simple endpoint to check if the auth service is available
+    """
+    return {
+        "authenticated": False,
+        "message": "Authentication required",
+        "login_url": "https://api.codeflowops.com/api/v1/auth/github/authorize"
+    }
+
+
 @router.get("/github/authorize", response_model=GitHubAuthUrlResponse)
 async def get_github_auth_url(
     redirect_uri: str = Query(..., description="Frontend callback URL"),
@@ -111,7 +124,7 @@ async def github_oauth_callback(
             # Redirect to frontend with error
             frontend_url = os.getenv("FRONTEND_URL", "http://localhost:3000")
             return RedirectResponse(
-                url=f"{frontend_url}/auth/callback?error={error}&error_description={error_description}",
+                url=f"{frontend_url}/login?error={error}&error_description={error_description}",
                 status_code=302
             )
         
@@ -145,7 +158,7 @@ async def github_oauth_callback(
             # Redirect to frontend with error
             frontend_url = frontend_redirect_uri or os.getenv("FRONTEND_URL", "http://localhost:3000")
             return RedirectResponse(
-                url=f"{frontend_url}/auth/callback?error=auth_failed&error_description={auth_result.error_message}",
+                url=f"{frontend_url}/login?error=auth_failed&error_description={auth_result.error_message}",
                 status_code=302
             )
         
@@ -156,9 +169,9 @@ async def github_oauth_callback(
         success_token = str(uuid.uuid4())
         
         # Store the auth result temporarily (in production, use Redis or similar)
-        # For now, we'll redirect with user info
+        # For now, we'll redirect directly to deploy page with user info
         redirect_url = (
-            f"{frontend_url}/auth/callback?"
+            f"{frontend_url}/deploy?"
             f"success=true&"
             f"user_id={auth_result.user_id}&"
             f"email={auth_result.email}&"
@@ -179,7 +192,7 @@ async def github_oauth_callback(
         # Redirect to frontend with error
         frontend_url = os.getenv("FRONTEND_URL", "http://localhost:3000")
         return RedirectResponse(
-            url=f"{frontend_url}/auth/callback?error=server_error&error_description=Internal server error",
+            url=f"{frontend_url}/login?error=server_error&error_description=Internal server error",
             status_code=302
         )
 
@@ -323,3 +336,16 @@ async def link_github_to_existing_user(request: GitHubLinkRequest):
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to link GitHub account: {str(e)}"
         )
+
+
+@router.get("/github/user")
+async def get_github_user(request: Request):
+    """
+    Get current GitHub user info (placeholder endpoint)
+    This endpoint is called by the frontend but we don't have session management yet
+    """
+    # For now, return 401 to indicate user needs to authenticate
+    raise HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="User not authenticated. Please login with GitHub."
+    )

@@ -68,15 +68,13 @@ class CognitoOAuthProvider(AuthProvider):
         try:
             username = oauth_result.email or f"{provider}_{oauth_result.user_id}"
             
-            # Prepare user attributes
+            # Prepare user attributes - using only standard attributes to avoid schema issues
             user_attributes = [
                 {'Name': 'email', 'Value': oauth_result.email or f"{provider}@{oauth_result.user_id}.oauth"},
                 {'Name': 'email_verified', 'Value': 'true'},
-                {'Name': 'name', 'Value': oauth_result.full_name or oauth_result.username or username},
-                {'Name': f'custom:oauth_{provider}_id', 'Value': str(oauth_result.user_id)},
-                {'Name': f'custom:oauth_{provider}_username', 'Value': oauth_result.username or username},
-                {'Name': 'custom:auth_provider', 'Value': f'oauth_{provider}'}
-                # Removed custom:oauth_profile to avoid schema validation errors
+                {'Name': 'name', 'Value': oauth_result.full_name or oauth_result.username or username}
+                # Removed all custom attributes to avoid schema validation errors
+                # Custom attributes need to be pre-configured in Cognito User Pool
             ]
             
             # Generate a secure random password that user will never use
@@ -212,10 +210,8 @@ class CognitoOAuthProvider(AuthProvider):
         """Update existing OAuth user with new data"""
         try:
             user_attributes = [
-                {'Name': f'custom:oauth_{provider}_id', 'Value': str(oauth_result.user_id)},
-                {'Name': f'custom:oauth_{provider}_username', 'Value': oauth_result.username or username},
-                {'Name': 'custom:auth_provider', 'Value': f'oauth_{provider}'}
-                # Removed custom:oauth_profile to avoid schema validation errors
+                # Using only standard attributes to avoid schema validation errors
+                # Custom attributes need to be pre-configured in Cognito User Pool
             ]
             
             # Update name if provided
@@ -336,18 +332,23 @@ class CognitoOAuthProvider(AuthProvider):
             )
             
             user_attributes = {attr['Name']: attr['Value'] for attr in user_response['UserAttributes']}
-            provider = user_attributes.get('custom:auth_provider', '').replace('oauth_', '')
             
-            # Create mock oauth result for token generation
+            # Since we're not storing custom attributes, we'll use standard attributes
+            # and infer the provider from the email domain or username pattern
+            email = user_attributes.get('email', '')
+            username_val = user_attributes.get('preferred_username') or user_attributes.get('name', '')
+            
+            # Create oauth result using available standard attributes
             oauth_result = AuthResult(
                 success=True,
-                user_id=user_attributes.get(f'custom:oauth_{provider}_id'),
-                email=user_attributes.get('email'),
-                username=user_attributes.get(f'custom:oauth_{provider}_username'),
+                user_id=email,  # Use email as user_id since we don't have custom oauth_id
+                email=email,
+                username=username_val,
                 full_name=user_attributes.get('name')
             )
             
-            return await self._generate_tokens_for_oauth_user(username, provider, oauth_result)
+            # Use 'github' as default provider since that's what we're implementing
+            return await self._generate_tokens_for_oauth_user(username, 'github', oauth_result)
             
         except jwt.ExpiredSignatureError:
             return AuthResult(

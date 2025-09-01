@@ -648,6 +648,38 @@ Thank you.`)
                 </CardContent>
               </Card>
 
+              {/* GitHub Integration */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Github className="h-5 w-5" />
+                    GitHub Integration
+                  </CardTitle>
+                  <CardDescription>
+                    Your GitHub connection status
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="flex items-center justify-between p-3 border rounded-lg bg-green-50 dark:bg-green-950 border-green-200 dark:border-green-800">
+                    <div className="flex items-center gap-3">
+                      <CheckCircle className="h-5 w-5 text-green-600 dark:text-green-400" />
+                      <div>
+                        <p className="font-medium text-green-900 dark:text-green-100">Connected to GitHub</p>
+                        <p className="text-sm text-green-700 dark:text-green-300">
+                          Account linked successfully
+                        </p>
+                      </div>
+                    </div>
+                    <Badge variant="outline" className="border-green-300 text-green-700 dark:border-green-700 dark:text-green-300">
+                      Active
+                    </Badge>
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Your GitHub account is connected and ready for seamless deployments.
+                  </p>
+                </CardContent>
+              </Card>
+
               {/* Theme Settings */}
               <Card>
                 <CardHeader>

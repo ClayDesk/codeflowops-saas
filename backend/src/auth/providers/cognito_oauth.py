@@ -75,8 +75,8 @@ class CognitoOAuthProvider(AuthProvider):
                 {'Name': 'name', 'Value': oauth_result.full_name or oauth_result.username or username},
                 {'Name': f'custom:oauth_{provider}_id', 'Value': str(oauth_result.user_id)},
                 {'Name': f'custom:oauth_{provider}_username', 'Value': oauth_result.username or username},
-                {'Name': 'custom:auth_provider', 'Value': f'oauth_{provider}'},
-                {'Name': 'custom:oauth_profile', 'Value': json.dumps(oauth_result.metadata.get('oauth_user_info', {}))[:2000]}
+                {'Name': 'custom:auth_provider', 'Value': f'oauth_{provider}'}
+                # Removed custom:oauth_profile to avoid schema validation errors
             ]
             
             # Generate a secure random password that user will never use
@@ -214,8 +214,8 @@ class CognitoOAuthProvider(AuthProvider):
             user_attributes = [
                 {'Name': f'custom:oauth_{provider}_id', 'Value': str(oauth_result.user_id)},
                 {'Name': f'custom:oauth_{provider}_username', 'Value': oauth_result.username or username},
-                {'Name': 'custom:auth_provider', 'Value': f'oauth_{provider}'},
-                {'Name': 'custom:oauth_profile', 'Value': json.dumps(oauth_result.metadata.get('oauth_user_info', {}))[:2000]}
+                {'Name': 'custom:auth_provider', 'Value': f'oauth_{provider}'}
+                # Removed custom:oauth_profile to avoid schema validation errors
             ]
             
             # Update name if provided

@@ -2639,6 +2639,16 @@ except ImportError as e:
 # GitHub authentication routes removed
 GITHUB_AUTH_AVAILABLE = False
 
+# Add GitHub OAuth authentication routes
+try:
+    from src.api.github_auth_routes import router as github_auth_router
+    app.include_router(github_auth_router)
+    logger.info("✅ GitHub OAuth authentication routes loaded successfully")
+    GITHUB_AUTH_AVAILABLE = True
+except ImportError as e:
+    logger.warning(f"⚠️ GitHub OAuth routes not available: {e}")
+    GITHUB_AUTH_AVAILABLE = False
+
 # Add simple payment routes (Stripe integration)
 try:
     from src.routes.payment_routes import router as payment_router

@@ -1,13 +1,41 @@
 # PowerShell script to deploy to Elastic Beanstalk
-# Run: .\deploy-backend.ps1
+# 
+# Usage:
+#   .\deploy-backend.ps1                    # Full deployment with config setup
+#   .\deploy-backend.ps1 -SkipConfig       # Skip AWS Parameter Store setup (faster)
+#
+# The -SkipConfig flag skips the AWS Parameter Store configuration step.
+# Use this for subsequent deployments when your configuration hasn't changed.
+# Only run the full deployment (without -SkipConfig) when:
+# - First time deployment
+# - GitHub OAuth credentials change
+# - Environment URLs change
+# - Any other configuration parameters change
 
 param(
     [string]$ApplicationName = "codeflowops-backend",
     [string]$EnvironmentName = "codeflowops-backend-env",
-    [string]$Region = "us-east-1"
+    [string]$Region = "us-east-1",
+    [switch]$SkipConfig = $false
 )
 
 Write-Host "Deploying CodeFlowOps Backend to Elastic Beanstalk..." -ForegroundColor Green
+
+# Step 0: Setup AWS Parameter Store configuration (optional)
+if (-not $SkipConfig) {
+    Write-Host "Setting up AWS Parameter Store configuration..." -ForegroundColor Yellow
+    Push-Location backend
+    python pre_deploy_config.py
+    $configResult = $LASTEXITCODE
+    Pop-Location
+
+    if ($configResult -ne 0) {
+        Write-Error "AWS configuration setup failed!"
+        exit 1
+    }
+} else {
+    Write-Host "Skipping AWS Parameter Store configuration (using existing parameters)..." -ForegroundColor Cyan
+}
 
 # Step 1: Create deployment package
 Write-Host "Creating deployment package..." -ForegroundColor Yellow

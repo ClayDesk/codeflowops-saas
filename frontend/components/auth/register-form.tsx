@@ -444,9 +444,26 @@ export function RegisterForm({ redirectTo = '/deploy' }: RegisterFormProps) {
               type="button"
               variant="outline"
               className="w-full"
-              onClick={() => {
-                const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'https://api.codeflowops.com'
-                window.location.href = `${API_BASE}/api/v1/auth/github`
+              onClick={async () => {
+                try {
+                  const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'https://api.codeflowops.com'
+                  const redirectUri = `${window.location.origin}/auth/callback`
+                  
+                  // Get GitHub authorization URL from backend
+                  const response = await fetch(
+                    `${API_BASE}/api/v1/auth/github/authorize?redirect_uri=${encodeURIComponent(redirectUri)}`
+                  )
+                  const data = await response.json()
+                  
+                  if (data.authorization_url) {
+                    // Redirect to GitHub OAuth authorization page
+                    window.location.href = data.authorization_url
+                  } else {
+                    console.error('Failed to get GitHub authorization URL')
+                  }
+                } catch (error) {
+                  console.error('GitHub login failed:', error)
+                }
               }}
               disabled={isLoading}
             >

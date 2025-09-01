@@ -328,8 +328,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (statusResponse.ok) {
           const statusData = await statusResponse.json()
           if (!statusData.authenticated) {
-            // User not authenticated, redirect to GitHub OAuth
-            window.location.href = statusData.login_url || `${API_BASE}/api/v1/auth/github`
+            // User not authenticated, get GitHub OAuth authorization URL
+            try {
+              const redirectUri = `${window.location.origin}/auth/callback`
+              const authResponse = await fetch(
+                `${API_BASE}/api/v1/auth/github/authorize?redirect_uri=${encodeURIComponent(redirectUri)}`
+              )
+              const authData = await authResponse.json()
+              
+              if (authData.authorization_url) {
+                window.location.href = authData.authorization_url
+              } else {
+                window.location.href = statusData.login_url || `${API_BASE}/api/v1/auth/github`
+              }
+            } catch (error) {
+              console.error('Failed to get GitHub authorization URL:', error)
+              window.location.href = statusData.login_url || `${API_BASE}/api/v1/auth/github`
+            }
             return
           }
         }

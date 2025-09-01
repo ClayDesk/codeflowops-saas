@@ -1037,20 +1037,8 @@ async def get_quota_status(request: Request, user_id: Optional[str] = None, plan
                 }
             }
         
-        # Try to get user info from GitHub OAuth session
+        # GitHub OAuth removed - using default user ID
         github_user_data = None
-        if GITHUB_AUTH_AVAILABLE:
-            try:
-                from src.api.github_auth_routes import get_session
-                session_token = request.cookies.get("codeflowops_session")
-                if session_token:
-                    session_data = get_session(session_token)
-                    if session_data:
-                        github_user_data = session_data.get("user")
-                        user_id = github_user_data.get("id", user_id)
-                        logger.info(f"📊 Getting quota for GitHub user: {github_user_data.get('login', 'unknown')}")
-            except ImportError:
-                logger.warning("Could not import get_session from GitHub auth routes")
         
         # Use provided parameters or defaults
         user_id = user_id or "demo_user"
@@ -2648,15 +2636,8 @@ except ImportError as e:
     async def register_fallback():
         raise HTTPException(status_code=503, detail="Authentication service temporarily unavailable")
 
-# Add GitHub authentication routes
-try:
-    from src.api.github_auth_routes import router as github_auth_router
-    app.include_router(github_auth_router, prefix="/api/v1")
-    GITHUB_AUTH_AVAILABLE = True
-    logger.info("✅ GitHub authentication routes loaded successfully")
-except ImportError as e:
-    logger.warning(f"⚠️ GitHub auth routes not available: {e}")
-    GITHUB_AUTH_AVAILABLE = False
+# GitHub authentication routes removed
+GITHUB_AUTH_AVAILABLE = False
 
 # Add simple payment routes (Stripe integration)
 try:

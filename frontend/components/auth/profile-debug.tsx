@@ -6,7 +6,6 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { User, CheckCircle, AlertTriangle, RefreshCw, LogOut } from 'lucide-react'
-import { GitHubLogin } from './github-login'
 
 interface ProfileDebugProps {
   showActions?: boolean
@@ -36,8 +35,6 @@ export function ProfileDebug({ showActions = true, className }: ProfileDebugProp
             You need to sign in to access subscription features and trial management.
           </AlertDescription>
         </Alert>
-        
-        {showActions && <GitHubLogin />}
       </div>
     )
   }

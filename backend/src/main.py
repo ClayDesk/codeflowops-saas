@@ -287,26 +287,7 @@ if AUTH_AVAILABLE:
         tags=["Authentication"]
     )
 
-# Include GitHub auth routes
-try:
-    from .api.github_auth_routes import router as github_auth_router
-    app.include_router(
-        github_auth_router,
-        prefix="/api/v1",
-        tags=["GitHub Authentication"]
-    )
-    logger.info("✅ GitHub authentication routes loaded successfully")
-except ImportError:
-    try:
-        from api.github_auth_routes import router as github_auth_router
-        app.include_router(
-            github_auth_router,
-            prefix="/api/v1",
-            tags=["GitHub Authentication"]
-        )
-        logger.info("✅ GitHub authentication routes loaded successfully (fallback)")
-    except ImportError:
-        logger.warning("⚠️ GitHub auth routes not available")
+# GitHub auth routes removed
 
 if LEGACY_ROUTES_AVAILABLE:
     if health_routes and hasattr(health_routes, 'router'):

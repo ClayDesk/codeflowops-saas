@@ -66,11 +66,15 @@ class CognitoOAuthProvider(AuthProvider):
     async def create_oauth_user(self, oauth_result: AuthResult, provider: str) -> AuthResult:
         """Create a new Cognito user from OAuth data"""
         try:
-            username = oauth_result.email or f"{provider}_{oauth_result.user_id}"
+            # IMPORTANT: Username MUST be email format for Cognito User Pool
+            username = oauth_result.email
+            
+            if not username or '@' not in username:
+                raise ValueError(f"Invalid email for OAuth user: {username}")
             
             # Prepare user attributes - using only standard attributes to avoid schema issues
             user_attributes = [
-                {'Name': 'email', 'Value': oauth_result.email or f"{provider}@{oauth_result.user_id}.oauth"},
+                {'Name': 'email', 'Value': oauth_result.email},
                 {'Name': 'email_verified', 'Value': 'true'},
                 {'Name': 'name', 'Value': oauth_result.full_name or oauth_result.username or username}
                 # Removed all custom attributes to avoid schema validation errors

@@ -11,6 +11,12 @@ import logging
 import uuid
 import os
 import asyncio
+import hmac
+import hashlib
+import base64
+import json
+import jwt  # PyJWT
+from datetime import datetime, timezone, timedelta
 from urllib.parse import urlencode, urlparse
 import time
 from ..services.oauth_cognito_integration import oauth_cognito_service
@@ -18,6 +24,57 @@ from ..config.env import get_settings
 
 logger = logging.getLogger(__name__)
 settings = get_settings()
+
+# Stateless JWT secrets
+SESSION_TOKEN_SECRET = os.getenv("SESSION_TOKEN_SECRET", "dev-session-secret-change-me")
+STATE_SIGNING_SECRET = os.getenv("STATE_SIGNING_SECRET", "dev-state-secret-change-me")
+
+def b64url(data: bytes) -> str:
+    return base64.urlsafe_b64encode(data).rstrip(b"=").decode()
+
+def b64url_str(s: str) -> str:
+    return b64url(s.encode())
+
+def sign_state(csrf: str, frontend_url: str, iat: int) -> str:
+    """Return state= csrf|frontend|iat|sig  with HMAC-SHA256 signature (stateless CSRF)."""
+    msg = f"{csrf}|{frontend_url}|{iat}"
+    sig = hmac.new(STATE_SIGNING_SECRET.encode(), msg.encode(), hashlib.sha256).digest()
+    return f"{csrf}|{frontend_url}|{iat}|{b64url(sig)}"
+
+def verify_state(state: str, max_age_sec: int = 600) -> tuple[str, str]:
+    """Return (csrf, frontend_url) if valid; raise ValueError otherwise."""
+    parts = state.split("|", 3)
+    if len(parts) != 4:
+        raise ValueError("malformed state")
+    csrf, frontend_url, iat_str, sig_b64 = parts
+    try:
+        iat = int(iat_str)
+    except:
+        raise ValueError("bad timestamp")
+    if int(time.time()) - iat > max_age_sec:
+        raise ValueError("state expired")
+    expected = hmac.new(STATE_SIGNING_SECRET.encode(),
+                        f"{csrf}|{frontend_url}|{iat}".encode(),
+                        hashlib.sha256).digest()
+    if not hmac.compare_digest(expected, base64.urlsafe_b64decode(sig_b64 + "==")):
+        raise ValueError("bad signature")
+    return csrf, frontend_url
+
+def make_login_jwt(code: str, csrf: str, ttl_sec: int = 300) -> str:
+    now = int(time.time())
+    payload = {
+        "typ": "login",
+        "iss": "codeflowops-auth",
+        "iat": now,
+        "exp": now + ttl_sec,
+        "jti": str(uuid.uuid4()),
+        "code": code,
+        "csrf": csrf,
+    }
+    return jwt.encode(payload, SESSION_TOKEN_SECRET, algorithm="HS256")
+
+def parse_login_jwt(token: str) -> dict:
+    return jwt.decode(token, SESSION_TOKEN_SECRET, algorithms=["HS256"], options={"require": ["exp","iat","jti"]})
 
 ALLOWED_FRONTENDS = {
     "https://www.codeflowops.com",
@@ -263,155 +320,103 @@ async def get_github_auth_url(
     state: Optional[str] = Query(None, description="State parameter for CSRF protection")
 ):
     """
-    Get GitHub OAuth authorization URL
+    Get GitHub OAuth authorization URL with stateless state
     """
     try:
-        # Generate state if not provided
-        if not state:
-            state = str(uuid.uuid4())
-        
-        # The redirect_uri should point to this backend callback, not frontend
+        # Stateless CSRF: signed state encapsulating frontend URL + timestamp
+        csrf = state or str(uuid.uuid4())
+        iat = int(time.time())
+        enhanced_state = sign_state(csrf, redirect_uri, iat)
+
         backend_redirect_uri = "https://api.codeflowops.com/api/v1/auth/github"
-        
-        # Get authorization URL
         auth_url = await oauth_cognito_service.get_oauth_authorization_url(
-            provider="github",
-            redirect_uri=backend_redirect_uri,
-            state=state
+            provider="github", redirect_uri=backend_redirect_uri, state=enhanced_state
         )
-        
-        # Store the original frontend redirect URI in session/cache if needed
-        # For now, we'll pass it as part of the state
-        enhanced_state = f"{state}|{redirect_uri}"
-        
-        # Replace the state in URL with enhanced state
-        auth_url = auth_url.replace(f"state={state}", f"state={enhanced_state}")
-        
-        return GitHubAuthUrlResponse(
-            authorization_url=auth_url,
-            state=enhanced_state
-        )
-        
+        return GitHubAuthUrlResponse(authorization_url=auth_url, state=enhanced_state)
     except Exception as e:
-        logger.error(f"Error generating GitHub auth URL: {str(e)}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to generate authorization URL: {str(e)}"
-        )
+        logger.exception("Error generating GitHub auth URL")
+        raise HTTPException(status_code=500, detail=f"Failed to generate authorization URL: {e}")
 
 
 @router.get("/github")
 async def github_oauth_callback(
-    code: Optional[str] = Query(None, description="Authorization code from GitHub"),
-    state: Optional[str] = Query(None, description="State parameter"),
-    error: Optional[str] = Query(None, description="Error from GitHub"),
-    error_description: Optional[str] = Query(None, description="Error description from GitHub")
+    code: Optional[str] = Query(None),
+    state: Optional[str] = Query(None),
+    error: Optional[str] = Query(None),
+    error_description: Optional[str] = Query(None)
 ):
-    """Handle GitHub OAuth callback with immediate redirect to prevent timeouts"""
-    if error:
-        fe = sanitize_frontend_url(settings.FRONTEND_URL)
-        return RedirectResponse(
-            url=f"{fe}/login?error={error}&error_description={error_description}",
-            status_code=302
-        )
-    if not code:
-        raise HTTPException(status_code=400, detail="Authorization code is required")
+    """Handle GitHub OAuth callback with stateless JWT"""
+    try:
+        if error:
+            fe = sanitize_frontend_url(settings.FRONTEND_URL)
+            return RedirectResponse(url=f"{fe}/login?error={error}&error_description={error_description}", status_code=302)
+        if not code or not state:
+            raise HTTPException(status_code=400, detail="Code and state are required")
 
-    # Pull frontend URL (right side of '|'); ignore the Turbo warning from GitHub
-    frontend_redirect_uri = None
-    csrf = None
-    if state and "|" in state:
-        csrf, frontend_redirect_uri = state.split("|", 1)
-    else:
-        csrf = state
-
-    # 1) Create short-lived token; mark as pending FAST (no slow awaits)
-    login_token = str(uuid.uuid4())
-    await store_login_token_fast(login_token, {"status": "pending"})
-
-    # 2) Finalize in background (GitHub exchange + Cognito user/tokens)
-    async def finalize():
+        # Validate stateless state
         try:
-            backend_redirect_uri = "https://api.codeflowops.com/api/v1/auth/github"
-            auth_result = await oauth_cognito_service.authenticate_with_oauth_and_store_in_cognito(
-                provider="github", code=code, redirect_uri=backend_redirect_uri
-            )
-            if auth_result and auth_result.success:
-                await store_login_token_fast(login_token, {
-                    "status": "ready",
-                    "user_id": auth_result.user_id or "",
-                    "email": auth_result.email or "",
-                    "username": auth_result.username or "",
-                    "full_name": auth_result.full_name or "",
-                    "access_token": auth_result.access_token or "",
-                    "refresh_token": auth_result.refresh_token or "",
-                    "expires_in": str(auth_result.expires_in or 0),
-                    "cognito_integrated": "true",
-                })
-            else:
-                await store_login_token_fast(login_token, {
-                    "status": "error",
-                    "message": getattr(auth_result, "error_message", None) or "Auth failed",
-                })
-        except Exception as e:
-            await store_login_token_fast(login_token, {"status": "error", "message": str(e)})
+            csrf, frontend_redirect_uri = verify_state(state)
+        except Exception as ex:
+            logger.warning(f"Invalid state: {ex}")
+            raise HTTPException(status_code=400, detail="Invalid state")
 
-    asyncio.create_task(finalize())
+        # Build short-lived JWT login_token carrying the GitHub code
+        login_token = make_login_jwt(code=code, csrf=csrf, ttl_sec=300)
 
-    # 3) Redirect immediately to the actual static file (no Amplify rules required)
-    fe = sanitize_frontend_url(frontend_redirect_uri or settings.FRONTEND_URL)
-    query = {"success": "true", "login_token": login_token, "provider": "github"}
-    return RedirectResponse(url=build_frontend_callback_url(fe, query), status_code=302)
+        fe = sanitize_frontend_url(frontend_redirect_uri or settings.FRONTEND_URL)
+        query = {"success": "true", "login_token": login_token, "provider": "github"}
+        return RedirectResponse(url=build_frontend_callback_url(fe, query), status_code=302)
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.exception("GitHub OAuth callback error")
+        fe = sanitize_frontend_url(settings.FRONTEND_URL)
+        return RedirectResponse(url=f"{fe}/login?error=server_error&error_description=Internal server error", status_code=302)
 
+
+class LoginTokenRequest(BaseModel):
+    token: str
 
 @router.post("/session/consume")
 async def consume_login_token(body: LoginTokenRequest):
-    """Exchange login token for real credentials with polling support"""
-    payload = await get_login_token(body.token)
-    if not payload:
-        return JSONResponse({"success": False, "message": "Invalid or expired login token"}, status_code=400)
+    """Exchange JWT login token for real credentials"""
+    try:
+        claims = parse_login_jwt(body.token)  # verifies signature + exp
+        code = claims["code"]
+        backend_redirect_uri = "https://api.codeflowops.com/api/v1/auth/github"
 
-    status = payload.get("status", "ready")
-    if status == "pending":
-        return JSONResponse({"success": False, "pending": True, "message": "Finalizing"}, status_code=202)
+        # Exchange code now (stateless)
+        auth_result = await oauth_cognito_service.authenticate_with_oauth_and_store_in_cognito(
+            provider="github",
+            code=code,
+            redirect_uri=backend_redirect_uri
+        )
+        if not auth_result or not auth_result.success:
+            msg = getattr(auth_result, "error_message", None) or "GitHub authentication failed"
+            return JSONResponse({"success": False, "message": msg}, status_code=400)
 
-    # success or error -> pop once
-    payload = await pop_login_token(body.token) or payload
-    if payload.get("status") == "error":
-        return JSONResponse({"success": False, "message": payload.get("message", "Auth failed")}, status_code=400)
+        return JSONResponse({
+            "success": True,
+            "message": "GitHub authentication successful",
+            "user": {
+                "user_id": auth_result.user_id,
+                "email": auth_result.email,
+                "username": auth_result.username,
+                "full_name": auth_result.full_name
+            },
+            "access_token": auth_result.access_token,
+            "refresh_token": auth_result.refresh_token,
+            "expires_in": auth_result.expires_in,
+            "cognito_integrated": True
+        }, status_code=200)
 
-    return JSONResponse({
-        "success": True,
-        "message": "Session established",
-        "user": {
-            "user_id": payload.get("user_id"),
-            "email": payload.get("email"),
-            "username": payload.get("username"),
-            "full_name": payload.get("full_name")
-        },
-        "access_token": payload.get("access_token"),
-        "refresh_token": payload.get("refresh_token"),
-        "expires_in": int(payload.get("expires_in") or 0),
-        "cognito_integrated": (payload.get("cognito_integrated") == "true")
-    }, status_code=200)
-
-    if status == "error":
-        return JSONResponse({"success": False, "message": payload.get("message", "Auth failed")}, status_code=400)
-
-    return JSONResponse({
-        "success": True,
-        "message": "Session established",
-        "user": {
-            "user_id": payload.get("user_id"),
-            "email": payload.get("email"),
-            "username": payload.get("username"),
-            "full_name": payload.get("full_name")
-        },
-        "access_token": payload.get("access_token"),
-        "refresh_token": payload.get("refresh_token"),
-        "expires_in": int(payload.get("expires_in") or 0),
-        "cognito_integrated": (payload.get("cognito_integrated") == "true")
-    }, status_code=200)
+    except jwt.ExpiredSignatureError:
+        return JSONResponse({"success": False, "message": "Login link expired. Please try again."}, status_code=400)
+    except jwt.InvalidTokenError:
+        return JSONResponse({"success": False, "message": "Invalid login token."}, status_code=400)
+    except Exception as e:
+        logger.exception("Session consume error")
+        return JSONResponse({"success": False, "message": "Server error finalizing login."}, status_code=500)
 
 
 @router.post("/github/exchange", response_model=GitHubOAuthResponse)

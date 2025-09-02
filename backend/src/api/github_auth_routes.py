@@ -3,7 +3,7 @@ GitHub OAuth Authentication Routes
 Handles GitHub OAuth login and integrates with AWS Cognito
 """
 
-from fastapi import APIRouter, HTTPException, Query, Request, status
+from fastapi import APIRouter, HTTPException, Query, Request, status, BackgroundTasks
 from fastapi.responses import RedirectResponse, JSONResponse
 from pydantic import BaseModel, Field
 from typing import Optional
@@ -17,6 +17,19 @@ from ..config.env import get_settings
 
 logger = logging.getLogger(__name__)
 settings = get_settings()
+
+ALLOWED_FRONTENDS = {
+    "https://www.codeflowops.com",
+    "https://codeflowops.com",
+}
+
+def origin_only(u: str) -> str:
+    p = urlparse((u or "").strip())
+    return f"{p.scheme}://{p.netloc}".rstrip("/")
+
+def sanitize_frontend_url(candidate: str) -> str:
+    o = origin_only(candidate or settings.FRONTEND_URL or "")
+    return o if o in ALLOWED_FRONTENDS else origin_only(settings.FRONTEND_URL)
 
 # ---- Short-lived login token storage (Redis if available, otherwise in-memory) ----
 LOGIN_TOKEN_TTL = 300  # 5 minutes
@@ -68,8 +81,43 @@ def build_frontend_callback_url(base: str, query: dict) -> str:
     Always point to the static file to avoid SPA 404s on Amplify.
     Example: https://www.codeflowops.com/auth/callback/index.html?success=true...
     """
-    base = origin_only(base)  # ensures no stray path segments
+    base = sanitize_frontend_url(base)  # origin-only, whitelisted
     return f"{base}/auth/callback/index.html?{urlencode(query)}"
+
+
+async def finalize_login_in_background(code: str, backend_redirect_uri: str, login_token: str):
+    """Do the heavy OAuth exchange out-of-band to prevent timeouts"""
+    try:
+        # Do the heavy exchange out-of-band
+        auth_result = await oauth_cognito_service.authenticate_with_oauth_and_store_in_cognito(
+            provider="github",
+            code=code,
+            redirect_uri=backend_redirect_uri,
+        )
+
+        if auth_result and auth_result.success:
+            await store_login_token(login_token, {
+                "status": "ready",
+                "user_id": auth_result.user_id or "",
+                "email": auth_result.email or "",
+                "username": auth_result.username or "",
+                "full_name": auth_result.full_name or "",
+                "access_token": auth_result.access_token or "",
+                "refresh_token": auth_result.refresh_token or "",
+                "expires_in": str(auth_result.expires_in or 0),
+                "cognito_integrated": "true",
+            })
+        else:
+            await store_login_token(login_token, {
+                "status": "error",
+                "message": getattr(auth_result, "error_message", None) or "Auth failed"
+            })
+    except Exception as e:
+        logger.error(f"Background finalization error: {str(e)}")
+        await store_login_token(login_token, {
+            "status": "error",
+            "message": f"Authentication failed: {str(e)}"
+        })
 router = APIRouter(prefix="/api/v1/auth", tags=["GitHub OAuth Authentication"])
 
 
@@ -245,105 +293,56 @@ async def github_oauth_callback(
     code: Optional[str] = Query(None, description="Authorization code from GitHub"),
     state: Optional[str] = Query(None, description="State parameter"),
     error: Optional[str] = Query(None, description="Error from GitHub"),
-    error_description: Optional[str] = Query(None, description="Error description from GitHub")
+    error_description: Optional[str] = Query(None, description="Error description from GitHub"),
+    background: BackgroundTasks = BackgroundTasks(),
 ):
     """
-    Handle GitHub OAuth callback
-    This is the callback URL configured in GitHub OAuth app
+    Handle GitHub OAuth callback with immediate redirect to prevent timeouts
     """
-    try:
-        # Handle OAuth errors
-        if error:
-            error_msg = error_description or error
-            logger.warning(f"GitHub OAuth error: {error_msg}")
-            
-            # Redirect to frontend with error
-            frontend_url = settings.FRONTEND_URL
-            return RedirectResponse(
-                url=f"{frontend_url}/login?error={error}&error_description={error_description}",
-                status_code=302
-            )
-        
-        # Validate required parameters
-        if not code:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Authorization code is required"
-            )
-        
-        # Parse state to get original frontend redirect URI
-        frontend_redirect_uri = None
-        if state and "|" in state:
-            state_parts = state.split("|", 1)
-            state = state_parts[0]
-            frontend_redirect_uri = state_parts[1]
-        
-        # The redirect_uri must match what was sent to GitHub
-        backend_redirect_uri = "https://api.codeflowops.com/api/v1/auth/github"
-        
-        # Authenticate with GitHub and store in Cognito
-        auth_result = await oauth_cognito_service.authenticate_with_oauth_and_store_in_cognito(
-            provider="github",
-            code=code,
-            redirect_uri=backend_redirect_uri
-        )
-        
-        if not auth_result.success:
-            logger.error(f"GitHub OAuth authentication failed: {auth_result.error_message}")
-            
-            # Redirect to frontend with error
-            frontend_url = frontend_redirect_uri or settings.FRONTEND_URL
-            return RedirectResponse(
-                url=f"{frontend_url}/login?error=auth_failed&error_description={auth_result.error_message}",
-                status_code=302
-            )
-        
-        # Success - redirect to frontend with short-lived login_token
-        frontend_url = frontend_redirect_uri or settings.FRONTEND_URL
-
-        login_token = str(uuid.uuid4())
-
-        # Store everything the frontend will need to finalize the session
-        await store_login_token(login_token, {
-            "user_id": auth_result.user_id or "",
-            "email": auth_result.email or "",
-            "username": auth_result.username or "",
-            "full_name": auth_result.full_name or "",
-            "access_token": auth_result.access_token or "",
-            "refresh_token": auth_result.refresh_token or "",
-            "expires_in": str(auth_result.expires_in or 0),
-            "cognito_integrated": "true"
-        })
-
-        query = {
-            "success": "true",
-            "login_token": login_token,
-            "provider": "github"
-        }
-        redirect_url = build_frontend_callback_url(frontend_url, query)
-
-        logger.info(f"GitHub OAuth successful for user: {auth_result.email}; redirecting to callback file.")
-        return RedirectResponse(url=redirect_url, status_code=302)
-        
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"GitHub OAuth callback error: {str(e)}")
-        
-        # Redirect to frontend with error
-        frontend_url = settings.FRONTEND_URL
+    # 1) Handle errors early
+    if error:
+        fe = sanitize_frontend_url(settings.FRONTEND_URL)
         return RedirectResponse(
-            url=f"{frontend_url}/login?error=server_error&error_description=Internal server error",
+            url=f"{fe}/login?error={error}&error_description={error_description}",
             status_code=302
         )
+    if not code:
+        raise HTTPException(status_code=400, detail="Authorization code is required")
+
+    # 2) Extract original frontend URL (right side of the '|')
+    frontend_redirect_uri = None
+    if state and "|" in state:
+        _, frontend_redirect_uri = state.split("|", 1)
+
+    # 3) Issue a short-lived login_token and mark it pending
+    login_token = str(uuid.uuid4())
+    await store_login_token(login_token, {"status": "pending"})
+
+    # 4) Kick off the heavy work in the background
+    backend_redirect_uri = "https://api.codeflowops.com/api/v1/auth/github"
+    background.add_task(finalize_login_in_background, code, backend_redirect_uri, login_token)
+
+    # 5) Redirect immediately to the real static file (no Amplify rewrites needed)
+    fe = sanitize_frontend_url(frontend_redirect_uri or settings.FRONTEND_URL)
+    query = {"success": "true", "login_token": login_token, "provider": "github"}
+    return RedirectResponse(url=build_frontend_callback_url(fe, query), status_code=302)
 
 
 @router.post("/session/consume", response_model=GitHubOAuthResponse)
 async def consume_login_token(body: LoginTokenRequest):
-    """Exchange login token for real credentials"""
+    """Exchange login token for real credentials with polling support"""
     payload = await pop_login_token(body.token)
     if not payload:
         return GitHubOAuthResponse(success=False, message="Invalid or expired login token")
+
+    status = payload.get("status", "ready")
+    if status == "pending":
+        # Re-store so subsequent polls can read it again
+        await store_login_token(body.token, payload)
+        return JSONResponse({"success": False, "pending": True, "message": "Finalizing"}, status_code=202)
+
+    if status == "error":
+        return GitHubOAuthResponse(success=False, message=payload.get("message", "Auth failed"))
 
     return GitHubOAuthResponse(
         success=True,

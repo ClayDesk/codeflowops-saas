@@ -32,48 +32,63 @@ function AuthCallbackContent() {
           const provider = searchParams.get('provider')
 
           if (loginToken) {
-            // Exchange login token for real credentials
-            const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/auth/session/consume`, {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-              },
-              body: JSON.stringify({ token: loginToken }),
-            })
+            // Exchange login token for real credentials with polling support
+            const apiBase = (process.env.NEXT_PUBLIC_API_URL || 'https://api.codeflowops.com').replace(/\/+$/, '');
 
-            const data = await response.json()
-
-            if (data.success && data.user && data.access_token) {
-              // Store auth data manually for OAuth users since login() expects username/password
-              if (typeof window !== 'undefined') {
-                localStorage.setItem('codeflowops_access_token', data.access_token)
-                if (data.refresh_token) {
-                  localStorage.setItem('codeflowops_refresh_token', data.refresh_token)
-                }
-                
-                // Create user object
-                const userData = {
-                  id: data.user.user_id,
-                  email: data.user.email,
-                  name: data.user.full_name || data.user.username,
-                  username: data.user.username,
-                  provider: 'github'
-                }
-                
-                localStorage.setItem('codeflowops_user', JSON.stringify(userData))
+            let tries = 0;
+            let data: any = null;
+            while (tries < 20) { // ~10 seconds total
+              const res = await fetch(`${apiBase}/api/v1/auth/session/consume`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ token: loginToken }),
+              });
+              data = await res.json();
+              if (res.status === 202 && data?.pending) {
+                await new Promise(r => setTimeout(r, 500));
+                tries += 1;
+                continue;
               }
-
-              setStatus('success')
-              setMessage('Authentication successful! Redirecting...')
-
-              // Redirect to dashboard after a short delay
-              setTimeout(() => {
-                router.push('/deploy')
-              }, 2000)
-            } else {
-              setStatus('error')
-              setMessage('Invalid authentication response')
+              if (!res.ok) {
+                setStatus('error');
+                setMessage(data?.message || `Auth exchange failed (${res.status})`);
+                return;
+              }
+              break;
             }
+
+            if (!data?.success || !data?.user || !data?.access_token) {
+              setStatus('error');
+              setMessage(data?.message || 'Invalid authentication response');
+              return;
+            }
+
+            // Store auth data manually for OAuth users since login() expects username/password
+            if (typeof window !== 'undefined') {
+              localStorage.setItem('codeflowops_access_token', data.access_token)
+              if (data.refresh_token) {
+                localStorage.setItem('codeflowops_refresh_token', data.refresh_token)
+              }
+              
+              // Create user object
+              const userData = {
+                id: data.user.user_id,
+                email: data.user.email,
+                name: data.user.full_name || data.user.username,
+                username: data.user.username,
+                provider: 'github'
+              }
+              
+              localStorage.setItem('codeflowops_user', JSON.stringify(userData))
+            }
+
+            setStatus('success')
+            setMessage('Authentication successful! Redirecting...')
+
+            // Redirect to dashboard after a short delay
+            setTimeout(() => {
+              router.push('/deploy')
+            }, 2000)
           } else {
             setStatus('error')
             setMessage('No login token provided')
@@ -90,7 +105,7 @@ function AuthCallbackContent() {
     }
 
     handleCallback()
-  }, [searchParams, router, login])
+  }, [searchParams, router])
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900 p-4">

@@ -10,7 +10,7 @@ from typing import Optional
 import logging
 import uuid
 import os
-from urllib.parse import urlencode
+from urllib.parse import urlencode, urlparse
 import time
 from ..services.oauth_cognito_integration import oauth_cognito_service
 from ..config.env import get_settings
@@ -58,12 +58,17 @@ async def pop_login_token(token: str) -> Optional[dict]:
         return payload
 # -----------------------------------------------------------------------------
 
+def origin_only(u: str) -> str:
+    """Ensure URL is origin-only, stripping any path segments"""
+    p = urlparse((u or "").strip())
+    return f"{p.scheme}://{p.netloc}".rstrip("/")
+
 def build_frontend_callback_url(base: str, query: dict) -> str:
     """
     Always point to the static file to avoid SPA 404s on Amplify.
     Example: https://www.codeflowops.com/auth/callback/index.html?success=true...
     """
-    base = base.rstrip("/")
+    base = origin_only(base)  # ensures no stray path segments
     return f"{base}/auth/callback/index.html?{urlencode(query)}"
 router = APIRouter(prefix="/api/v1/auth", tags=["GitHub OAuth Authentication"])
 
@@ -143,7 +148,7 @@ async def test_redirect():
         "frontend_url": frontend_url,
         "redirect_url": build_frontend_callback_url(frontend_url, q),
         "message": "This is what the OAuth success redirect should look like",
-        "will_redirect_to": f"{frontend_url}/auth/callback/index.html"
+        "will_redirect_to": f"{origin_only(frontend_url)}/auth/callback/index.html"
     }
 
 

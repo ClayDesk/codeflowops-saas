@@ -2658,9 +2658,28 @@ try:
     app.include_router(github_auth_router)
     logger.info("✅ GitHub OAuth authentication routes loaded successfully")
     GITHUB_AUTH_AVAILABLE = True
+    
+    # Test endpoint to verify GitHub routes are loaded
+    @app.get("/test/github-routes-loaded")
+    def test_github_routes():
+        return {"github_routes_loaded": True, "available": GITHUB_AUTH_AVAILABLE}
+        
 except ImportError as e:
     logger.warning(f"⚠️ GitHub OAuth routes not available: {e}")
     GITHUB_AUTH_AVAILABLE = False
+    
+    # Fallback endpoint
+    @app.get("/test/github-routes-loaded")
+    def test_github_routes_failed():
+        return {"github_routes_loaded": False, "available": GITHUB_AUTH_AVAILABLE, "error": str(e)}
+except Exception as e:
+    logger.error(f"❌ Error loading GitHub OAuth routes: {e}")
+    GITHUB_AUTH_AVAILABLE = False
+    
+    # Error endpoint
+    @app.get("/test/github-routes-loaded")
+    def test_github_routes_error():
+        return {"github_routes_loaded": False, "available": GITHUB_AUTH_AVAILABLE, "error": str(e)}
 
 # Add simple payment routes (Stripe integration)
 try:

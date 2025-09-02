@@ -1,4 +1,4 @@
 # Redirect auth callback with parameters to the static page
-/auth/callback* /auth/callback.html 200
-# Handle any other auth routes
-/auth/* /auth/callback.html 200
+/auth/callback* /auth/callback/index.html 200
+# Handle any other auth routes  
+/auth/* /auth/callback/index.html 200

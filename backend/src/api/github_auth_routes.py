@@ -10,11 +10,61 @@ from typing import Optional
 import logging
 import uuid
 import os
+from urllib.parse import urlencode
+import time
 from ..services.oauth_cognito_integration import oauth_cognito_service
 from ..config.env import get_settings
 
 logger = logging.getLogger(__name__)
 settings = get_settings()
+
+# ---- Short-lived login token storage (Redis if available, otherwise in-memory) ----
+LOGIN_TOKEN_TTL = 300  # 5 minutes
+
+try:
+    import redis.asyncio as redis  # pip install redis>=4
+    _redis_url = os.getenv("REDIS_URL")
+    _redis = redis.from_url(_redis_url, decode_responses=True) if _redis_url else None
+except Exception:
+    _redis = None
+
+# In-memory fallback with TTL
+_ephemeral_store = {}  # token -> (payload_dict, expiry_epoch)
+
+async def store_login_token(token: str, payload: dict, ttl: int = LOGIN_TOKEN_TTL):
+    expires_at = int(time.time()) + ttl
+    if _redis:
+        await _redis.hset(f"login_token:{token}", mapping=payload)
+        await _redis.expire(f"login_token:{token}", ttl)
+    else:
+        _ephemeral_store[token] = (payload, expires_at)
+
+async def pop_login_token(token: str) -> Optional[dict]:
+    if _redis:
+        key = f"login_token:{token}"
+        exists = await _redis.exists(key)
+        if not exists:
+            return None
+        data = await _redis.hgetall(key)
+        await _redis.delete(key)
+        return data or None
+    else:
+        item = _ephemeral_store.pop(token, None)
+        if not item:
+            return None
+        payload, expires_at = item
+        if time.time() > expires_at:
+            return None
+        return payload
+# -----------------------------------------------------------------------------
+
+def build_frontend_callback_url(base: str, query: dict) -> str:
+    """
+    Always point to the static file to avoid SPA 404s on Amplify.
+    Example: https://www.codeflowops.com/auth/callback/index.html?success=true...
+    """
+    base = base.rstrip("/")
+    return f"{base}/auth/callback/index.html?{urlencode(query)}"
 router = APIRouter(prefix="/api/v1/auth", tags=["GitHub OAuth Authentication"])
 
 
@@ -80,21 +130,20 @@ async def debug_config():
 async def test_redirect():
     """Test endpoint to see what redirect URL is being generated"""
     frontend_url = settings.FRONTEND_URL
-    test_redirect_url = (
-        f"{frontend_url}/callback?"
-        f"success=true&"
-        f"user_id=test_user&"
-        f"email=test@example.com&"
-        f"username=testuser&"
-        f"access_token=test_token&"
-        f"cognito_integrated=true"
-    )
-    
+    # DO NOT send real tokens here; this is only a structure preview
+    q = {
+        "success": "true",
+        "user_id": "test_user",
+        "email": "test@example.com",
+        "username": "testuser",
+        "login_token": "dummy",  # frontend would exchange this
+        "cognito_integrated": "true"
+    }
     return {
         "frontend_url": frontend_url,
-        "redirect_url": test_redirect_url,
+        "redirect_url": build_frontend_callback_url(frontend_url, q),
         "message": "This is what the OAuth success redirect should look like",
-        "will_redirect_to": f"{frontend_url}/callback"
+        "will_redirect_to": f"{frontend_url}/auth/callback/index.html"
     }
 
 
@@ -102,9 +151,8 @@ async def test_redirect():
 async def force_redirect_test():
     """Force redirect test to auth callback"""
     frontend_url = settings.FRONTEND_URL
-    redirect_url = f"{frontend_url}/callback?test=true&source=backend_test"
-    
-    return RedirectResponse(url=redirect_url, status_code=302)
+    q = {"test": "true", "source": "backend_test"}
+    return RedirectResponse(url=build_frontend_callback_url(frontend_url, q), status_code=302)
 
 
 class GitHubAuthUrlResponse(BaseModel):
@@ -124,6 +172,11 @@ class GitHubLinkRequest(BaseModel):
     """Request model for linking GitHub to existing user"""
     cognito_username: str = Field(..., description="Existing Cognito username")
     github_access_token: str = Field(..., description="GitHub access token")
+
+
+class LoginTokenRequest(BaseModel):
+    """Request model for consuming login token"""
+    token: str
 
 
 @router.get("/status")
@@ -240,26 +293,31 @@ async def github_oauth_callback(
                 status_code=302
             )
         
-        # Success - redirect to frontend with tokens
+        # Success - redirect to frontend with short-lived login_token
         frontend_url = frontend_redirect_uri or settings.FRONTEND_URL
-        
-        # For security, we'll include a success token that the frontend can exchange for the actual tokens
-        success_token = str(uuid.uuid4())
-        
-        # Store the auth result temporarily (in production, use Redis or similar)
-        # Redirect to auth callback page with user info
-        redirect_url = (
-            f"{frontend_url}/callback?"
-            f"success=true&"
-            f"user_id={auth_result.user_id}&"
-            f"email={auth_result.email}&"
-            f"username={auth_result.username}&"
-            f"access_token={auth_result.access_token}&"
-            f"cognito_integrated=true"
-        )
-        
-        logger.info(f"GitHub OAuth successful for user: {auth_result.email}")
-        
+
+        login_token = str(uuid.uuid4())
+
+        # Store everything the frontend will need to finalize the session
+        await store_login_token(login_token, {
+            "user_id": auth_result.user_id or "",
+            "email": auth_result.email or "",
+            "username": auth_result.username or "",
+            "full_name": auth_result.full_name or "",
+            "access_token": auth_result.access_token or "",
+            "refresh_token": auth_result.refresh_token or "",
+            "expires_in": str(auth_result.expires_in or 0),
+            "cognito_integrated": "true"
+        })
+
+        query = {
+            "success": "true",
+            "login_token": login_token,
+            "provider": "github"
+        }
+        redirect_url = build_frontend_callback_url(frontend_url, query)
+
+        logger.info(f"GitHub OAuth successful for user: {auth_result.email}; redirecting to callback file.")
         return RedirectResponse(url=redirect_url, status_code=302)
         
     except HTTPException:
@@ -273,6 +331,29 @@ async def github_oauth_callback(
             url=f"{frontend_url}/login?error=server_error&error_description=Internal server error",
             status_code=302
         )
+
+
+@router.post("/session/consume", response_model=GitHubOAuthResponse)
+async def consume_login_token(body: LoginTokenRequest):
+    """Exchange login token for real credentials"""
+    payload = await pop_login_token(body.token)
+    if not payload:
+        return GitHubOAuthResponse(success=False, message="Invalid or expired login token")
+
+    return GitHubOAuthResponse(
+        success=True,
+        message="Session established",
+        user={
+            "user_id": payload.get("user_id"),
+            "email": payload.get("email"),
+            "username": payload.get("username"),
+            "full_name": payload.get("full_name")
+        },
+        access_token=payload.get("access_token"),
+        refresh_token=payload.get("refresh_token"),
+        expires_in=int(payload.get("expires_in") or 0),
+        cognito_integrated=(payload.get("cognito_integrated") == "true")
+    )
 
 
 @router.post("/github/exchange", response_model=GitHubOAuthResponse)
@@ -416,8 +497,8 @@ async def link_github_to_existing_user(request: GitHubLinkRequest):
         )
 
 
-@router.get("/github/user")
-async def get_github_user(request: Request):
+@router.get("/github/user/current")
+async def get_current_github_user_placeholder(request: Request):
     """
     Get current GitHub user info (placeholder endpoint)
     This endpoint is called by the frontend but we don't have session management yet

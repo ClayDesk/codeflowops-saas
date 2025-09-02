@@ -28,32 +28,55 @@ function AuthCallbackContent() {
         }
 
         if (success === 'true') {
-          const userId = searchParams.get('user_id')
-          const email = searchParams.get('email')
-          const username = searchParams.get('username')
-          const accessToken = searchParams.get('access_token')
-          const cognitoIntegrated = searchParams.get('cognito_integrated')
+          const loginToken = searchParams.get('login_token')
+          const provider = searchParams.get('provider')
 
-          if (accessToken && email) {
-            // Store user data in auth context
-            const userData = {
-              id: userId,
-              email: email,
-              username: username,
-              accessToken: accessToken,
-              cognitoIntegrated: cognitoIntegrated === 'true'
+          if (loginToken) {
+            // Exchange login token for real credentials
+            const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/auth/session/consume`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({ token: loginToken }),
+            })
+
+            const data = await response.json()
+
+            if (data.success && data.user && data.access_token) {
+              // Store auth data manually for OAuth users since login() expects username/password
+              if (typeof window !== 'undefined') {
+                localStorage.setItem('codeflowops_access_token', data.access_token)
+                if (data.refresh_token) {
+                  localStorage.setItem('codeflowops_refresh_token', data.refresh_token)
+                }
+                
+                // Create user object
+                const userData = {
+                  id: data.user.user_id,
+                  email: data.user.email,
+                  name: data.user.full_name || data.user.username,
+                  username: data.user.username,
+                  provider: 'github'
+                }
+                
+                localStorage.setItem('codeflowops_user', JSON.stringify(userData))
+              }
+
+              setStatus('success')
+              setMessage('Authentication successful! Redirecting...')
+
+              // Redirect to dashboard after a short delay
+              setTimeout(() => {
+                router.push('/deploy')
+              }, 2000)
+            } else {
+              setStatus('error')
+              setMessage('Invalid authentication response')
             }
-
-            setStatus('success')
-            setMessage('Authentication successful! Redirecting...')
-
-            // Redirect to dashboard after a short delay
-            setTimeout(() => {
-              router.push('/deploy')
-            }, 2000)
           } else {
             setStatus('error')
-            setMessage('Invalid authentication response')
+            setMessage('No login token provided')
           }
         } else {
           setStatus('error')

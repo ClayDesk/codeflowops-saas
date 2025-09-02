@@ -81,7 +81,7 @@ async def test_redirect():
     """Test endpoint to see what redirect URL is being generated"""
     frontend_url = settings.FRONTEND_URL
     test_redirect_url = (
-        f"{frontend_url}/auth/callback?"
+        f"{frontend_url}/callback?"
         f"success=true&"
         f"user_id=test_user&"
         f"email=test@example.com&"
@@ -94,7 +94,7 @@ async def test_redirect():
         "frontend_url": frontend_url,
         "redirect_url": test_redirect_url,
         "message": "This is what the OAuth success redirect should look like",
-        "will_redirect_to": f"{frontend_url}/auth/callback"
+        "will_redirect_to": f"{frontend_url}/callback"
     }
 
 
@@ -102,7 +102,7 @@ async def test_redirect():
 async def force_redirect_test():
     """Force redirect test to auth callback"""
     frontend_url = settings.FRONTEND_URL
-    redirect_url = f"{frontend_url}/auth/callback?test=true&source=backend_test"
+    redirect_url = f"{frontend_url}/callback?test=true&source=backend_test"
     
     return RedirectResponse(url=redirect_url, status_code=302)
 
@@ -249,7 +249,7 @@ async def github_oauth_callback(
         # Store the auth result temporarily (in production, use Redis or similar)
         # Redirect to auth callback page with user info
         redirect_url = (
-            f"{frontend_url}/auth/callback?"
+            f"{frontend_url}/callback?"
             f"success=true&"
             f"user_id={auth_result.user_id}&"
             f"email={auth_result.email}&"

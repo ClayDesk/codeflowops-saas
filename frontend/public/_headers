@@ -1,5 +1,0 @@
-/auth/callback*
-  Cache-Control: no-cache
-
-/auth/*
-  Cache-Control: no-cache

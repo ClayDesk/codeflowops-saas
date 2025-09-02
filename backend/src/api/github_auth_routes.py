@@ -10,6 +10,7 @@ from typing import Optional
 import logging
 import uuid
 import os
+import asyncio
 from urllib.parse import urlencode, urlparse
 import time
 from ..services.oauth_cognito_integration import oauth_cognito_service
@@ -84,40 +85,6 @@ def build_frontend_callback_url(base: str, query: dict) -> str:
     base = sanitize_frontend_url(base)  # origin-only, whitelisted
     return f"{base}/auth/callback/index.html?{urlencode(query)}"
 
-
-async def finalize_login_in_background(code: str, backend_redirect_uri: str, login_token: str):
-    """Do the heavy OAuth exchange out-of-band to prevent timeouts"""
-    try:
-        # Do the heavy exchange out-of-band
-        auth_result = await oauth_cognito_service.authenticate_with_oauth_and_store_in_cognito(
-            provider="github",
-            code=code,
-            redirect_uri=backend_redirect_uri,
-        )
-
-        if auth_result and auth_result.success:
-            await store_login_token(login_token, {
-                "status": "ready",
-                "user_id": auth_result.user_id or "",
-                "email": auth_result.email or "",
-                "username": auth_result.username or "",
-                "full_name": auth_result.full_name or "",
-                "access_token": auth_result.access_token or "",
-                "refresh_token": auth_result.refresh_token or "",
-                "expires_in": str(auth_result.expires_in or 0),
-                "cognito_integrated": "true",
-            })
-        else:
-            await store_login_token(login_token, {
-                "status": "error",
-                "message": getattr(auth_result, "error_message", None) or "Auth failed"
-            })
-    except Exception as e:
-        logger.error(f"Background finalization error: {str(e)}")
-        await store_login_token(login_token, {
-            "status": "error",
-            "message": f"Authentication failed: {str(e)}"
-        })
 router = APIRouter(prefix="/api/v1/auth", tags=["GitHub OAuth Authentication"])
 
 
@@ -293,13 +260,10 @@ async def github_oauth_callback(
     code: Optional[str] = Query(None, description="Authorization code from GitHub"),
     state: Optional[str] = Query(None, description="State parameter"),
     error: Optional[str] = Query(None, description="Error from GitHub"),
-    error_description: Optional[str] = Query(None, description="Error description from GitHub"),
-    background: BackgroundTasks = BackgroundTasks(),
+    error_description: Optional[str] = Query(None, description="Error description from GitHub")
 ):
-    """
-    Handle GitHub OAuth callback with immediate redirect to prevent timeouts
-    """
-    # 1) Handle errors early
+    """Handle GitHub OAuth callback with immediate redirect to prevent timeouts"""
+    # 1) Immediate error handling
     if error:
         fe = sanitize_frontend_url(settings.FRONTEND_URL)
         return RedirectResponse(
@@ -314,50 +278,77 @@ async def github_oauth_callback(
     if state and "|" in state:
         _, frontend_redirect_uri = state.split("|", 1)
 
-    # 3) Issue a short-lived login_token and mark it pending
+    # 3) Issue short-lived login_token and mark pending
     login_token = str(uuid.uuid4())
     await store_login_token(login_token, {"status": "pending"})
 
-    # 4) Kick off the heavy work in the background
-    backend_redirect_uri = "https://api.codeflowops.com/api/v1/auth/github"
-    background.add_task(finalize_login_in_background, code, backend_redirect_uri, login_token)
+    # 4) Kick off the heavy work in the background and finish storing results
+    async def finalize():
+        try:
+            backend_redirect_uri = "https://api.codeflowops.com/api/v1/auth/github"
+            auth_result = await oauth_cognito_service.authenticate_with_oauth_and_store_in_cognito(
+                provider="github",
+                code=code,
+                redirect_uri=backend_redirect_uri
+            )
+            if auth_result and auth_result.success:
+                await store_login_token(login_token, {
+                    "status": "ready",
+                    "user_id": auth_result.user_id or "",
+                    "email": auth_result.email or "",
+                    "username": auth_result.username or "",
+                    "full_name": auth_result.full_name or "",
+                    "access_token": auth_result.access_token or "",
+                    "refresh_token": auth_result.refresh_token or "",
+                    "expires_in": str(auth_result.expires_in or 0),
+                    "cognito_integrated": "true"
+                })
+            else:
+                await store_login_token(login_token, {
+                    "status": "error",
+                    "message": (getattr(auth_result, "error_message", None) or "Auth failed")
+                })
+        except Exception as e:
+            await store_login_token(login_token, {"status": "error", "message": str(e)})
 
-    # 5) Redirect immediately to the real static file (no Amplify rewrites needed)
+    asyncio.create_task(finalize())
+
+    # 5) Redirect immediately to the static file (no Amplify rewrites needed)
     fe = sanitize_frontend_url(frontend_redirect_uri or settings.FRONTEND_URL)
     query = {"success": "true", "login_token": login_token, "provider": "github"}
     return RedirectResponse(url=build_frontend_callback_url(fe, query), status_code=302)
 
 
-@router.post("/session/consume", response_model=GitHubOAuthResponse)
+@router.post("/session/consume", response_model=None)
 async def consume_login_token(body: LoginTokenRequest):
     """Exchange login token for real credentials with polling support"""
     payload = await pop_login_token(body.token)
     if not payload:
-        return GitHubOAuthResponse(success=False, message="Invalid or expired login token")
+        return JSONResponse({"success": False, "message": "Invalid or expired login token"}, status_code=400)
 
     status = payload.get("status", "ready")
     if status == "pending":
-        # Re-store so subsequent polls can read it again
+        # put back so next poll sees it
         await store_login_token(body.token, payload)
         return JSONResponse({"success": False, "pending": True, "message": "Finalizing"}, status_code=202)
 
     if status == "error":
-        return GitHubOAuthResponse(success=False, message=payload.get("message", "Auth failed"))
+        return JSONResponse({"success": False, "message": payload.get("message", "Auth failed")}, status_code=400)
 
-    return GitHubOAuthResponse(
-        success=True,
-        message="Session established",
-        user={
+    return JSONResponse({
+        "success": True,
+        "message": "Session established",
+        "user": {
             "user_id": payload.get("user_id"),
             "email": payload.get("email"),
             "username": payload.get("username"),
             "full_name": payload.get("full_name")
         },
-        access_token=payload.get("access_token"),
-        refresh_token=payload.get("refresh_token"),
-        expires_in=int(payload.get("expires_in") or 0),
-        cognito_integrated=(payload.get("cognito_integrated") == "true")
-    )
+        "access_token": payload.get("access_token"),
+        "refresh_token": payload.get("refresh_token"),
+        "expires_in": int(payload.get("expires_in") or 0),
+        "cognito_integrated": (payload.get("cognito_integrated") == "true")
+    }, status_code=200)
 
 
 @router.post("/github/exchange", response_model=GitHubOAuthResponse)

@@ -219,6 +219,12 @@ def health():
     """Fast health check for load balancer - no async, no dependencies"""
     return {"ok": True}
 
+# Also add /api/health for frontend compatibility
+@app.get("/api/health")
+def api_health_simple():
+    """Health endpoint for frontend API calls"""
+    return {"ok": True}
+
 router = APIRouter()
 
 # Auth storage (in-memory for simple implementation)

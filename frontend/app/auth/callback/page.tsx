@@ -18,7 +18,7 @@ function AuthCallbackContent() {
     const handleCallback = async () => {
       try {
         // Capture next URL BEFORE clearing search params
-        const nextUrl = searchParams.get('next') || '/deploy'
+        const nextUrl = searchParams.get('next') || '/profile'
         
         const success = searchParams.get('success')
         const error = searchParams.get('error')
@@ -151,7 +151,7 @@ function AuthCallbackContent() {
                 ✅ Account created in AWS Cognito
               </p>
               <p className="text-sm text-gray-500">
-                Redirecting to dashboard in a moment...
+                Redirecting to your profile in a moment...
               </p>
             </div>
           )}

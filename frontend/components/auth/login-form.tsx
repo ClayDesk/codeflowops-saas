@@ -174,7 +174,7 @@ export function LoginForm({ redirectTo = '/deploy' }: LoginFormProps) {
                 onClick={async () => {
                   try {
                     const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'https://api.codeflowops.com'
-                    const redirectUri = `${window.location.origin}/auth/callback`
+                    const redirectUri = `${window.location.origin}/auth/callback?next=/profile`
                     
                     // Get GitHub authorization URL from backend
                     const response = await fetch(

@@ -6,7 +6,7 @@ Handles GitHub OAuth login and integrates with AWS Cognito
 from fastapi import APIRouter, HTTPException, Query, Request, status, BackgroundTasks
 from fastapi.responses import RedirectResponse, JSONResponse
 from pydantic import BaseModel, Field
-from typing import Optional
+from typing import Optional, Dict, Tuple
 import logging
 import uuid
 import os
@@ -32,44 +32,110 @@ def sanitize_frontend_url(candidate: str) -> str:
     o = origin_only(candidate or settings.FRONTEND_URL or "")
     return o if o in ALLOWED_FRONTENDS else origin_only(settings.FRONTEND_URL)
 
-# ---- Short-lived login token storage (Redis if available, otherwise in-memory) ----
-LOGIN_TOKEN_TTL = 300  # 5 minutes
+# ---- Fast, non-blocking token storage (Redis with timeout, instant in-memory fallback) ----
+LOGIN_TOKEN_TTL = 300
+REDIS_OP_TIMEOUT = 0.8  # hard cap so we never stall the 302
 
+# Optional Redis
 try:
-    import redis.asyncio as redis  # pip install redis>=4
+    import redis.asyncio as redis
     _redis_url = os.getenv("REDIS_URL")
     _redis = redis.from_url(_redis_url, decode_responses=True) if _redis_url else None
 except Exception:
     _redis = None
 
-# In-memory fallback with TTL
-_ephemeral_store = {}  # token -> (payload_dict, expiry_epoch)
+# In-memory fallback
+_ephemeral_login = {}  # token -> (payload, expiry_epoch)
 
-async def store_login_token(token: str, payload: dict, ttl: int = LOGIN_TOKEN_TTL):
-    expires_at = int(time.time()) + ttl
+def _put_ephemeral(token: str, payload: dict, ttl: int = LOGIN_TOKEN_TTL):
+    _ephemeral_login[token] = (payload, int(time.time()) + ttl)
+
+def _get_ephemeral(token: str) -> Optional[dict]:
+    item = _ephemeral_login.get(token)
+    if not item:
+        return None
+    payload, exp = item
+    if time.time() > exp:
+        _ephemeral_login.pop(token, None)
+        return None
+    return payload
+
+def _pop_ephemeral(token: str) -> Optional[dict]:
+    item = _ephemeral_login.pop(token, None)
+    if not item:
+        return None
+    payload, exp = item
+    if time.time() > exp:
+        return None
+    return payload
+
+async def _redis_setex_json(key: str, payload: dict, ttl: int):
+    async def _do():
+        await _redis.hset(key, mapping=payload)
+        await _redis.expire(key, ttl)
+    await asyncio.wait_for(_do(), timeout=REDIS_OP_TIMEOUT)
+
+async def _redis_get_json(key: str) -> Optional[dict]:
+    async def _do():
+        return await _redis.hgetall(key)
+    return await asyncio.wait_for(_do(), timeout=REDIS_OP_TIMEOUT)
+
+async def _redis_del(key: str):
+    async def _do():
+        return await _redis.delete(key)
+    return await asyncio.wait_for(_do(), timeout=REDIS_OP_TIMEOUT)
+
+async def store_login_token_fast(token: str, payload: dict, ttl: int = LOGIN_TOKEN_TTL):
+    """
+    Returns immediately (writes to memory first). Redis write is best-effort in background.
+    """
+    _put_ephemeral(token, payload, ttl)
     if _redis:
-        await _redis.hset(f"login_token:{token}", mapping=payload)
-        await _redis.expire(f"login_token:{token}", ttl)
-    else:
-        _ephemeral_store[token] = (payload, expires_at)
+        async def _bg():
+            try:
+                await _redis_setex_json(f"login_token:{token}", payload, ttl)
+            except Exception:
+                pass
+        asyncio.create_task(_bg())
+
+async def get_login_token(token: str) -> Optional[dict]:
+    # fast path: memory
+    payload = _get_ephemeral(token)
+    if payload:
+        return payload
+    # slow path: Redis
+    if _redis:
+        try:
+            return await _redis_get_json(f"login_token:{token}") or None
+        except Exception:
+            return None
+    return None
 
 async def pop_login_token(token: str) -> Optional[dict]:
-    if _redis:
-        key = f"login_token:{token}"
-        exists = await _redis.exists(key)
-        if not exists:
-            return None
-        data = await _redis.hgetall(key)
-        await _redis.delete(key)
-        return data or None
-    else:
-        item = _ephemeral_store.pop(token, None)
-        if not item:
-            return None
-        payload, expires_at = item
-        if time.time() > expires_at:
-            return None
+    # pop from memory first
+    payload = _pop_ephemeral(token)
+    if payload:
+        # best-effort cleanup in Redis
+        if _redis:
+            asyncio.create_task(_redis_del(f"login_token:{token}"))
         return payload
+    # otherwise try Redis (blocking briefly, then done)
+    if _redis:
+        try:
+            data = await _redis_get_json(f"login_token:{token}")
+            if data:
+                try:
+                    await _redis_del(f"login_token:{token}")
+                except Exception:
+                    pass
+                return data
+        except Exception:
+            return None
+    return None
+
+# Legacy function for backwards compatibility
+async def store_login_token(token: str, payload: dict, ttl: int = LOGIN_TOKEN_TTL):
+    await store_login_token_fast(token, payload, ttl)
 # -----------------------------------------------------------------------------
 
 def origin_only(u: str) -> str:
@@ -263,7 +329,6 @@ async def github_oauth_callback(
     error_description: Optional[str] = Query(None, description="Error description from GitHub")
 ):
     """Handle GitHub OAuth callback with immediate redirect to prevent timeouts"""
-    # 1) Immediate error handling
     if error:
         fe = sanitize_frontend_url(settings.FRONTEND_URL)
         return RedirectResponse(
@@ -273,26 +338,27 @@ async def github_oauth_callback(
     if not code:
         raise HTTPException(status_code=400, detail="Authorization code is required")
 
-    # 2) Extract original frontend URL (right side of the '|')
+    # Pull frontend URL (right side of '|'); ignore the Turbo warning from GitHub
     frontend_redirect_uri = None
+    csrf = None
     if state and "|" in state:
-        _, frontend_redirect_uri = state.split("|", 1)
+        csrf, frontend_redirect_uri = state.split("|", 1)
+    else:
+        csrf = state
 
-    # 3) Issue short-lived login_token and mark pending
+    # 1) Create short-lived token; mark as pending FAST (no slow awaits)
     login_token = str(uuid.uuid4())
-    await store_login_token(login_token, {"status": "pending"})
+    await store_login_token_fast(login_token, {"status": "pending"})
 
-    # 4) Kick off the heavy work in the background and finish storing results
+    # 2) Finalize in background (GitHub exchange + Cognito user/tokens)
     async def finalize():
         try:
             backend_redirect_uri = "https://api.codeflowops.com/api/v1/auth/github"
             auth_result = await oauth_cognito_service.authenticate_with_oauth_and_store_in_cognito(
-                provider="github",
-                code=code,
-                redirect_uri=backend_redirect_uri
+                provider="github", code=code, redirect_uri=backend_redirect_uri
             )
             if auth_result and auth_result.success:
-                await store_login_token(login_token, {
+                await store_login_token_fast(login_token, {
                     "status": "ready",
                     "user_id": auth_result.user_id or "",
                     "email": auth_result.email or "",
@@ -301,36 +367,54 @@ async def github_oauth_callback(
                     "access_token": auth_result.access_token or "",
                     "refresh_token": auth_result.refresh_token or "",
                     "expires_in": str(auth_result.expires_in or 0),
-                    "cognito_integrated": "true"
+                    "cognito_integrated": "true",
                 })
             else:
-                await store_login_token(login_token, {
+                await store_login_token_fast(login_token, {
                     "status": "error",
-                    "message": (getattr(auth_result, "error_message", None) or "Auth failed")
+                    "message": getattr(auth_result, "error_message", None) or "Auth failed",
                 })
         except Exception as e:
-            await store_login_token(login_token, {"status": "error", "message": str(e)})
+            await store_login_token_fast(login_token, {"status": "error", "message": str(e)})
 
     asyncio.create_task(finalize())
 
-    # 5) Redirect immediately to the static file (no Amplify rewrites needed)
+    # 3) Redirect immediately to the actual static file (no Amplify rules required)
     fe = sanitize_frontend_url(frontend_redirect_uri or settings.FRONTEND_URL)
     query = {"success": "true", "login_token": login_token, "provider": "github"}
     return RedirectResponse(url=build_frontend_callback_url(fe, query), status_code=302)
 
 
-@router.post("/session/consume", response_model=None)
+@router.post("/session/consume")
 async def consume_login_token(body: LoginTokenRequest):
     """Exchange login token for real credentials with polling support"""
-    payload = await pop_login_token(body.token)
+    payload = await get_login_token(body.token)
     if not payload:
         return JSONResponse({"success": False, "message": "Invalid or expired login token"}, status_code=400)
 
     status = payload.get("status", "ready")
     if status == "pending":
-        # put back so next poll sees it
-        await store_login_token(body.token, payload)
         return JSONResponse({"success": False, "pending": True, "message": "Finalizing"}, status_code=202)
+
+    # success or error -> pop once
+    payload = await pop_login_token(body.token) or payload
+    if payload.get("status") == "error":
+        return JSONResponse({"success": False, "message": payload.get("message", "Auth failed")}, status_code=400)
+
+    return JSONResponse({
+        "success": True,
+        "message": "Session established",
+        "user": {
+            "user_id": payload.get("user_id"),
+            "email": payload.get("email"),
+            "username": payload.get("username"),
+            "full_name": payload.get("full_name")
+        },
+        "access_token": payload.get("access_token"),
+        "refresh_token": payload.get("refresh_token"),
+        "expires_in": int(payload.get("expires_in") or 0),
+        "cognito_integrated": (payload.get("cognito_integrated") == "true")
+    }, status_code=200)
 
     if status == "error":
         return JSONResponse({"success": False, "message": payload.get("message", "Auth failed")}, status_code=400)

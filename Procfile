@@ -1,0 +1,1 @@
+web: gunicorn simple_api:app -k uvicorn.workers.UvicornWorker --bind 0.0.0.0:8000 --workers 2 --threads 2 --timeout 60 --keep-alive 5 --graceful-timeout 20 --max-requests 2000 --max-requests-jitter 200

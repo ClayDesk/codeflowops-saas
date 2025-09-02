@@ -212,6 +212,13 @@ class LoginResponse(BaseModel):
 
 # Create FastAPI app and router
 app = FastAPI(title="CodeFlowOps Simple SaaS API - Streamlined")
+
+# Root-level health endpoint for ALB health checks (no auth, fast response)
+@app.get("/health")
+def health():
+    """Fast health check for load balancer - no async, no dependencies"""
+    return {"ok": True}
+
 router = APIRouter()
 
 # Auth storage (in-memory for simple implementation)

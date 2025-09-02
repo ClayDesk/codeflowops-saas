@@ -23,6 +23,9 @@ function AuthCallbackContent() {
         const success = searchParams.get('success')
         const error = searchParams.get('error')
         const errorDescription = searchParams.get('error_description')
+        const loginToken = searchParams.get('login_token')
+        const token = searchParams.get('token') // Direct token from simplified flow
+        const authenticated = searchParams.get('authenticated')
 
         if (error) {
           setStatus('error')
@@ -30,87 +33,113 @@ function AuthCallbackContent() {
           return
         }
 
-        if (success === 'true') {
-          const loginToken = searchParams.get('login_token')
-          const provider = searchParams.get('provider')
-
-          if (loginToken) {
-            // Exchange login token for real credentials with polling support
+        // Handle direct token (simplified flow)
+        if (token) {
+          try {
+            // Verify the token with backend
             const apiBase = (process.env.NEXT_PUBLIC_API_URL || 'https://api.codeflowops.com').replace(/\/+$/, '');
+            const verifyRes = await fetch(`${apiBase}/github/verify`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ token }),
+            });
 
-            let tries = 0;
-            let data: any = null;
-            while (tries < 20) { // ~10 seconds total
-              const res = await fetch(`${apiBase}/api/v1/auth/session/consume`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ token: loginToken }),
-              });
-              data = await res.json();
-              if (res.status === 202 && data?.pending) {
-                await new Promise(r => setTimeout(r, 500));
-                tries += 1;
-                continue;
-              }
-              if (!res.ok) {
-                setStatus('error');
-                setMessage(data?.message || `Auth exchange failed (${res.status})`);
-                return;
-              }
-              break;
-            }
-
-            if (!data?.success || !data?.user || !data?.access_token) {
-              setStatus('error');
-              setMessage(data?.message || 'Invalid authentication response');
+            if (verifyRes.ok) {
+              const userData = await verifyRes.json();
+              // Store token and redirect
+              localStorage.setItem('auth_token', token);
+              localStorage.setItem('codeflowops_access_token', token);
+              localStorage.setItem('codeflowops_user', JSON.stringify(userData.user));
+              
+              setStatus('success');
+              setMessage('Authentication successful! Redirecting...');
+              
+              setTimeout(() => {
+                window.location.replace(nextUrl);
+              }, 1000);
               return;
             }
-
-            // Store auth data manually for OAuth users since login() expects username/password
-            if (typeof window !== 'undefined') {
-              localStorage.setItem('codeflowops_access_token', data.access_token)
-              if (data.refresh_token) {
-                localStorage.setItem('codeflowops_refresh_token', data.refresh_token)
-              }
-              
-              // Create user object
-              const userData = {
-                id: data.user.user_id,
-                email: data.user.email,
-                name: data.user.full_name || data.user.username,
-                username: data.user.username,
-                provider: 'github'
-              }
-              
-              localStorage.setItem('codeflowops_user', JSON.stringify(userData))
-            }
-
-            setStatus('success')
-            setMessage('Authentication successful! Redirecting...')
-
-            // Small delay so the success UI renders; then force a full reload
-            setTimeout(() => {
-              if (typeof window !== 'undefined') {
-                window.location.replace(nextUrl)
-              }
-            }, 600)
-          } else {
-            setStatus('error')
-            setMessage('No login token provided')
+          } catch (err) {
+            console.error('Token verification failed:', err);
           }
+        }
+
+        // Handle login token exchange flow
+        if (success === 'true' && loginToken) {
+          // Exchange login token for real credentials with polling support
+          const apiBase = (process.env.NEXT_PUBLIC_API_URL || 'https://api.codeflowops.com').replace(/\/+$/, '');
+
+          let tries = 0;
+          let data: any = null;
+          while (tries < 20) { // ~10 seconds total
+            const res = await fetch(`${apiBase}/session/consume`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ token: loginToken }),
+            });
+            
+            if (!res.ok) {
+              data = await res.json();
+              setStatus('error');
+              setMessage(data?.message || `Auth exchange failed (${res.status})`);
+              return;
+            }
+            
+            data = await res.json();
+            
+            if (res.status === 202 && data?.pending) {
+              await new Promise(r => setTimeout(r, 500));
+              tries += 1;
+              continue;
+            }
+            break;
+          }
+
+          if (data && data.access_token) {
+            setStatus('success');
+            setMessage('Authentication successful! Redirecting...');
+            
+            // Store token and update auth context
+            localStorage.setItem('auth_token', data.access_token);
+            localStorage.setItem('codeflowops_access_token', data.access_token);
+            if (data.refresh_token) {
+              localStorage.setItem('codeflowops_refresh_token', data.refresh_token);
+            }
+            if (data.user) {
+              localStorage.setItem('codeflowops_user', JSON.stringify(data.user));
+            }
+            
+            setTimeout(() => {
+              window.location.replace(nextUrl);
+            }, 600);
+          } else if (data?.error) {
+            setStatus('error');
+            setMessage(data.error);
+          } else {
+            setStatus('error');
+            setMessage('Authentication failed - no token received');
+          }
+        } else if (authenticated === 'true') {
+          // Simple authenticated redirect
+          setStatus('success');
+          setMessage('Authentication successful! Redirecting...');
+          
+          setTimeout(() => {
+            window.location.replace(nextUrl);
+          }, 600);
         } else {
-          setStatus('error')
-          setMessage('Authentication failed')
+          setStatus('error');
+          setMessage('No authentication data received');
         }
       } catch (err) {
-        console.error('Auth callback error:', err)
-        setStatus('error')
-        setMessage('An error occurred during authentication')
+        console.error('Auth callback error:', err);
+        setStatus('error');
+        setMessage('Authentication failed due to an error');
       }
-    }
+    };
 
-    handleCallback()
-  }, [searchParams, router])
+    handleCallback();
+  }, [searchParams, router]);
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900 p-4">
@@ -126,7 +155,7 @@ function AuthCallbackContent() {
             {status === 'success' && (
               <>
                 <CheckCircle className="h-6 w-6 text-green-600" />
-                <span>Authentication Successful!</span>
+                <span>Authentication Successful</span>
               </>
             )}
             {status === 'error' && (
@@ -138,40 +167,43 @@ function AuthCallbackContent() {
           </CardTitle>
         </CardHeader>
         <CardContent className="text-center space-y-4">
-          <p className="text-gray-600 dark:text-gray-300">
+          <p className="text-gray-600 dark:text-gray-400">
             {message}
           </p>
           
-          {status === 'success' && (
-            <div className="space-y-2">
-              <p className="text-sm text-green-600">
-                ✅ Successfully logged in with GitHub
-              </p>
-              <p className="text-sm text-green-600">
-                ✅ Account created in AWS Cognito
-              </p>
-              <p className="text-sm text-gray-500">
-                Redirecting to your profile in a moment...
-              </p>
-            </div>
-          )}
-
-          {status === 'error' && (
-            <div className="space-y-4">
-              <Link 
-                href="/login"
-                className="inline-block bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition-colors"
-              >
-                Try Again
-              </Link>
-            </div>
-          )}
-
           {status === 'loading' && (
             <div className="space-y-2">
+              <div className="w-full bg-gray-200 rounded-full h-2">
+                <div className="bg-blue-600 h-2 rounded-full animate-pulse" style={{ width: '60%' }}></div>
+              </div>
               <p className="text-sm text-gray-500">
                 Please wait while we complete your authentication...
               </p>
+            </div>
+          )}
+          
+          {status === 'error' && (
+            <div className="space-y-3">
+              <p className="text-sm text-gray-500">
+                Something went wrong during authentication. Please try again.
+              </p>
+              <Link 
+                href="/login"
+                className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
+              >
+                Back to Login
+              </Link>
+            </div>
+          )}
+          
+          {status === 'success' && (
+            <div className="space-y-2">
+              <p className="text-sm text-gray-500">
+                Redirecting you to your dashboard...
+              </p>
+              <div className="w-full bg-gray-200 rounded-full h-2">
+                <div className="bg-green-600 h-2 rounded-full animate-pulse" style={{ width: '100%' }}></div>
+              </div>
             </div>
           )}
         </CardContent>
@@ -180,14 +212,11 @@ function AuthCallbackContent() {
   )
 }
 
-export default function AuthCallbackPage() {
+export default function AuthCallback() {
   return (
     <Suspense fallback={
-      <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900">
-        <div className="flex items-center space-x-2">
-          <Loader2 className="h-6 w-6 animate-spin" />
-          <span>Loading...</span>
-        </div>
+      <div className="min-h-screen flex items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
       </div>
     }>
       <AuthCallbackContent />

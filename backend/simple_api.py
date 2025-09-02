@@ -2654,7 +2654,7 @@ GITHUB_AUTH_AVAILABLE = False
 
 # Add GitHub OAuth authentication routes
 try:
-    from src.api.github_auth_routes import router as github_auth_router
+    from src.api.github_auth_routes_minimal import router as github_auth_router
     app.include_router(github_auth_router)
     logger.info("✅ GitHub OAuth authentication routes loaded successfully")
     GITHUB_AUTH_AVAILABLE = True

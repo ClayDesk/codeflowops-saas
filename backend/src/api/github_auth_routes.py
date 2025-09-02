@@ -36,11 +36,18 @@ def sanitize_frontend_url(candidate: str) -> str:
 LOGIN_TOKEN_TTL = 300
 REDIS_OP_TIMEOUT = 0.8  # hard cap so we never stall the 302
 
-# Optional Redis
+# Optional Redis with TLS and fast timeouts
 try:
     import redis.asyncio as redis
     _redis_url = os.getenv("REDIS_URL")
-    _redis = redis.from_url(_redis_url, decode_responses=True) if _redis_url else None
+    _redis = redis.from_url(
+        _redis_url,
+        decode_responses=True,
+        # extra safety so we never block the 302
+        socket_timeout=1.0,
+        socket_connect_timeout=1.0,
+        health_check_interval=30,
+    ) if _redis_url else None
 except Exception:
     _redis = None
 
@@ -69,22 +76,6 @@ def _pop_ephemeral(token: str) -> Optional[dict]:
         return None
     return payload
 
-async def _redis_setex_json(key: str, payload: dict, ttl: int):
-    async def _do():
-        await _redis.hset(key, mapping=payload)
-        await _redis.expire(key, ttl)
-    await asyncio.wait_for(_do(), timeout=REDIS_OP_TIMEOUT)
-
-async def _redis_get_json(key: str) -> Optional[dict]:
-    async def _do():
-        return await _redis.hgetall(key)
-    return await asyncio.wait_for(_do(), timeout=REDIS_OP_TIMEOUT)
-
-async def _redis_del(key: str):
-    async def _do():
-        return await _redis.delete(key)
-    return await asyncio.wait_for(_do(), timeout=REDIS_OP_TIMEOUT)
-
 async def store_login_token_fast(token: str, payload: dict, ttl: int = LOGIN_TOKEN_TTL):
     """
     Returns immediately (writes to memory first). Redis write is best-effort in background.
@@ -93,7 +84,8 @@ async def store_login_token_fast(token: str, payload: dict, ttl: int = LOGIN_TOK
     if _redis:
         async def _bg():
             try:
-                await _redis_setex_json(f"login_token:{token}", payload, ttl)
+                await _redis.hset(f"login_token:{token}", mapping=payload)
+                await _redis.expire(f"login_token:{token}", ttl)
             except Exception:
                 pass
         asyncio.create_task(_bg())
@@ -106,7 +98,8 @@ async def get_login_token(token: str) -> Optional[dict]:
     # slow path: Redis
     if _redis:
         try:
-            return await _redis_get_json(f"login_token:{token}") or None
+            data = await _redis.hgetall(f"login_token:{token}")
+            return data or None
         except Exception:
             return None
     return None
@@ -117,15 +110,15 @@ async def pop_login_token(token: str) -> Optional[dict]:
     if payload:
         # best-effort cleanup in Redis
         if _redis:
-            asyncio.create_task(_redis_del(f"login_token:{token}"))
+            asyncio.create_task(_redis.delete(f"login_token:{token}"))
         return payload
     # otherwise try Redis (blocking briefly, then done)
     if _redis:
         try:
-            data = await _redis_get_json(f"login_token:{token}")
+            data = await _redis.hgetall(f"login_token:{token}")
             if data:
                 try:
-                    await _redis_del(f"login_token:{token}")
+                    await _redis.delete(f"login_token:{token}")
                 except Exception:
                     pass
                 return data
@@ -232,6 +225,18 @@ async def test_redirect():
         "will_redirect_to": f"{origin_only(frontend_url)}/auth/callback/index.html"
     }
 
+
+@router.get("/_debug/redis")
+async def _debug_redis():
+    """Debug endpoint to test Redis connectivity"""
+    try:
+        if not _redis:
+            return {"ok": False, "reason": "REDIS_URL not set"}
+        await _redis.set("cfo_ping", "1", ex=10)
+        v = await _redis.get("cfo_ping")
+        return {"ok": v == "1", "redis_url_configured": bool(_redis_url)}
+    except Exception as e:
+        return {"ok": False, "error": str(e)}
 
 @router.get("/force-redirect-test")
 async def force_redirect_test():

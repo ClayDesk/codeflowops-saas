@@ -36,51 +36,26 @@ def sanitize_frontend_url(candidate: str) -> str:
 LOGIN_TOKEN_TTL = 300
 REDIS_OP_TIMEOUT = 0.8  # hard cap so we never stall the 302
 
-# Optional Redis with TLS and fast timeouts
+# Redis client with TLS support for Valkey
 try:
     import redis.asyncio as redis
     _redis_url = os.getenv("REDIS_URL")
     _redis = redis.from_url(
         _redis_url,
         decode_responses=True,
-        # extra safety so we never block the 302
         socket_timeout=1.0,
         socket_connect_timeout=1.0,
         health_check_interval=30,
+        # ssl=True,  # uncomment only if your base image needs it despite rediss://
     ) if _redis_url else None
 except Exception:
     _redis = None
 
 # In-memory fallback
-_ephemeral_login = {}  # token -> (payload, expiry_epoch)
-
-def _put_ephemeral(token: str, payload: dict, ttl: int = LOGIN_TOKEN_TTL):
-    _ephemeral_login[token] = (payload, int(time.time()) + ttl)
-
-def _get_ephemeral(token: str) -> Optional[dict]:
-    item = _ephemeral_login.get(token)
-    if not item:
-        return None
-    payload, exp = item
-    if time.time() > exp:
-        _ephemeral_login.pop(token, None)
-        return None
-    return payload
-
-def _pop_ephemeral(token: str) -> Optional[dict]:
-    item = _ephemeral_login.pop(token, None)
-    if not item:
-        return None
-    payload, exp = item
-    if time.time() > exp:
-        return None
-    return payload
+_ephemeral_store = {}  # token -> (payload, exp)
 
 async def store_login_token_fast(token: str, payload: dict, ttl: int = LOGIN_TOKEN_TTL):
-    """
-    Returns immediately (writes to memory first). Redis write is best-effort in background.
-    """
-    _put_ephemeral(token, payload, ttl)
+    _ephemeral_store[token] = (payload, int(time.time()) + ttl)
     if _redis:
         async def _bg():
             try:
@@ -90,38 +65,37 @@ async def store_login_token_fast(token: str, payload: dict, ttl: int = LOGIN_TOK
                 pass
         asyncio.create_task(_bg())
 
-async def get_login_token(token: str) -> Optional[dict]:
-    # fast path: memory
-    payload = _get_ephemeral(token)
-    if payload:
-        return payload
-    # slow path: Redis
+async def get_login_token(token: str):
+    v = _ephemeral_store.get(token)
+    if v:
+        payload, exp = v
+        if time.time() <= exp:
+            return payload
     if _redis:
         try:
-            data = await _redis.hgetall(f"login_token:{token}")
-            return data or None
+            d = await _redis.hgetall(f"login_token:{token}")
+            return d or None
         except Exception:
             return None
     return None
 
-async def pop_login_token(token: str) -> Optional[dict]:
-    # pop from memory first
-    payload = _pop_ephemeral(token)
-    if payload:
-        # best-effort cleanup in Redis
-        if _redis:
-            asyncio.create_task(_redis.delete(f"login_token:{token}"))
-        return payload
-    # otherwise try Redis (blocking briefly, then done)
+async def pop_login_token(token: str):
+    v = _ephemeral_store.pop(token, None)
+    if v:
+        payload, exp = v
+        if time.time() <= exp:
+            if _redis:
+                asyncio.create_task(_redis.delete(f"login_token:{token}"))
+            return payload
     if _redis:
         try:
-            data = await _redis.hgetall(f"login_token:{token}")
-            if data:
+            d = await _redis.hgetall(f"login_token:{token}")
+            if d:
                 try:
                     await _redis.delete(f"login_token:{token}")
                 except Exception:
                     pass
-                return data
+                return d
         except Exception:
             return None
     return None

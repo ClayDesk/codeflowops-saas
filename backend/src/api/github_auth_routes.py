@@ -46,7 +46,7 @@ try:
         socket_timeout=1.0,
         socket_connect_timeout=1.0,
         health_check_interval=30,
-        # ssl=True,  # uncomment only if your base image needs it despite rediss://
+        ssl=True,  # explicit SSL for Valkey ElastiCache
     ) if _redis_url else None
 except Exception:
     _redis = None

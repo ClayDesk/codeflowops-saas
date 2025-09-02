@@ -25,56 +25,94 @@ from ..config.env import get_settings
 logger = logging.getLogger(__name__)
 settings = get_settings()
 
-# Stateless JWT secrets
-SESSION_TOKEN_SECRET = os.getenv("SESSION_TOKEN_SECRET", "dev-session-secret-change-me")
-STATE_SIGNING_SECRET = os.getenv("STATE_SIGNING_SECRET", "dev-state-secret-change-me")
+# Stateless JWT secrets with fallbacks
+try:
+    SESSION_TOKEN_SECRET = os.getenv("SESSION_TOKEN_SECRET", "dev-session-secret-change-me-fallback")
+    STATE_SIGNING_SECRET = os.getenv("STATE_SIGNING_SECRET", "dev-state-secret-change-me-fallback")
+    # Ensure we have secrets
+    if not SESSION_TOKEN_SECRET or SESSION_TOKEN_SECRET == "":
+        SESSION_TOKEN_SECRET = "dev-session-secret-change-me-fallback"
+    if not STATE_SIGNING_SECRET or STATE_SIGNING_SECRET == "":
+        STATE_SIGNING_SECRET = "dev-state-secret-change-me-fallback"
+except Exception as e:
+    logger.warning(f"JWT secrets setup warning: {e}")
+    SESSION_TOKEN_SECRET = "dev-session-secret-change-me-fallback"
+    STATE_SIGNING_SECRET = "dev-state-secret-change-me-fallback"
 
 def b64url(data: bytes) -> str:
-    return base64.urlsafe_b64encode(data).rstrip(b"=").decode()
+    try:
+        return base64.urlsafe_b64encode(data).rstrip(b"=").decode()
+    except Exception as e:
+        logger.error(f"b64url encoding error: {e}")
+        raise
 
 def b64url_str(s: str) -> str:
-    return b64url(s.encode())
+    try:
+        return b64url(s.encode())
+    except Exception as e:
+        logger.error(f"b64url_str encoding error: {e}")
+        raise
 
 def sign_state(csrf: str, frontend_url: str, iat: int) -> str:
     """Return state= csrf|frontend|iat|sig  with HMAC-SHA256 signature (stateless CSRF)."""
-    msg = f"{csrf}|{frontend_url}|{iat}"
-    sig = hmac.new(STATE_SIGNING_SECRET.encode(), msg.encode(), hashlib.sha256).digest()
-    return f"{csrf}|{frontend_url}|{iat}|{b64url(sig)}"
+    try:
+        msg = f"{csrf}|{frontend_url}|{iat}"
+        sig = hmac.new(STATE_SIGNING_SECRET.encode(), msg.encode(), hashlib.sha256).digest()
+        return f"{csrf}|{frontend_url}|{iat}|{b64url(sig)}"
+    except Exception as e:
+        logger.error(f"State signing error: {e}")
+        raise HTTPException(status_code=500, detail="State signing failed")
 
 def verify_state(state: str, max_age_sec: int = 600) -> tuple[str, str]:
     """Return (csrf, frontend_url) if valid; raise ValueError otherwise."""
-    parts = state.split("|", 3)
-    if len(parts) != 4:
-        raise ValueError("malformed state")
-    csrf, frontend_url, iat_str, sig_b64 = parts
     try:
-        iat = int(iat_str)
-    except:
-        raise ValueError("bad timestamp")
-    if int(time.time()) - iat > max_age_sec:
-        raise ValueError("state expired")
-    expected = hmac.new(STATE_SIGNING_SECRET.encode(),
-                        f"{csrf}|{frontend_url}|{iat}".encode(),
-                        hashlib.sha256).digest()
-    if not hmac.compare_digest(expected, base64.urlsafe_b64decode(sig_b64 + "==")):
-        raise ValueError("bad signature")
-    return csrf, frontend_url
+        parts = state.split("|", 3)
+        if len(parts) != 4:
+            raise ValueError("malformed state")
+        csrf, frontend_url, iat_str, sig_b64 = parts
+        try:
+            iat = int(iat_str)
+        except:
+            raise ValueError("bad timestamp")
+        if int(time.time()) - iat > max_age_sec:
+            raise ValueError("state expired")
+        expected = hmac.new(STATE_SIGNING_SECRET.encode(),
+                            f"{csrf}|{frontend_url}|{iat}".encode(),
+                            hashlib.sha256).digest()
+        if not hmac.compare_digest(expected, base64.urlsafe_b64decode(sig_b64 + "==")):
+            raise ValueError("bad signature")
+        return csrf, frontend_url
+    except Exception as e:
+        logger.error(f"State verification error: {e}")
+        raise
 
 def make_login_jwt(code: str, csrf: str, ttl_sec: int = 300) -> str:
-    now = int(time.time())
-    payload = {
-        "typ": "login",
-        "iss": "codeflowops-auth",
-        "iat": now,
-        "exp": now + ttl_sec,
-        "jti": str(uuid.uuid4()),
-        "code": code,
-        "csrf": csrf,
-    }
-    return jwt.encode(payload, SESSION_TOKEN_SECRET, algorithm="HS256")
+    try:
+        now = int(time.time())
+        payload = {
+            "typ": "login",
+            "iss": "codeflowops-auth",
+            "iat": now,
+            "exp": now + ttl_sec,
+            "jti": str(uuid.uuid4()),
+            "code": code,
+            "csrf": csrf,
+        }
+        return jwt.encode(payload, SESSION_TOKEN_SECRET, algorithm="HS256")
+    except Exception as e:
+        logger.error(f"JWT creation error: {e}")
+        raise HTTPException(status_code=500, detail="Token creation failed")
 
 def parse_login_jwt(token: str) -> dict:
-    return jwt.decode(token, SESSION_TOKEN_SECRET, algorithms=["HS256"], options={"require": ["exp","iat","jti"]})
+    try:
+        return jwt.decode(token, SESSION_TOKEN_SECRET, algorithms=["HS256"], options={"require": ["exp","iat","jti"]})
+    except jwt.ExpiredSignatureError:
+        raise
+    except jwt.InvalidTokenError:
+        raise  
+    except Exception as e:
+        logger.error(f"JWT parsing error: {e}")
+        raise jwt.InvalidTokenError("Token parsing failed")
 
 ALLOWED_FRONTENDS = {
     "https://www.codeflowops.com",
@@ -256,6 +294,28 @@ async def test_redirect():
         "will_redirect_to": f"{origin_only(frontend_url)}/auth/callback/index.html"
     }
 
+
+@router.get("/_debug/jwt")
+async def _debug_jwt():
+    """Debug endpoint to test JWT functionality"""
+    try:
+        # Test JWT creation and parsing
+        test_token = make_login_jwt("test_code", "test_csrf", 300)
+        parsed = parse_login_jwt(test_token)
+        
+        # Test state signing and verification
+        test_state = sign_state("test_csrf", "https://example.com", int(time.time()))
+        csrf, url = verify_state(test_state)
+        
+        return {
+            "ok": True, 
+            "jwt_test": "success",
+            "state_test": "success",
+            "session_secret_set": bool(SESSION_TOKEN_SECRET != "dev-session-secret-change-me-fallback"),
+            "state_secret_set": bool(STATE_SIGNING_SECRET != "dev-state-secret-change-me-fallback")
+        }
+    except Exception as e:
+        return {"ok": False, "error": str(e)}
 
 @router.get("/_debug/redis")
 async def _debug_redis():

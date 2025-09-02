@@ -29,6 +29,84 @@ class GitHubOAuthResponse(BaseModel):
     cognito_integrated: bool = False
 
 
+@router.get("/debug/config")
+async def debug_config():
+    """Debug endpoint to check configuration values"""
+    # Try to import AWS config manager to test it directly
+    try:
+        from ..config.aws_config import config_manager
+        aws_config = config_manager.get_all_config()
+        frontend_url_from_aws = config_manager.get_parameter('FRONTEND_URL')
+        aws_available = config_manager.aws_available
+        
+        # Test direct SSM call
+        try:
+            import boto3
+            ssm_client = boto3.client('ssm', region_name='us-east-1')
+            direct_ssm_response = ssm_client.get_parameter(Name="/codeflowops/production/FRONTEND_URL")
+            direct_ssm_value = direct_ssm_response['Parameter']['Value']
+        except Exception as ssm_error:
+            direct_ssm_value = f"Error: {str(ssm_error)}"
+        
+        return {
+            "frontend_url": settings.FRONTEND_URL,
+            "environment": settings.ENVIRONMENT,
+            "debug": settings.DEBUG,
+            "aws_config": aws_config,
+            "frontend_url_from_aws": frontend_url_from_aws,
+            "aws_available": aws_available,
+            "environment_var": os.getenv('ENVIRONMENT'),
+            "frontend_url_env": os.getenv('FRONTEND_URL'),
+            "direct_ssm_test": direct_ssm_value,
+            "config_manager_details": {
+                "app_name": config_manager.app_name,
+                "environment": config_manager.environment,
+                "region": config_manager.region,
+                "expected_path": f"/{config_manager.app_name}/{config_manager.environment}/FRONTEND_URL"
+            }
+        }
+    except Exception as e:
+        return {
+            "frontend_url": settings.FRONTEND_URL,
+            "environment": settings.ENVIRONMENT,
+            "debug": settings.DEBUG,
+            "aws_error": str(e),
+            "environment_var": os.getenv('ENVIRONMENT'),
+            "frontend_url_env": os.getenv('FRONTEND_URL')
+        }
+
+
+@router.get("/test-redirect")
+async def test_redirect():
+    """Test endpoint to see what redirect URL is being generated"""
+    frontend_url = settings.FRONTEND_URL
+    test_redirect_url = (
+        f"{frontend_url}/auth/callback?"
+        f"success=true&"
+        f"user_id=test_user&"
+        f"email=test@example.com&"
+        f"username=testuser&"
+        f"access_token=test_token&"
+        f"cognito_integrated=true"
+    )
+    
+    return {
+        "frontend_url": frontend_url,
+        "redirect_url": test_redirect_url,
+        "message": "This is what the OAuth success redirect should look like",
+        "will_redirect_to": f"{frontend_url}/auth/callback"
+    }
+
+
+@router.get("/force-redirect-test")
+async def force_redirect_test():
+    """Force redirect test to auth callback"""
+    frontend_url = settings.FRONTEND_URL
+    redirect_url = f"{frontend_url}/auth/callback?test=true&source=backend_test"
+    
+    return RedirectResponse(url=redirect_url, status_code=302)
+
+
 class GitHubAuthUrlResponse(BaseModel):
     """Response model for GitHub authorization URL"""
     authorization_url: str
@@ -122,7 +200,7 @@ async def github_oauth_callback(
             logger.warning(f"GitHub OAuth error: {error_msg}")
             
             # Redirect to frontend with error
-            frontend_url = os.getenv("FRONTEND_URL", "http://localhost:3000")
+            frontend_url = settings.FRONTEND_URL
             return RedirectResponse(
                 url=f"{frontend_url}/login?error={error}&error_description={error_description}",
                 status_code=302
@@ -156,22 +234,22 @@ async def github_oauth_callback(
             logger.error(f"GitHub OAuth authentication failed: {auth_result.error_message}")
             
             # Redirect to frontend with error
-            frontend_url = frontend_redirect_uri or os.getenv("FRONTEND_URL", "http://localhost:3000")
+            frontend_url = frontend_redirect_uri or settings.FRONTEND_URL
             return RedirectResponse(
                 url=f"{frontend_url}/login?error=auth_failed&error_description={auth_result.error_message}",
                 status_code=302
             )
         
         # Success - redirect to frontend with tokens
-        frontend_url = frontend_redirect_uri or os.getenv("FRONTEND_URL", "http://localhost:3000")
+        frontend_url = frontend_redirect_uri or settings.FRONTEND_URL
         
         # For security, we'll include a success token that the frontend can exchange for the actual tokens
         success_token = str(uuid.uuid4())
         
         # Store the auth result temporarily (in production, use Redis or similar)
-        # For now, we'll redirect directly to deploy page with user info
+        # Redirect to auth callback page with user info
         redirect_url = (
-            f"{frontend_url}/deploy?"
+            f"{frontend_url}/auth/callback?"
             f"success=true&"
             f"user_id={auth_result.user_id}&"
             f"email={auth_result.email}&"
@@ -190,7 +268,7 @@ async def github_oauth_callback(
         logger.error(f"GitHub OAuth callback error: {str(e)}")
         
         # Redirect to frontend with error
-        frontend_url = os.getenv("FRONTEND_URL", "http://localhost:3000")
+        frontend_url = settings.FRONTEND_URL
         return RedirectResponse(
             url=f"{frontend_url}/login?error=server_error&error_description=Internal server error",
             status_code=302

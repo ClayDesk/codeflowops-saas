@@ -11,14 +11,51 @@ import { useAuthGuard } from '@/hooks/use-auth-guard'
 import { Skeleton } from '@/components/ui/skeleton'
 
 function DeployPageContent() {
-  const { isAuthenticated, loading } = useAuthGuard('/login')
   const [showDeploymentFlow, setShowDeploymentFlow] = useState(false)
   const [prefilledRepo, setPrefilledRepo] = useState('')
+  const [oauthProcessing, setOauthProcessing] = useState(false)
   const searchParams = useSearchParams()
 
+  // Check for OAuth callback parameters first
   useEffect(() => {
-    // Only proceed if authenticated
-    if (!loading && isAuthenticated) {
+    const handleOAuthCallback = async () => {
+      const success = searchParams.get('success')
+      const accessToken = searchParams.get('access_token')
+      const userEmail = searchParams.get('email')
+      const userId = searchParams.get('user_id')
+
+      if (success === 'true' && accessToken && userEmail) {
+        setOauthProcessing(true)
+        
+        try {
+          // Store OAuth tokens in localStorage for the auth system
+          localStorage.setItem('auth_token', accessToken)
+          localStorage.setItem('user_email', userEmail)
+          localStorage.setItem('user_id', userId || '')
+          
+          // Clear OAuth params from URL
+          const newUrl = window.location.pathname
+          window.history.replaceState({}, '', newUrl)
+          
+          // Auto-start deployment flow for authenticated OAuth users
+          setShowDeploymentFlow(true)
+        } catch (error) {
+          console.error('OAuth callback processing error:', error)
+        } finally {
+          setOauthProcessing(false)
+        }
+      }
+    }
+
+    handleOAuthCallback()
+  }, [searchParams])
+
+  // Use auth guard only if not processing OAuth
+  const { isAuthenticated, loading } = useAuthGuard(oauthProcessing ? null : '/login')
+
+  useEffect(() => {
+    // Only proceed if authenticated and not processing OAuth
+    if (!loading && !oauthProcessing && isAuthenticated) {
       // Check if there's a repo parameter in the URL
       const repo = searchParams.get('repo')
       if (repo) {
@@ -27,10 +64,10 @@ function DeployPageContent() {
         setShowDeploymentFlow(true)
       }
     }
-  }, [searchParams, loading, isAuthenticated])
+  }, [searchParams, loading, isAuthenticated, oauthProcessing])
 
-  // Show loading skeleton while checking authentication
-  if (loading) {
+  // Show loading skeleton while checking authentication or processing OAuth
+  if (loading || oauthProcessing) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-indigo-50 dark:from-gray-900 dark:via-gray-950 dark:to-blue-950">
         <div className="container mx-auto px-4 py-16">
@@ -44,8 +81,8 @@ function DeployPageContent() {
     )
   }
 
-  // Don't render content if not authenticated (guard will redirect)
-  if (!isAuthenticated) {
+  // Don't render content if not authenticated and not processing OAuth (guard will redirect)
+  if (!isAuthenticated && !oauthProcessing) {
     return null
   }
 

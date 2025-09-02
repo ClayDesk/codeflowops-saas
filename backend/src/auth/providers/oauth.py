@@ -3,11 +3,13 @@ OAuth2 authentication provider for GitHub, Google, etc.
 """
 
 import httpx
-from typing import Dict, Any
+import logging
+from typing import Dict, Any, Optional
 from .base import AuthProvider, AuthResult
 from ...config.env import get_settings
 
 settings = get_settings()
+logger = logging.getLogger(__name__)
 
 class OAuthProvider(AuthProvider):
     """OAuth2 authentication provider"""
@@ -88,6 +90,39 @@ class OAuthProvider(AuthProvider):
             )
             response.raise_for_status()
             return response.json()
+
+    async def get_github_primary_email(self, access_token: str) -> Optional[str]:
+        """Get primary email from GitHub emails API"""
+        if self.provider_type != "github":
+            return None
+            
+        try:
+            async with httpx.AsyncClient() as client:
+                response = await client.get(
+                    "https://api.github.com/user/emails",
+                    headers={"Authorization": f"Bearer {access_token}"}
+                )
+                response.raise_for_status()
+                emails = response.json()
+                
+                # Find primary email
+                for email_info in emails:
+                    if email_info.get("primary", False):
+                        return email_info.get("email")
+                
+                # If no primary email found, use the first verified email
+                for email_info in emails:
+                    if email_info.get("verified", False):
+                        return email_info.get("email")
+                
+                # Last resort: use first email
+                if emails:
+                    return emails[0].get("email")
+                    
+        except Exception as e:
+            logger.warning(f"Failed to get GitHub email: {str(e)}")
+            
+        return None
     
     async def authenticate(self, username: str, password: str) -> AuthResult:
         """Not supported for OAuth - use authorization flow instead"""
@@ -115,6 +150,11 @@ class OAuthProvider(AuthProvider):
             # Map provider-specific fields to our format
             if self.provider_type == "github":
                 email = user_info.get("email")
+                
+                # If email is None or empty, try to get from emails API
+                if not email:
+                    email = await self.get_github_primary_email(access_token)
+                
                 username = user_info.get("login")
                 full_name = user_info.get("name") or username
                 user_id = str(user_info.get("id"))

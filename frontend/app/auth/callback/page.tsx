@@ -17,6 +17,9 @@ function AuthCallbackContent() {
   useEffect(() => {
     const handleCallback = async () => {
       try {
+        // Capture next URL BEFORE clearing search params
+        const nextUrl = searchParams.get('next') || '/deploy'
+        
         const success = searchParams.get('success')
         const error = searchParams.get('error')
         const errorDescription = searchParams.get('error_description')
@@ -85,10 +88,12 @@ function AuthCallbackContent() {
             setStatus('success')
             setMessage('Authentication successful! Redirecting...')
 
-            // Redirect to dashboard after a short delay
+            // Small delay so the success UI renders; then force a full reload
             setTimeout(() => {
-              router.push('/deploy')
-            }, 2000)
+              if (typeof window !== 'undefined') {
+                window.location.replace(nextUrl)
+              }
+            }, 600)
           } else {
             setStatus('error')
             setMessage('No login token provided')
@@ -146,7 +151,7 @@ function AuthCallbackContent() {
                 ✅ Account created in AWS Cognito
               </p>
               <p className="text-sm text-gray-500">
-                Redirecting to dashboard...
+                Redirecting to dashboard in a moment...
               </p>
             </div>
           )}

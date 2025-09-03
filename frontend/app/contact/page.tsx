@@ -1,6 +1,7 @@
 'use client'
 
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
+import { useSearchParams } from 'next/navigation'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -54,6 +55,7 @@ import {
 } from 'lucide-react'
 
 export default function ContactPage() {
+  const searchParams = useSearchParams()
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -65,6 +67,19 @@ export default function ContactPage() {
   })
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isSubmitted, setIsSubmitted] = useState(false)
+
+  // Handle URL parameters for pre-filling form
+  useEffect(() => {
+    const subject = searchParams.get('subject')
+    if (subject === 'cancel-subscription') {
+      setFormData(prev => ({
+        ...prev,
+        inquiryType: 'cancel-subscription',
+        subject: 'Request to Cancel Subscription',
+        message: 'I would like to cancel my CodeFlowOps Pro subscription. Please assist me with the cancellation process.\n\nSubscription details:\n- Email: [Please confirm your email]\n- Reason for cancellation (optional): \n\nThank you.'
+      }))
+    }
+  }, [searchParams])
 
   const handleInputChange = (field: string, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }))
@@ -327,6 +342,7 @@ export default function ContactPage() {
                       <SelectContent>
                         <SelectItem value="sales">Sales & Pricing</SelectItem>
                         <SelectItem value="support">Technical Support</SelectItem>
+                        <SelectItem value="cancel-subscription">Cancel Subscription</SelectItem>
                         <SelectItem value="partnership">Partnership</SelectItem>
                         <SelectItem value="security">Security & Compliance</SelectItem>
                         <SelectItem value="media">Media & Press</SelectItem>

@@ -29,7 +29,8 @@ const footerLinks = {
     { name: 'Careers', href: '/careers' },
     { name: 'Contact', href: '/contact' },
     { name: 'Press Kit', href: '/press' },
-    { name: 'Partners', href: '/partners' }
+    { name: 'Partners', href: '/partners' },
+    { name: 'Cancel Subscription', href: '/contact?subject=cancel-subscription' }
   ],
   legal: [
     { name: 'Privacy Policy', href: '/privacy' },

@@ -82,15 +82,15 @@ export function Footer() {
               <div className="space-y-2 text-sm text-gray-400">
                 <div className="flex items-center">
                   <Mail className="w-4 h-4 mr-2" />
-                  hello@codeflowops.com
+                  info@codeflowops.com
                 </div>
                 <div className="flex items-center">
                   <Phone className="w-4 h-4 mr-2" />
-                  +1 (555) 123-4567
+                  +1 (703) 646-3043
                 </div>
                 <div className="flex items-center">
                   <MapPin className="w-4 h-4 mr-2" />
-                  San Francisco, CA
+                  Connecticut, CT
                 </div>
               </div>
             </div>

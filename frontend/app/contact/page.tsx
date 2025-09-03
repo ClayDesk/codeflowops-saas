@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, Suspense } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -54,7 +54,7 @@ import {
   Image
 } from 'lucide-react'
 
-export default function ContactPage() {
+function ContactPageContent() {
   const searchParams = useSearchParams()
   const [formData, setFormData] = useState({
     name: '',
@@ -640,5 +640,13 @@ export default function ContactPage() {
         </div>
       </div>
     </div>
+  )
+}
+
+export default function ContactPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen flex items-center justify-center">Loading...</div>}>
+      <ContactPageContent />
+    </Suspense>
   )
 }

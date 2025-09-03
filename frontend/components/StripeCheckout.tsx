@@ -192,7 +192,7 @@ export function StripeCheckout({ onSuccess, onCancel }: StripeCheckoutProps) {
         <div className="bg-gray-50 p-4 rounded-lg border">
           <div className="flex justify-between items-center mb-2">
             <span className="text-sm text-gray-600">CodeFlowOps Pro</span>
-            <span className="font-semibold">$12/month</span>
+            <span className="font-semibold">$19/month</span>
           </div>
           <div className="flex justify-between items-center text-green-600">
             <span className="text-sm flex items-center">

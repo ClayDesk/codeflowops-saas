@@ -466,7 +466,7 @@ function DeployStep({ formData, isDeploying, deploymentProgress, onDeploy }: {
           <div className="space-y-2 text-sm">
             <div className="flex justify-between">
               <span>Compute</span>
-              <span>$12.00</span>
+              <span>$19.00</span>
             </div>
             <div className="flex justify-between">
               <span>Storage</span>

@@ -14,29 +14,24 @@ const footerLinks = {
   product: [
     { name: 'Features', href: '#features' },
     { name: 'How it Works', href: '#how-it-works' },
-    { name: 'Changelog', href: '/changelog' },
-    { name: 'Roadmap', href: '/roadmap' }
+    { name: 'Demo', href: '/tutorials' },
+    { name: 'Cancel Subscription', href: '/contact?subject=cancel-subscription' }
   ],
   resources: [
-    { name: 'Documentation', href: 'https://docs.codeflowops.com' },
-    { name: 'API Reference', href: 'https://api.codeflowops.com/docs' },
     { name: 'Tutorials', href: '/tutorials' },
-    { name: 'Blog', href: '/blog' },
-    { name: 'Community', href: '/community' }
+    { name: 'Blog', href: '/blog' }
   ],
   company: [
     { name: 'About Us', href: '/about' },
     { name: 'Careers', href: '/careers' },
     { name: 'Contact', href: '/contact' },
     { name: 'Press Kit', href: '/press' },
-    { name: 'Partners', href: '/partners' },
-    { name: 'Cancel Subscription', href: '/contact?subject=cancel-subscription' }
+    { name: 'Partners', href: '/partners' }
   ],
   legal: [
     { name: 'Privacy Policy', href: '/privacy' },
     { name: 'Terms of Service', href: '/terms' },
     { name: 'Cookie Policy', href: '/cookies' },
-    { name: 'Security', href: '/security' },
     { name: 'Compliance', href: '/compliance' }
   ]
 }
@@ -44,17 +39,17 @@ const footerLinks = {
 const socialLinks = [
   {
     name: 'GitHub',
-    href: 'https://github.com/codeflowops',
+    href: 'https://github.com/claydesk',
     icon: Github
   },
   {
     name: 'Twitter',
-    href: 'https://twitter.com/codeflowops',
+    href: 'https://twitter.com/claydesk',
     icon: Twitter
   },
   {
     name: 'LinkedIn',
-    href: 'https://linkedin.com/company/codeflowops',
+    href: 'https://linkedin.com/company/claydesk',
     icon: Linkedin
   }
 ]
@@ -91,7 +86,7 @@ export function Footer() {
                 </div>
                 <div className="flex items-center">
                   <MapPin className="w-4 h-4 mr-2" />
-                  Connecticut, CT
+                  Middletown, CT
                 </div>
               </div>
             </div>
@@ -175,7 +170,7 @@ export function Footer() {
         <div className="border-t border-gray-800 py-6">
           <div className="flex flex-col md:flex-row justify-between items-center">
             <div className="text-gray-400 text-sm">
-              © {new Date().getFullYear()} ClayDesk LLC. All rights reserved.
+              © {new Date().getFullYear()} CodeFlowOps by ClayDesk LLC. All rights reserved.
             </div>
             
             <div className="flex items-center space-x-6 mt-4 md:mt-0">

@@ -101,7 +101,7 @@ function ContactPageContent() {
       title: "Sales & Partnerships",
       description: "Questions about pricing, enterprise features, or partnership opportunities",
       email: "sales@codeflowops.com",
-      phone: "+1 (555) 123-4567",
+      phone: "+1 (703) 646-3043",
       icon: Briefcase,
       color: "blue",
       responseTime: "Within 4 hours"
@@ -110,28 +110,10 @@ function ContactPageContent() {
       title: "Technical Support",
       description: "Get help with deployments, integrations, or technical issues",
       email: "support@codeflowops.com",
-      phone: "+1 (555) 123-4568",
+      phone: "+1 (703) 646-3043",
       icon: Headphones,
       color: "green",
       responseTime: "Within 2 hours"
-    },
-    {
-      title: "Security & Compliance",
-      description: "Security questionnaires, compliance documentation, and vulnerability reports",
-      email: "security@codeflowops.com",
-      phone: "+1 (555) 123-4569",
-      icon: Shield,
-      color: "red",
-      responseTime: "Within 1 hour"
-    },
-    {
-      title: "General Inquiries",
-      description: "Media, press, general questions, or anything else",
-      email: "hello@codeflowops.com",
-      phone: "+1 (703) 646-3043",
-      icon: MessageSquare,
-      color: "purple",
-      responseTime: "Within 8 hours"
     }
   ]
 
@@ -404,51 +386,6 @@ function ContactPageContent() {
 
           {/* Support Channels */}
           <div className="space-y-6">
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center">
-                  <Headphones className="h-5 w-5 mr-2" />
-                  Other Ways to Reach Us
-                </CardTitle>
-                <CardDescription>
-                  Choose the method that works best for you
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                {supportChannels.map((channel) => (
-                  <div key={channel.name} className="flex items-center justify-between p-4 border rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800/50">
-                    <div className="flex items-center space-x-3">
-                      <div className="p-2 bg-blue-100 dark:bg-blue-900/20 rounded-lg">
-                        <channel.icon className="h-5 w-5 text-blue-600" />
-                      </div>
-                      <div>
-                        <h4 className="font-medium">{channel.name}</h4>
-                        <p className="text-sm text-slate-600 dark:text-slate-400">{channel.description}</p>
-                        <div className="flex items-center text-xs text-slate-500 mt-1">
-                          <Clock className="h-3 w-3 mr-1" />
-                          {channel.available}
-                        </div>
-                      </div>
-                    </div>
-                    <Button size="sm" variant="outline">
-                      {channel.action}
-                      <ArrowRight className="h-3 w-3 ml-1" />
-                    </Button>
-                  </div>
-                ))}
-              </CardContent>
-            </Card>
-
-            {/* Emergency Contact */}
-            <Alert className="bg-red-50 border-red-200 dark:bg-red-900/20 dark:border-red-800">
-              <AlertCircle className="h-4 w-4 text-red-600" />
-              <AlertDescription className="text-red-800 dark:text-red-200">
-                <strong>Critical Issues or Security Incidents:</strong><br />
-                For urgent production issues or security concerns, call our 24/7 hotline at{' '}
-                <a href="tel:+15551234999" className="font-medium underline">+1 (555) 123-4999</a>
-              </AlertDescription>
-            </Alert>
-
             {/* Social Media */}
             <Card>
               <CardHeader>
@@ -590,54 +527,6 @@ function ContactPageContent() {
             </div>
           </CardContent>
         </Card>
-
-        {/* Partnership & Media */}
-        <div className="grid md:grid-cols-2 gap-6 mb-12">
-          <Card className="bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-blue-900/20 dark:to-indigo-900/20 border-blue-200">
-            <CardContent className="p-8 text-center">
-              <Rocket className="h-12 w-12 text-blue-600 mx-auto mb-4" />
-              <h3 className="text-xl font-bold mb-2">Partnership Opportunities</h3>
-              <p className="text-slate-700 dark:text-slate-300 mb-4">
-                Interested in partnering with us? We'd love to explore integration partnerships, 
-                reseller opportunities, and technology alliances.
-              </p>
-              <Button className="bg-blue-600 hover:bg-blue-700">
-                <Mail className="h-4 w-4 mr-2" />
-                Contact Partnerships
-              </Button>
-            </CardContent>
-          </Card>
-
-          <Card className="bg-gradient-to-br from-purple-50 to-pink-100 dark:from-purple-900/20 dark:to-pink-900/20 border-purple-200">
-            <CardContent className="p-8 text-center">
-              <Volume2 className="h-12 w-12 text-purple-600 mx-auto mb-4" />
-              <h3 className="text-xl font-bold mb-2">Media & Press</h3>
-              <p className="text-slate-700 dark:text-slate-300 mb-4">
-                Journalists, bloggers, and content creators: we're happy to provide interviews, 
-                expert commentary, and press materials.
-              </p>
-              <Button className="bg-purple-600 hover:bg-purple-700">
-                <Image className="h-4 w-4 mr-2" />
-                Press Inquiries
-              </Button>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Footer */}
-        <div className="text-center text-sm text-slate-500 border-t pt-8">
-          <p>
-            We're here to help! Whether you're just getting started or scaling to millions of users, 
-            our team is ready to support your journey.
-          </p>
-          <p className="mt-2">
-            For general inquiries: <a href="mailto:hello@codeflowops.com" className="text-blue-600 hover:underline">hello@codeflowops.com</a> • 
-            For urgent issues: <a href="tel:+15551234999" className="text-blue-600 hover:underline ml-1">+1 (555) 123-4999</a>
-          </p>
-          <p className="mt-4 font-semibold">
-            Thank you for choosing CodeFlowOps. We look forward to hearing from you!
-          </p>
-        </div>
       </div>
     </div>
   )

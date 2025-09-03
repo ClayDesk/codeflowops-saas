@@ -11,7 +11,6 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useApiConfig, useSmartDeployApi } from '@/lib/api';
 import { CreateDeploymentModal } from './CreateDeploymentModal';
-import { TestFrameworkModal } from '../test/TestFrameworkModal';
 import { AuthProtected } from '@/components/auth/AuthProtected';
 import {
   Cloud,
@@ -1105,11 +1104,6 @@ function SmartDeployDashboardContent() {
               </Button>
             </div>
           </div>
-        </div>
-
-        {/* Temporary Test Component */}
-        <div className="mb-8">
-          <TestFrameworkModal />
         </div>
 
         {/* Stats Cards */}

@@ -42,10 +42,10 @@ export function Navbar() {
               How it Works
             </Link>
             <Link
-              href="#testimonials"
+              href="/tutorials"
               className="text-gray-600 hover:text-gray-900 dark:text-gray-300 dark:hover:text-white font-medium transition-colors"
             >
-              Reviews
+              Demo
             </Link>
             
             {/* Theme Toggle */}
@@ -111,11 +111,11 @@ export function Navbar() {
                 How it Works
               </Link>
               <Link
-                href="#testimonials"
+                href="/tutorials"
                 className="block px-3 py-2 text-gray-600 hover:text-gray-900 dark:text-gray-300 dark:hover:text-white font-medium transition-colors"
                 onClick={() => setIsOpen(false)}
               >
-                Reviews
+                Demo
               </Link>
               <div className="border-t border-gray-200 dark:border-gray-800 pt-4 px-3">
                 <AuthStatus />

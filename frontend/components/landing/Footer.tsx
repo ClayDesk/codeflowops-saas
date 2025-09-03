@@ -171,31 +171,11 @@ export function Footer() {
           </div>
         </div>
 
-        {/* Newsletter */}
-        <div className="border-t border-gray-800 py-8">
-          <div className="max-w-md">
-            <h3 className="font-semibold text-white mb-4">Stay updated</h3>
-            <p className="text-gray-400 text-sm mb-4">
-              Get the latest updates, feature releases, and deployment tips delivered to your inbox.
-            </p>
-            <div className="flex">
-              <input
-                type="email"
-                placeholder="Enter your email"
-                className="flex-1 px-4 py-2 bg-gray-800 border border-gray-700 rounded-l-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-white placeholder-gray-400"
-              />
-              <button className="px-6 py-2 bg-blue-600 text-white rounded-r-lg hover:bg-blue-700 transition-colors">
-                Subscribe
-              </button>
-            </div>
-          </div>
-        </div>
-
         {/* Bottom section */}
         <div className="border-t border-gray-800 py-6">
           <div className="flex flex-col md:flex-row justify-between items-center">
             <div className="text-gray-400 text-sm">
-              © {new Date().getFullYear()} CodeFlowOps. All rights reserved.
+              © {new Date().getFullYear()} ClayDesk LLC. All rights reserved.
             </div>
             
             <div className="flex items-center space-x-6 mt-4 md:mt-0">

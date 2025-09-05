@@ -1293,12 +1293,36 @@ async def deploy_to_aws(request: DeployRequest):
                     repo_url = stored_session["repo_url"]
                     logger.info(f"📋 Retrieved analysis data for deployment {deployment_id}")
                 else:
-                    error_msg = f"No analysis data found for deployment_id {deployment_id}. Available sessions: {list(_ANALYSIS_SESSIONS.keys())}. Please analyze the repository first."
-                    logger.error(f"❌ {error_msg}")
-                    raise HTTPException(
-                        status_code=400, 
-                        detail=error_msg
-                    )
+                    # If no session found and we have repo_url, try to re-analyze quickly
+                    if repo_url:
+                        logger.info(f"🔄 No session found for {deployment_id}, attempting quick re-analysis of {repo_url}")
+                        try:
+                            # Import enhanced analyzer
+                            from enhanced_repository_analyzer import enhanced_analyzer
+                            
+                            # Perform quick analysis
+                            analysis = await enhanced_analyzer.analyze_repository_comprehensive(repo_url, deployment_id)
+                            
+                            # Store the analysis for this session
+                            _ANALYSIS_SESSIONS[deployment_id] = {
+                                "analysis": analysis,
+                                "repo_url": repo_url,
+                                "timestamp": datetime.utcnow().isoformat()
+                            }
+                            
+                            logger.info(f"✅ Successfully re-analyzed repository for deployment {deployment_id}")
+                            
+                        except Exception as e:
+                            logger.error(f"❌ Failed to re-analyze repository: {e}")
+                            error_msg = f"No analysis data found for deployment_id {deployment_id} and re-analysis failed. Available sessions: {list(_ANALYSIS_SESSIONS.keys())}. Please analyze the repository first."
+                            raise HTTPException(status_code=400, detail=error_msg)
+                    else:
+                        error_msg = f"No analysis data found for deployment_id {deployment_id}. Available sessions: {list(_ANALYSIS_SESSIONS.keys())}. Please analyze the repository first."
+                        logger.error(f"❌ {error_msg}")
+                        raise HTTPException(
+                            status_code=400, 
+                            detail=error_msg
+                        )
         
         logger.info(f"🚀 Starting deployment {deployment_id} with credentials for region {request.aws_region}")
         

@@ -146,39 +146,83 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }
 
   // Helper functions
-  const getStoredToken = () => {
+  const getCookieValue = (name: string): string | null => {
     if (typeof window === 'undefined') return null
-    return localStorage.getItem(ACCESS_TOKEN_KEY)
+    const value = `; ${document.cookie}`
+    const parts = value.split(`; ${name}=`)
+    if (parts.length === 2) return parts.pop()?.split(';').shift() || null
+    return null
+  }
+
+  const getStoredToken = () => {
+    // Try cookie first (server-side session), fallback to localStorage
+    return getCookieValue('auth_token') || getCookieValue('codeflowops_access_token') || localStorage.getItem(ACCESS_TOKEN_KEY)
   }
 
   const getStoredRefreshToken = () => {
-    if (typeof window === 'undefined') return null
-    return localStorage.getItem(REFRESH_TOKEN_KEY)
+    // Try cookie first, fallback to localStorage
+    return getCookieValue('refresh_token') || getCookieValue('codeflowops_refresh_token') || localStorage.getItem(REFRESH_TOKEN_KEY)
   }
 
   const getStoredUser = (): User | null => {
     if (typeof window === 'undefined') return null
+
+    // Try sessionStorage first (temporary), then localStorage
+    const sessionUser = sessionStorage.getItem('codeflowops_user')
+    if (sessionUser) {
+      try {
+        return JSON.parse(sessionUser)
+      } catch (e) {
+        console.warn('Failed to parse session user data:', e)
+      }
+    }
+
+    // Fallback to localStorage
     const stored = localStorage.getItem(USER_KEY)
     return stored ? JSON.parse(stored) : null
   }
 
   const storeAuthData = (authData: AuthResponse) => {
     if (typeof window === 'undefined') return
-    
-    localStorage.setItem(ACCESS_TOKEN_KEY, authData.access_token)
+
+    // Store in cookies for server-side session management
+    document.cookie = `auth_token=${authData.access_token}; path=/; secure; samesite=strict; max-age=86400` // 24 hours
+    document.cookie = `codeflowops_access_token=${authData.access_token}; path=/; secure; samesite=strict; max-age=86400`
+
     if (authData.refresh_token) {
-      localStorage.setItem(REFRESH_TOKEN_KEY, authData.refresh_token)
+      document.cookie = `refresh_token=${authData.refresh_token}; path=/; secure; samesite=strict; max-age=604800` // 7 days
+      document.cookie = `codeflowops_refresh_token=${authData.refresh_token}; path=/; secure; samesite=strict; max-age=604800`
     }
-    localStorage.setItem(USER_KEY, JSON.stringify(authData.user))
+
+    // Store user data in sessionStorage (temporary) and localStorage (fallback)
+    if (authData.user) {
+      sessionStorage.setItem('codeflowops_user', JSON.stringify(authData.user))
+      localStorage.setItem(USER_KEY, JSON.stringify(authData.user))
+      document.cookie = `user_id=${authData.user.id}; path=/; secure; samesite=strict; max-age=86400`
+    }
+
     setUser(authData.user)
   }
 
   const clearAuthData = () => {
     if (typeof window === 'undefined') return
-    
+
+    // Clear cookies
+    document.cookie = 'auth_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT'
+    document.cookie = 'codeflowops_access_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT'
+    document.cookie = 'refresh_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT'
+    document.cookie = 'codeflowops_refresh_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT'
+    document.cookie = 'user_id=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT'
+    document.cookie = 'session_id=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT'
+
+    // Clear localStorage
     localStorage.removeItem(ACCESS_TOKEN_KEY)
     localStorage.removeItem(REFRESH_TOKEN_KEY)
     localStorage.removeItem(USER_KEY)
+
+    // Clear sessionStorage
+    sessionStorage.removeItem('codeflowops_user')
+
     setUser(null)
   }
 

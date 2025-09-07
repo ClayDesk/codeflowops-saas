@@ -36,31 +36,22 @@ function AuthCallbackContent() {
         // Handle direct token (simplified flow)
         if (token) {
           try {
-            // Verify the token with backend
-            const apiBase = (process.env.NEXT_PUBLIC_API_URL || 'https://api.codeflowops.com').replace(/\/+$/, '');
-            const verifyRes = await fetch(`${apiBase}/github/verify`, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ token }),
-            });
+            // Store token in secure cookie instead of localStorage
+            document.cookie = `auth_token=${token}; path=/; secure; samesite=strict; max-age=86400`; // 24 hours
+            document.cookie = `codeflowops_access_token=${token}; path=/; secure; samesite=strict; max-age=86400`;
 
-            if (verifyRes.ok) {
-              const userData = await verifyRes.json();
-              // Store token and redirect
-              localStorage.setItem('auth_token', token);
-              localStorage.setItem('codeflowops_access_token', token);
-              localStorage.setItem('codeflowops_user', JSON.stringify(userData.user));
-              
-              setStatus('success');
-              setMessage('Authentication successful! Redirecting...');
-              
-              setTimeout(() => {
-                window.location.replace(nextUrl);
-              }, 1000);
-              return;
-            }
+            // Store minimal user info in session storage temporarily
+            sessionStorage.setItem('codeflowops_access_token', token);
+
+            setStatus('success');
+            setMessage('Authentication successful! Redirecting...');
+
+            setTimeout(() => {
+              window.location.replace(nextUrl);
+            }, 1000);
+            return;
           } catch (err) {
-            console.error('Token verification failed:', err);
+            console.error('Token storage failed:', err);
           }
         }
 
@@ -72,7 +63,7 @@ function AuthCallbackContent() {
           let tries = 0;
           let data: any = null;
           while (tries < 20) { // ~10 seconds total
-            const res = await fetch(`${apiBase}/session/consume`, {
+            const res = await fetch(`${apiBase}/api/v1/auth/session/consume`, {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({ token: loginToken }),
@@ -98,17 +89,21 @@ function AuthCallbackContent() {
           if (data && data.access_token) {
             setStatus('success');
             setMessage('Authentication successful! Redirecting...');
-            
-            // Store token and update auth context
-            localStorage.setItem('auth_token', data.access_token);
-            localStorage.setItem('codeflowops_access_token', data.access_token);
+
+            // Store authentication data in server-side session instead of localStorage
+            // Set session cookie for server-side session management
+            document.cookie = `auth_token=${data.access_token}; path=/; secure; samesite=strict; max-age=86400`; // 24 hours
             if (data.refresh_token) {
-              localStorage.setItem('codeflowops_refresh_token', data.refresh_token);
+              document.cookie = `refresh_token=${data.refresh_token}; path=/; secure; samesite=strict; max-age=604800`; // 7 days
             }
+
+            // Store user data in session storage (temporary, will be replaced by server session)
             if (data.user) {
-              localStorage.setItem('codeflowops_user', JSON.stringify(data.user));
+              sessionStorage.setItem('codeflowops_user', JSON.stringify(data.user));
+              // Also store minimal user info in cookie for server-side access
+              document.cookie = `user_id=${data.user.user_id || data.user.id}; path=/; secure; samesite=strict; max-age=86400`;
             }
-            
+
             setTimeout(() => {
               window.location.replace(nextUrl);
             }, 600);

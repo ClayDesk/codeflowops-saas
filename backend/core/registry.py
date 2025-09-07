@@ -80,6 +80,12 @@ class StackRegistry:
                     
                 if plan:
                     logger.info(f"✅ Detected stack: {stack_key}")
+                    
+                    # 🚫 INTERCEPT PHP/LARAVEL/VUE DETECTIONS - Mark as non-deployable
+                    if self._is_php_laravel_vue_stack(plan, context):
+                        logger.info(f"🚫 Intercepted {stack_key} detection - redirecting to non-deployable")
+                        return self._create_non_deployable_plan(plan, context, repo_dir)
+                    
                     # Ensure repository URL is in config if context provided
                     if context and 'repo_url' in context and 'repository_url' not in plan.config:
                         plan.config['repository_url'] = context['repo_url']
@@ -90,6 +96,94 @@ class StackRegistry:
                 
         logger.warning(f"❌ No stack detected for repository: {repo_dir}")
         return None
+        
+    def _is_php_laravel_vue_stack(self, plan: StackPlan, context: Optional[dict] = None) -> bool:
+        """Check if the detected stack is PHP/Laravel/Vue that should be marked as non-deployable"""
+        
+        # Check stack key
+        if plan.stack_key in ['php', 'api', 'php_api']:
+            return True
+            
+        # Check context for framework information
+        if context:
+            detected_framework = None
+            
+            # Check direct context
+            if isinstance(context, dict):
+                detected_framework = context.get('detected_framework')
+                
+                # Check analysis section
+                if not detected_framework and 'analysis' in context:
+                    analysis = context['analysis']
+                    if isinstance(analysis, dict):
+                        detected_framework = analysis.get('detected_framework')
+                        
+            # Check for PHP/Laravel/Vue frameworks
+            if detected_framework:
+                php_laravel_vue_frameworks = [
+                    'laravel', 'php', 'vue', 'vue.js', 'nuxt', 'nuxt.js',
+                    'laravel-web', 'laravel-api', 'php-laravel', 'laravel-blade'
+                ]
+                
+                framework_lower = str(detected_framework).lower()
+                if any(framework in framework_lower for framework in php_laravel_vue_frameworks):
+                    return True
+                    
+        # Check plan config for framework information
+        if hasattr(plan, 'config') and plan.config:
+            framework = plan.config.get('framework', '').lower()
+            detected_framework = plan.config.get('detected_framework', '').lower()
+            runtime = plan.config.get('runtime', '').lower()
+            
+            if any(fw in framework or fw in detected_framework or fw in runtime for fw in ['laravel', 'php', 'vue']):
+                return True
+                
+        return False
+        
+    def _create_non_deployable_plan(self, original_plan: StackPlan, context: Optional[dict] = None, repo_dir: Path = None) -> StackPlan:
+        """Create a non-deployable plan with professional messaging for PHP/Laravel/Vue apps"""
+        
+        # Determine the specific framework for messaging
+        framework = "PHP/Laravel/Vue"
+        if context and isinstance(context, dict):
+            detected = context.get('detected_framework') or context.get('framework')
+            if detected:
+                framework = str(detected).title()
+                
+        # Create professional non-deployable configuration
+        non_deployable_config = {
+            "type": "web_framework_not_supported",
+            "tool_name": f"{framework} Web Application",
+            "language": "PHP/JavaScript",
+            "deployable": False,
+            "reason": "Framework Not Currently Supported",
+            "explanation": f"This repository contains a {framework} web application. CodeFlowOps currently specializes in deploying specific web application stacks. While {framework} is a popular framework, it's not currently supported in our deployment pipeline.",
+            "usage_instructions": [
+                f"Deploy {framework} applications manually using your preferred hosting provider",
+                f"Consider using platform-specific deployment tools for {framework}",
+                "Check back later as we continuously add support for more frameworks",
+                "Contact support if you need assistance with alternative deployment options"
+            ],
+            "what_to_deploy_instead": "Consider converting to a supported framework (React SPA, Static Website, or API applications) or deploy manually to your preferred hosting platform.",
+            "codeflowops_message": f"CodeFlowOps currently supports React SPAs, Static Websites, and API applications. {framework} deployment is not available at this time.",
+            "supported_alternatives": [
+                "React Single Page Applications",
+                "Static HTML/CSS/JavaScript websites", 
+                "API applications (Node.js, Python, Java)"
+            ],
+            "original_detection": {
+                "stack_key": original_plan.stack_key,
+                "framework": framework
+            }
+        }
+        
+        # Return non-deployable StackPlan
+        return StackPlan(
+            stack_key="non_deployable",
+            build_cmds=[],
+            output_dir=repo_dir or Path("/tmp"),
+            config=non_deployable_config
+        )
         
     def list_stacks(self) -> List[str]:
         """Get list of all registered stack keys"""

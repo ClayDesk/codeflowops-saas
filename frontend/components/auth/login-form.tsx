@@ -178,7 +178,7 @@ export function LoginForm({ redirectTo = '/deploy' }: LoginFormProps) {
                     
                     // Get GitHub authorization URL from backend
                     const response = await fetch(
-                      `${API_BASE}/github/authorize?redirect_uri=${encodeURIComponent(redirectUri)}`
+                      `${API_BASE}/api/v1/auth/github/authorize?redirect_uri=${encodeURIComponent(redirectUri)}`
                     )
                     const data = await response.json()
                     

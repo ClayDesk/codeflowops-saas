@@ -3045,10 +3045,41 @@ async def get_auth_user_deployments(user_id: str = "demo_user"):
     """Get deployments for authenticated user - compatible with auth context"""
     return await get_user_deployments(user_id)
 
-@app.get("/api/v1/auth/github/deployments") 
-async def get_github_user_deployments(user_id: str = "demo_user"):
+@app.get("/api/v1/auth/github/deployments")
+async def get_github_user_deployments(request: Request, user_id: str = "demo_user"):
     """Get deployments for GitHub OAuth user - compatible with auth context"""
-    return await get_user_deployments(user_id)
+    try:
+        # Try to get user_id from various sources
+        actual_user_id = user_id
+
+        # Check for user_id in cookies (from our OAuth callback)
+        user_id_cookie = request.cookies.get('user_id')
+        if user_id_cookie:
+            actual_user_id = user_id_cookie
+
+        # Check for user_id in headers
+        user_id_header = request.headers.get('X-User-ID')
+        if user_id_header:
+            actual_user_id = user_id_header
+
+        # Check for user info in session storage
+        auth_token = request.cookies.get('auth_token') or request.cookies.get('codeflowops_access_token')
+        if auth_token:
+            # Try to extract user info from token or use a default mapping
+            # For now, use the token as a user identifier
+            actual_user_id = f"github_user_{hash(auth_token) % 10000}"
+
+        logger.info(f"🔍 Getting deployments for user: {actual_user_id}")
+
+        return await get_user_deployments(actual_user_id)
+
+    except Exception as e:
+        logger.error(f"Error getting GitHub user deployments: {e}")
+        return {
+            "user_id": user_id,
+            "deployments": [],
+            "error": str(e)
+        }
 
 # Include the main router
 app.include_router(router)

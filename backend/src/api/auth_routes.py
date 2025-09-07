@@ -5,6 +5,7 @@ from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from typing import Dict, Optional, Any, Union
 from pydantic import BaseModel, Field
 import logging
+logger = logging.getLogger(__name__)
 import sys
 import os
 
@@ -414,7 +415,7 @@ user_cleared_deployments = {}
 async def get_user_deployments(current_user: User = Depends(get_current_user)):
     """Get deployments for the current user"""
     user_id = current_user.user_id if current_user else "demo_user"
-    
+
     # Check if this user has cleared their deployments
     if user_cleared_deployments.get(user_id, False):
         # Return empty if history was cleared
@@ -423,29 +424,73 @@ async def get_user_deployments(current_user: User = Depends(get_current_user)):
             "deployments": []
         }
     else:
-        # Return mock deployments to simulate real data
-        return {
-            "user_id": user_id,
-            "deployments": [
-                {
-                    "id": "1",
-                    "name": "My Portfolio",
-                    "repository": "github.com/user/portfolio",
-                    "status": "success",
-                    "url": "https://my-portfolio-abc123.vercel.app",
-                    "createdAt": "2025-08-20T10:30:00Z",
-                    "technology": "Next.js"
-                },
-                {
-                    "id": "2",
-                    "name": "Blog App", 
-                    "repository": "github.com/user/blog-app",
-                    "status": "building",
-                    "createdAt": "2025-08-21T08:15:00Z",
-                    "technology": "React"
-                }
-            ]
-        }
+        # Import the real deployment history from simple_api
+        try:
+            from ...simple_api import _USER_DEPLOYMENT_HISTORY, _DEPLOY_STATES, _LOCK
+            import threading
+        except ImportError:
+            # Fallback to mock data if import fails
+            return {
+                "user_id": user_id,
+                "deployments": [
+                    {
+                        "id": "1",
+                        "name": "My Portfolio",
+                        "repository": "github.com/user/portfolio",
+                        "status": "success",
+                        "url": "https://my-portfolio-abc123.vercel.app",
+                        "createdAt": "2025-08-20T10:30:00Z",
+                        "technology": "Next.js"
+                    },
+                    {
+                        "id": "2",
+                        "name": "Blog App",
+                        "repository": "github.com/user/blog-app",
+                        "status": "building",
+                        "createdAt": "2025-08-21T08:15:00Z",
+                        "technology": "React"
+                    }
+                ]
+            }
+
+        try:
+            with _LOCK:
+                user_deployments = _USER_DEPLOYMENT_HISTORY.get(user_id, [])
+
+            # Also include any currently active deployments for this user
+            active_deployments = []
+            with _LOCK:
+                for dep_id, state in _DEPLOY_STATES.items():
+                    if state.get("user_id") == user_id:
+                        # Convert active deployment to deployment history format
+                        active_deployment = {
+                            "id": dep_id,
+                            "name": state.get("project_name", "Unknown Project"),
+                            "repository": state.get("repository_url", ""),
+                            "status": "building" if state.get("status") in ["analyzing", "deploying", "routing_react"] else "pending",
+                            "createdAt": state.get("created_at", ""),
+                            "technology": state.get("framework", "Static")
+                        }
+                        # Don't show URL for active deployments
+                        active_deployments.append(active_deployment)
+
+            # Combine completed deployments from history with active ones
+            all_deployments = active_deployments + user_deployments
+
+            # Sort by creation date (newest first)
+            all_deployments.sort(key=lambda x: x.get("createdAt", ""), reverse=True)
+
+            return {
+                "user_id": user_id,
+                "deployments": all_deployments[:20]  # Limit to last 20 deployments
+            }
+        except Exception as e:
+            logger.error(f"Error fetching user deployments: {e}")
+            return {
+                "user_id": user_id,
+                "deployments": [],
+                "error": str(e)
+            }
 
 @router.post("/deployments")
 async def create_user_deployment(deployment_data: dict):
@@ -462,14 +507,34 @@ async def clear_user_deployment_history(current_user: User = Depends(get_current
     """Clear all deployment history for the current user"""
     try:
         user_id = current_user.user_id if current_user else "demo_user"
-        
-        # Mark deployment history as cleared for this specific user
+
+        # Import the real deployment history from simple_api
+        try:
+            from ...simple_api import _USER_DEPLOYMENT_HISTORY, _LOCK
+            import threading
+        except ImportError:
+            # Fallback to just marking as cleared
+            user_cleared_deployments[user_id] = True
+            return {
+                "message": "Deployment history cleared successfully",
+                "user_id": user_id,
+                "cleared_count": 0
+            }
+
+        # Clear the real deployment history
+        cleared_count = 0
+        with _LOCK:
+            if user_id in _USER_DEPLOYMENT_HISTORY:
+                cleared_count = len(_USER_DEPLOYMENT_HISTORY[user_id])
+                _USER_DEPLOYMENT_HISTORY[user_id] = []
+
+        # Also mark as cleared for consistency
         user_cleared_deployments[user_id] = True
-        
+
         return {
             "message": "Deployment history cleared successfully",
             "user_id": user_id,
-            "cleared_count": 2  # Number of deployments that were cleared
+            "cleared_count": cleared_count
         }
     except Exception as e:
         logging.error(f"Clear deployment history error: {str(e)}")

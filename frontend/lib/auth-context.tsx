@@ -506,10 +506,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       let response
       if (user?.provider === 'github' || !token) {
         // Use GitHub-compatible deployments endpoint
-        response = await fetch(`${API_BASE}/api/v1/auth/github/deployments`, {
+        const userId = user?.id || 'demo_user'
+        response = await fetch(`${API_BASE}/api/v1/auth/github/deployments?user_id=${encodeURIComponent(userId)}`, {
           credentials: 'include',
           headers: {
             'Content-Type': 'application/json',
+            'X-User-ID': userId, // Also send in header
           },
         })
       } else {

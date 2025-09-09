@@ -23,6 +23,7 @@ export function RegisterForm({ redirectTo = '/deploy' }: RegisterFormProps) {
     confirmPassword: '',
     full_name: ''
   })
+  const [acceptTerms, setAcceptTerms] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
@@ -121,6 +122,12 @@ export function RegisterForm({ redirectTo = '/deploy' }: RegisterFormProps) {
     // Name validation (optional but if provided should be valid)
     if (formData.full_name && formData.full_name.trim().length < 2) {
       setError('Full name must be at least 2 characters long')
+      return false
+    }
+
+    // Terms acceptance validation
+    if (!acceptTerms) {
+      setError('You must accept the Terms of Service to create an account')
       return false
     }
 
@@ -413,10 +420,48 @@ export function RegisterForm({ redirectTo = '/deploy' }: RegisterFormProps) {
               </div>
             </div>
 
+            {/* Terms of Service Checkbox */}
+            <div className="space-y-2">
+              <div className="flex items-start space-x-2">
+                <input
+                  id="acceptTerms"
+                  name="acceptTerms"
+                  type="checkbox"
+                  checked={acceptTerms}
+                  onChange={(e) => setAcceptTerms(e.target.checked)}
+                  className="mt-1 h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                  disabled={isLoading}
+                />
+                <div className="text-sm">
+                  <Label htmlFor="acceptTerms" className="text-gray-700 dark:text-gray-300 cursor-pointer">
+                    I agree to the{' '}
+                    <Link
+                      href="/terms"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-blue-600 hover:text-blue-500 underline"
+                    >
+                      Terms of Service
+                    </Link>
+                    {' '}and{' '}
+                    <Link
+                      href="/privacy"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-blue-600 hover:text-blue-500 underline"
+                    >
+                      Privacy Policy
+                    </Link>
+                    <span className="text-red-500 ml-1">*</span>
+                  </Label>
+                </div>
+              </div>
+            </div>
+
             <Button
               type="submit"
               className="w-full"
-              disabled={isLoading}
+              disabled={isLoading || !acceptTerms}
             >
               {isLoading ? (
                 <>
@@ -474,14 +519,11 @@ export function RegisterForm({ redirectTo = '/deploy' }: RegisterFormProps) {
         </CardContent>
 
         <CardFooter className="flex flex-col space-y-2">
-          <div className="text-sm text-center text-muted-foreground">
+          <div className="text-xs text-center text-muted-foreground">
             Already have an account?{' '}
             <Link href="/login" className="text-primary hover:underline">
               Sign in
             </Link>
-          </div>
-          <div className="text-xs text-center text-muted-foreground">
-            By creating an account, you agree to our Terms of Service and Privacy Policy.
           </div>
         </CardFooter>
       </Card>

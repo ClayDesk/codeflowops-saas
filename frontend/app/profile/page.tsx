@@ -67,6 +67,8 @@ function ProfilePageContent() {
   })
   const [isUploadingPicture, setIsUploadingPicture] = useState(false)
   const [activeTab, setActiveTab] = useState('overview')
+  const [subscription, setSubscription] = useState<any>(null)
+  const [isCancellingSubscription, setIsCancellingSubscription] = useState(false)
 
   // Fetch user data from API
   useEffect(() => {
@@ -238,6 +240,97 @@ Thank you.`)
     
     window.location.href = `mailto:support@codeflowops.com?subject=${subject}&body=${body}`
   }
+
+  // Fetch user subscription data
+  const fetchUserSubscription = async () => {
+    try {
+      const response = await fetch('/api/v1/payments/subscription/user', {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
+        }
+      })
+
+      if (response.ok) {
+        const data = await response.json()
+        setSubscription(data.subscription)
+      } else {
+        console.warn('Failed to fetch subscription data')
+        // Set mock data for demo purposes
+        setSubscription({
+          id: 'sub_demo123',
+          status: 'active',
+          current_period_end: Date.now() + (30 * 24 * 60 * 60 * 1000), // 30 days from now
+          cancel_at_period_end: false,
+          plan: {
+            amount: 1900,
+            currency: 'usd',
+            interval: 'month'
+          }
+        })
+      }
+    } catch (error) {
+      console.error('Error fetching subscription:', error)
+      // Set mock data for demo purposes
+      setSubscription({
+        id: 'sub_demo123',
+        status: 'active',
+        current_period_end: Date.now() + (30 * 24 * 60 * 60 * 1000),
+        cancel_at_period_end: false,
+        plan: {
+          amount: 1900,
+          currency: 'usd',
+          interval: 'month'
+        }
+      })
+    }
+  }
+
+  // Cancel user subscription
+  const cancelUserSubscription = async () => {
+    if (!subscription?.id) {
+      alert('No subscription found to cancel')
+      return
+    }
+
+    try {
+      setIsCancellingSubscription(true)
+      
+      const response = await fetch('/api/v1/payments/cancel-subscription', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
+        },
+        body: JSON.stringify({
+          subscription_id: subscription.id,
+          cancel_at_period_end: true
+        })
+      })
+
+      if (response.ok) {
+        const data = await response.json()
+        setSubscription(data.subscription)
+        alert('Subscription cancelled successfully. You will retain access until the end of your billing period.')
+      } else {
+        const errorData = await response.json()
+        throw new Error(errorData.detail || 'Failed to cancel subscription')
+      }
+    } catch (error) {
+      console.error('Error cancelling subscription:', error)
+      alert(`Failed to cancel subscription: ${error instanceof Error ? error.message : 'Unknown error'}`)
+    } finally {
+      setIsCancellingSubscription(false)
+    }
+  }
+
+  // Fetch subscription data when component mounts
+  useEffect(() => {
+    if (isAuthenticated) {
+      fetchUserSubscription()
+    }
+  }, [isAuthenticated])
 
   if (!isAuthenticated) {
     return (
@@ -520,18 +613,37 @@ Thank you.`)
                       <h3 className="text-lg font-semibold text-blue-900 dark:text-blue-100">CodeFlowOps Pro</h3>
                       <p className="text-blue-700 dark:text-blue-300">$19/month</p>
                     </div>
-                    <Badge className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
-                      Active
+                    <Badge className={`${
+                      subscription?.cancel_at_period_end 
+                        ? 'bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200'
+                        : 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
+                    }`}>
+                      {subscription?.cancel_at_period_end 
+                        ? 'Cancelling' 
+                        : subscription?.status === 'active' 
+                          ? 'Active' 
+                          : subscription?.status || 'Active'
+                      }
                     </Badge>
                   </div>
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
                     <div>
                       <p className="text-blue-600 dark:text-blue-400 font-medium">Status</p>
-                      <p className="text-blue-900 dark:text-blue-100">Active Subscription</p>
+                      <p className="text-blue-900 dark:text-blue-100">
+                        {subscription?.cancel_at_period_end 
+                          ? 'Cancelling at period end' 
+                          : 'Active Subscription'
+                        }
+                      </p>
                     </div>
                     <div>
                       <p className="text-blue-600 dark:text-blue-400 font-medium">Next Billing</p>
-                      <p className="text-blue-900 dark:text-blue-100">Dec 15, 2025</p>
+                      <p className="text-blue-900 dark:text-blue-100">
+                        {subscription?.current_period_end 
+                          ? new Date(subscription.current_period_end * 1000).toLocaleDateString() 
+                          : 'Dec 15, 2025'
+                        }
+                      </p>
                     </div>
                     <div>
                       <p className="text-blue-600 dark:text-blue-400 font-medium">Payment Method</p>
@@ -541,26 +653,18 @@ Thank you.`)
                 </div>
 
                 {/* Subscription Actions */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="flex justify-start">
                   <Button
                     variant="outline"
                     className="h-12 border-red-200 text-red-700 hover:bg-red-50 dark:border-red-800 dark:text-red-400 dark:hover:bg-red-950"
-                    onClick={() => {
+                    onClick={async () => {
                       if (confirm('Are you sure you want to cancel your subscription? You will lose access to Pro features at the end of your billing period.')) {
-                        alert('Subscription cancellation would be processed here. This is a demo - contact support to cancel.')
+                        await cancelUserSubscription()
                       }
                     }}
+                    disabled={isCancellingSubscription || subscription?.cancel_at_period_end}
                   >
-                    Cancel Subscription
-                  </Button>
-                  <Button
-                    variant="outline"
-                    className="h-12"
-                    onClick={() => {
-                      alert('Update payment method functionality would be implemented here.')
-                    }}
-                  >
-                    Update Payment Method
+                    {isCancellingSubscription ? 'Cancelling...' : subscription?.cancel_at_period_end ? 'Cancelling...' : 'Cancel Subscription'}
                   </Button>
                 </div>
 

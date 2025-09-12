@@ -5,15 +5,20 @@ Handles subscription creation and webhook events
 
 import stripe
 import logging
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, List
 
-# Import config with sys.path manipulation for correct path resolution
+# Import config with relative imports
+from ..config.env import get_settings
+
+# Import stripe config with sys.path manipulation since it's in backend/config instead of backend/src/config
 import sys
 import os
-sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..', '..'))
+backend_dir = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
+if backend_dir not in sys.path:
+    sys.path.insert(0, backend_dir)
 
 from config.stripe_config import StripeConfig
-from config.env import get_settings
+
 settings = get_settings()
 
 logger = logging.getLogger(__name__)
@@ -190,3 +195,56 @@ class StripeService:
         except stripe.error.StripeError as e:
             logger.error(f"Error retrieving subscription: {str(e)}")
             raise Exception(f"Failed to get subscription: {str(e)}")
+
+    async def cancel_subscription(self, subscription_id: str, cancel_at_period_end: bool = True) -> Dict[str, Any]:
+        """Cancel a Stripe subscription"""
+        try:
+            import stripe
+            stripe.api_key = StripeConfig.get_secret_key()
+
+            # Cancel the subscription
+            subscription = stripe.Subscription.modify(
+                subscription_id,
+                cancel_at_period_end=cancel_at_period_end
+            )
+
+            logger.info(f"Subscription {subscription_id} cancelled successfully")
+
+            return {
+                'id': subscription.id,
+                'status': subscription.status,
+                'cancel_at_period_end': subscription.cancel_at_period_end,
+                'canceled_at': subscription.canceled_at,
+                'current_period_end': subscription.current_period_end,
+                'customer_id': subscription.customer
+            }
+
+        except stripe.error.StripeError as e:
+            logger.error(f"Error cancelling subscription: {str(e)}")
+            raise Exception(f"Failed to cancel subscription: {str(e)}")
+
+    async def get_customer_subscriptions(self, customer_id: str) -> List[Dict[str, Any]]:
+        """Get all subscriptions for a customer"""
+        try:
+            import stripe
+            stripe.api_key = StripeConfig.get_secret_key()
+
+            subscriptions = stripe.Subscription.list(customer=customer_id)
+
+            return [{
+                'id': sub.id,
+                'status': sub.status,
+                'current_period_start': sub.current_period_start,
+                'current_period_end': sub.current_period_end,
+                'cancel_at_period_end': sub.cancel_at_period_end,
+                'plan': {
+                    'id': sub.items.data[0].plan.id,
+                    'amount': sub.items.data[0].plan.amount,
+                    'currency': sub.items.data[0].plan.currency,
+                    'interval': sub.items.data[0].plan.interval
+                } if sub.items.data else None
+            } for sub in subscriptions.data]
+
+        except stripe.error.StripeError as e:
+            logger.error(f"Error retrieving customer subscriptions: {str(e)}")
+            raise Exception(f"Failed to get customer subscriptions: {str(e)}")

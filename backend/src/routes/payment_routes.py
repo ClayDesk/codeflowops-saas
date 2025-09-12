@@ -7,6 +7,7 @@ from fastapi import APIRouter, HTTPException, Request, Header
 from pydantic import BaseModel
 from typing import Optional
 import logging
+import time
 
 # Import service with fallback paths
 try:
@@ -23,6 +24,10 @@ class CreateSubscriptionRequest(BaseModel):
     email: str
     name: Optional[str] = None
     trial_days: Optional[int] = 14
+
+class CancelSubscriptionRequest(BaseModel):
+    subscription_id: str
+    cancel_at_period_end: Optional[bool] = True
 
 # Initialize service
 stripe_service = StripeService()
@@ -45,8 +50,23 @@ async def create_subscription(request: CreateSubscriptionRequest):
         logger.error(f"Failed to create subscription: {str(e)}")
         raise HTTPException(status_code=400, detail=str(e))
 
-@router.post("/create-checkout-session")
-async def create_checkout_session(request: CreateSubscriptionRequest):
+@router.post("/cancel-subscription")
+async def cancel_subscription(request: CancelSubscriptionRequest):
+    """Cancel a subscription"""
+    try:
+        result = await stripe_service.cancel_subscription(
+            subscription_id=request.subscription_id,
+            cancel_at_period_end=request.cancel_at_period_end
+        )
+
+        return {
+            "success": True,
+            "message": "Subscription cancelled successfully",
+            "subscription": result
+        }
+    except Exception as e:
+        logger.error(f"Failed to cancel subscription: {str(e)}")
+        raise HTTPException(status_code=400, detail=str(e))
     """Create a Stripe Checkout Session for subscription with payment collection"""
     try:
         result = await stripe_service.create_checkout_session(
@@ -97,8 +117,45 @@ async def stripe_webhook(
             detail=f"Webhook error: {str(e)}"
         )
 
-@router.get("/subscription/{subscription_id}")
-async def get_subscription(subscription_id: str):
+@router.get("/subscription/user")
+async def get_user_subscription(request: Request):
+    """Get current user's subscription"""
+    try:
+        # Get user from auth token (simplified for demo)
+        # In production, you'd validate the JWT token and get user info
+        auth_header = request.headers.get('authorization', '')
+        if not auth_header.startswith('Bearer '):
+            raise HTTPException(status_code=401, detail="Invalid authorization header")
+        
+        # For demo purposes, return mock subscription data
+        # In production, you'd look up the user's subscription from your database
+        current_time = int(time.time())
+        thirty_days = 30 * 24 * 60 * 60
+        
+        mock_subscription = {
+            'id': 'sub_demo123',
+            'status': 'active',
+            'current_period_start': current_time - thirty_days,  # 30 days ago
+            'current_period_end': current_time + thirty_days,    # 30 days from now
+            'cancel_at_period_end': False,
+            'customer_id': 'cus_demo123',
+            'plan': {
+                'id': 'plan_pro_monthly',
+                'amount': 1900,
+                'currency': 'usd',
+                'interval': 'month',
+                'product': 'CodeFlowOps Pro'
+            }
+        }
+        
+        return {
+            "success": True,
+            "subscription": mock_subscription
+        }
+        
+    except Exception as e:
+        logger.error(f"Failed to get user subscription: {str(e)}")
+        raise HTTPException(status_code=400, detail=str(e))
     """Get subscription status"""
     try:
         result = await stripe_service.get_subscription_status(subscription_id)

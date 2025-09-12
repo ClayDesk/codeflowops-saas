@@ -331,9 +331,10 @@ Thank you.`)
         </div>
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="grid w-full grid-cols-3">
+          <TabsList className="grid w-full grid-cols-4">
             <TabsTrigger value="overview">Overview</TabsTrigger>
             <TabsTrigger value="deployments">Deployments</TabsTrigger>
+            <TabsTrigger value="subscription">Subscription</TabsTrigger>
             <TabsTrigger value="settings">Settings</TabsTrigger>
           </TabsList>
 
@@ -496,6 +497,107 @@ Thank you.`)
                     ))}
                   </div>
                 )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="subscription" className="space-y-6">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Shield className="h-5 w-5" />
+                  Subscription Management
+                </CardTitle>
+                <CardDescription>
+                  Manage your CodeFlowOps Pro subscription
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                {/* Subscription Status */}
+                <div className="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-950 dark:to-indigo-950 p-6 rounded-lg border border-blue-200 dark:border-blue-800">
+                  <div className="flex items-center justify-between mb-4">
+                    <div>
+                      <h3 className="text-lg font-semibold text-blue-900 dark:text-blue-100">CodeFlowOps Pro</h3>
+                      <p className="text-blue-700 dark:text-blue-300">$19/month</p>
+                    </div>
+                    <Badge className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
+                      Active
+                    </Badge>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+                    <div>
+                      <p className="text-blue-600 dark:text-blue-400 font-medium">Status</p>
+                      <p className="text-blue-900 dark:text-blue-100">Active Subscription</p>
+                    </div>
+                    <div>
+                      <p className="text-blue-600 dark:text-blue-400 font-medium">Next Billing</p>
+                      <p className="text-blue-900 dark:text-blue-100">Dec 15, 2025</p>
+                    </div>
+                    <div>
+                      <p className="text-blue-600 dark:text-blue-400 font-medium">Payment Method</p>
+                      <p className="text-blue-900 dark:text-blue-100">•••• •••• •••• 4242</p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Subscription Actions */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <Button
+                    variant="outline"
+                    className="h-12 border-red-200 text-red-700 hover:bg-red-50 dark:border-red-800 dark:text-red-400 dark:hover:bg-red-950"
+                    onClick={() => {
+                      if (confirm('Are you sure you want to cancel your subscription? You will lose access to Pro features at the end of your billing period.')) {
+                        alert('Subscription cancellation would be processed here. This is a demo - contact support to cancel.')
+                      }
+                    }}
+                  >
+                    Cancel Subscription
+                  </Button>
+                  <Button
+                    variant="outline"
+                    className="h-12"
+                    onClick={() => {
+                      alert('Update payment method functionality would be implemented here.')
+                    }}
+                  >
+                    Update Payment Method
+                  </Button>
+                </div>
+
+                {/* Billing History */}
+                <div>
+                  <h4 className="text-md font-semibold mb-4">Billing History</h4>
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between p-4 border rounded-lg">
+                      <div>
+                        <p className="font-medium">September 2025</p>
+                        <p className="text-sm text-muted-foreground">CodeFlowOps Pro - Monthly</p>
+                      </div>
+                      <div className="text-right">
+                        <p className="font-medium">$19.00</p>
+                        <Badge variant="outline" className="text-green-600">Paid</Badge>
+                      </div>
+                    </div>
+                    <div className="flex items-center justify-between p-4 border rounded-lg">
+                      <div>
+                        <p className="font-medium">August 2025</p>
+                        <p className="text-sm text-muted-foreground">CodeFlowOps Pro - Monthly</p>
+                      </div>
+                      <div className="text-right">
+                        <p className="font-medium">$19.00</p>
+                        <Badge variant="outline" className="text-green-600">Paid</Badge>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Support Contact */}
+                <Alert>
+                  <Shield className="h-4 w-4" />
+                  <AlertDescription>
+                    Need help with your subscription? <a href="/contact" className="text-blue-600 hover:underline">Contact our support team</a>
+                  </AlertDescription>
+                </Alert>
               </CardContent>
             </Card>
           </TabsContent>

@@ -35,7 +35,7 @@ export function useStripe({ onSuccess, onError }: UseStripeOptions = {}) {
         body: JSON.stringify({
           email: params.email,
           name: params.name,
-          trial_days: params.trialDays || 14
+          trial_days: params.trialDays || 0
         })
       })
 

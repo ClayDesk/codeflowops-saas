@@ -5,8 +5,9 @@ import { useSearchParams } from 'next/navigation'
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
+import { Alert, AlertDescription } from '@/components/ui/alert'
 import { SDKDeploymentWizard } from '@/components/deployment/sdk-deployment-wizard'
-import { Rocket, Github, Zap, ArrowRight } from 'lucide-react'
+import { Rocket, Github, Zap, ArrowRight, CheckCircle } from 'lucide-react'
 import { useAuthGuard } from '@/hooks/use-auth-guard'
 import { Skeleton } from '@/components/ui/skeleton'
 
@@ -14,6 +15,7 @@ function DeployPageContent() {
   const [showDeploymentFlow, setShowDeploymentFlow] = useState(false)
   const [prefilledRepo, setPrefilledRepo] = useState('')
   const [oauthProcessing, setOauthProcessing] = useState(false)
+  const [stripeSuccess, setStripeSuccess] = useState(false)
   const searchParams = useSearchParams()
 
   // Check for OAuth callback parameters first
@@ -23,6 +25,19 @@ function DeployPageContent() {
       const accessToken = searchParams.get('access_token')
       const userEmail = searchParams.get('email')
       const userId = searchParams.get('user_id')
+      const subscription = searchParams.get('subscription')
+
+      // Handle Stripe success redirect
+      if (success === 'true' && subscription === 'completed') {
+        setStripeSuccess(true)
+        // Clear success params from URL after a delay
+        setTimeout(() => {
+          const newUrl = window.location.pathname
+          window.history.replaceState({}, '', newUrl)
+          setStripeSuccess(false)
+        }, 5000)
+        return
+      }
 
       if (success === 'true' && accessToken && userEmail) {
         setOauthProcessing(true)
@@ -98,6 +113,16 @@ function DeployPageContent() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-indigo-50 dark:from-gray-900 dark:via-gray-950 dark:to-blue-950">
       <div className="container mx-auto px-4 py-16">
+        {/* Success Banner */}
+        {stripeSuccess && (
+          <Alert className="mb-8 border-green-200 bg-green-50 dark:border-green-800 dark:bg-green-950">
+            <CheckCircle className="h-4 w-4 text-green-600" />
+            <AlertDescription className="text-green-800 dark:text-green-200">
+              <strong>Welcome to CodeFlowOps Pro!</strong> Your subscription has been activated successfully. You now have access to all Pro features.
+            </AlertDescription>
+          </Alert>
+        )}
+
         {/* Header */}
         <div className="text-center mb-16">
           <div className="inline-flex items-center gap-2 bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-300 px-4 py-2 rounded-full text-sm font-medium mb-6">

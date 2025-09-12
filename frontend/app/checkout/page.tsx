@@ -16,13 +16,13 @@ function CheckoutContent() {
       name: 'Starter',
       price: '$19',
       features: ['10 projects', 'Private repositories', 'Custom domains', 'Email support'],
-      trialDays: 14
+      trialDays: 0
     },
     pro: {
       name: 'Pro', 
       price: '$49',
       features: ['Unlimited projects', 'Priority support', 'Advanced analytics', 'Team collaboration'],
-      trialDays: 7
+      trialDays: 0
     },
     enterprise: {
       name: 'Enterprise',
@@ -45,21 +45,21 @@ function CheckoutContent() {
             </h1>
             <p className="text-xl text-gray-600 dark:text-gray-400">
               Subscribe to {currentPlan.name} for {currentPlan.price}/month
-              {currentPlan.trialDays > 0 && (
-                <span className="block text-green-600 dark:text-green-400 font-semibold">
-                  {currentPlan.trialDays} days free trial included!
-                </span>
-              )}
+              <span className="block text-blue-600 dark:text-blue-400 font-semibold">
+                Payment will be processed immediately
+              </span>
             </p>
           </div>
           
           <div className="max-w-2xl mx-auto">
             <StripeCheckout
               onSuccess={() => {
-                window.location.href = '/profile?tab=subscription&success=true'
+                const frontendUrl = window.location.origin
+                window.location.href = `${frontendUrl}/deploy?success=true&subscription=completed`
               }}
               onCancel={() => {
-                window.location.href = '/#pricing'
+                const frontendUrl = window.location.origin
+                window.location.href = `${frontendUrl}/#pricing`
               }}
             />
           </div>

@@ -7,14 +7,14 @@ import stripe
 import logging
 from typing import Dict, Any, Optional
 
-# Import config with fallback for different path structures
-try:
-    from ...config.stripe_config import StripeConfig
-except ImportError:
-    try:
-        from config.stripe_config import StripeConfig
-    except ImportError:
-        from backend.config.stripe_config import StripeConfig
+# Import config with sys.path manipulation for correct path resolution
+import sys
+import os
+sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..', '..'))
+
+from config.stripe_config import StripeConfig
+from config.env import get_settings
+settings = get_settings()
 
 logger = logging.getLogger(__name__)
 
@@ -28,9 +28,9 @@ class StripeService:
         self, 
         email: str, 
         name: str = None,
-        trial_days: int = 14
+        trial_days: int = 0
     ) -> Dict[str, Any]:
-        """Create a customer and subscription with free trial"""
+        """Create a customer and subscription"""
         try:
             # Create customer
             customer = stripe.Customer.create(
@@ -74,11 +74,14 @@ class StripeService:
             logger.error(f"Unexpected error: {str(e)}")
             raise Exception(f"Service error: {str(e)}")
     
-    async def create_checkout_session(self, email: str, name: Optional[str] = None, trial_days: int = 14) -> Dict[str, Any]:
+    async def create_checkout_session(self, email: str, name: Optional[str] = None, trial_days: int = 0) -> Dict[str, Any]:
         """Create a Stripe Checkout Session for subscription with payment collection"""
         try:
             import stripe
             stripe.api_key = StripeConfig.get_secret_key()
+            
+            # Get frontend URL from settings
+            frontend_url = getattr(settings, 'FRONTEND_URL', 'http://localhost:3000')
             
             # Create checkout session
             checkout_session = stripe.checkout.Session.create(
@@ -88,12 +91,12 @@ class StripeService:
                     'quantity': 1,
                 }],
                 mode='subscription',
-                success_url='https://codeflowops.com/profile?tab=subscription&success=true',
-                cancel_url='https://codeflowops.com/pricing',
+                success_url=f'{frontend_url}/deploy?success=true&subscription=completed',
+                cancel_url=f'{frontend_url}/pricing',
                 customer_email=email,
                 payment_method_collection='always',  # Force payment method collection
                 subscription_data={
-                    'trial_period_days': trial_days,
+                    **({'trial_period_days': trial_days} if trial_days > 0 else {}),
                     'metadata': {
                         'plan': 'pro',
                         'trial_days': str(trial_days)

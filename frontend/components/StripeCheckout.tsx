@@ -46,7 +46,7 @@ export function StripeCheckout({ onSuccess, onCancel }: StripeCheckoutProps) {
     await createSubscription({
       email: user.email,
       name: user.name || user.full_name || user.username,
-      trialDays: 14
+      trialDays: 0  // Remove trial period for immediate payment
     })
   }
 
@@ -111,7 +111,7 @@ export function StripeCheckout({ onSuccess, onCancel }: StripeCheckoutProps) {
           </div>
           <CardTitle className="text-2xl font-bold text-green-800">Welcome to CodeFlowOps Pro!</CardTitle>
           <CardDescription className="text-green-600">
-            Your 14-day free trial has started successfully
+            Your subscription has been activated successfully
           </CardDescription>
         </CardHeader>
         
@@ -126,7 +126,7 @@ export function StripeCheckout({ onSuccess, onCancel }: StripeCheckoutProps) {
               <div className="flex justify-between">
                 <span className="text-green-700">Status:</span>
                 <Badge variant="secondary" className="bg-green-100 text-green-800">
-                  Active Trial
+                  Active Subscription
                 </Badge>
               </div>
             </div>
@@ -135,9 +135,12 @@ export function StripeCheckout({ onSuccess, onCancel }: StripeCheckoutProps) {
           <div className="flex gap-3">
             <Button 
               className="flex-1 bg-green-600 hover:bg-green-700"
-              onClick={() => window.location.href = '/dashboard'}
+              onClick={() => {
+                const frontendUrl = window.location.origin
+                window.location.href = `${frontendUrl}/deploy?success=true&subscription=completed`
+              }}
             >
-              Go to Dashboard
+              Go to Deploy
             </Button>
             <Button 
               variant="outline" 
@@ -159,9 +162,9 @@ export function StripeCheckout({ onSuccess, onCancel }: StripeCheckoutProps) {
         <div className="mx-auto w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center mb-4">
           <CreditCard className="w-6 h-6 text-blue-600" />
         </div>
-        <CardTitle className="text-2xl font-bold">Start Your Free Trial</CardTitle>
+        <CardTitle className="text-2xl font-bold">Start Your Subscription</CardTitle>
         <CardDescription>
-          Hi {user?.name || user?.username}! Ready to start your 14-day free trial?
+          Hi {user?.name || user?.username}! Ready to start your CodeFlowOps Pro subscription?
         </CardDescription>
         
         {/* User Info */}
@@ -194,15 +197,15 @@ export function StripeCheckout({ onSuccess, onCancel }: StripeCheckoutProps) {
             <span className="text-sm text-gray-600">CodeFlowOps Pro</span>
             <span className="font-semibold">$19/month</span>
           </div>
-          <div className="flex justify-between items-center text-green-600">
+          <div className="flex justify-between items-center text-blue-600">
             <span className="text-sm flex items-center">
-              <Clock className="w-4 h-4 mr-1" />
-              14-day free trial
+              <CreditCard className="w-4 h-4 mr-1" />
+              Immediate payment
             </span>
-            <span className="font-semibold">$0 today</span>
+            <span className="font-semibold">$19 today</span>
           </div>
           <div className="text-xs text-gray-500 mt-2">
-            Trial starts today. You&apos;ll add payment details on Stripe&apos;s secure checkout page.
+            Your subscription starts immediately. You&apos;ll be charged $19/month going forward.
           </div>
         </div>
 
@@ -217,7 +220,7 @@ export function StripeCheckout({ onSuccess, onCancel }: StripeCheckoutProps) {
               Redirecting to checkout...
             </>
           ) : (
-            'Continue to Payment Setup'
+            'Continue to Payment'
           )}
         </Button>
 

@@ -27,7 +27,7 @@ export function useStripe({ onSuccess, onError }: UseStripeOptions = {}) {
       setLoading(true)
       setError(null)
 
-      const response = await fetch(`${API_BASE}/api/v1/payments/create-checkout-session`, {
+      const response = await fetch(`${API_BASE}/api/v1/payments/create-subscription`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'

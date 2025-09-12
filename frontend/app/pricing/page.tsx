@@ -38,14 +38,14 @@ export default function PricingPage() {
                 Complete Your Subscription
               </h1>
               <p className="text-gray-600 dark:text-gray-300">
-                Start your 14-day free trial today. No credit card required.
+                Complete your subscription with immediate access. Secure payment processing.
               </p>
             </div>
             
             <StripeCheckout 
               onSuccess={() => {
-                // Handle success - redirect to dashboard or success page
-                console.log('Subscription successful!')
+                const frontendUrl = window.location.origin
+                window.location.href = `${frontendUrl}/deploy?success=true&subscription=completed`
               }}
               onCancel={() => setShowCheckout(false)}
             />
@@ -68,7 +68,7 @@ export default function PricingPage() {
             Simple, Transparent Pricing
           </h1>
           <p className="text-xl text-gray-600 dark:text-gray-300 max-w-3xl mx-auto">
-            Start your deployment automation journey with a 14-day free trial. 
+            Start your deployment automation journey with immediate access.
             No setup fees, no hidden costs.
           </p>
         </div>

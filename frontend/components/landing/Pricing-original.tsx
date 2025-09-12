@@ -203,7 +203,7 @@ export function Pricing() {
             </div>
             <div>
               <h4 className="font-semibold text-gray-900 dark:text-white mb-2">Is there a free trial?</h4>
-              <p className="text-gray-600 dark:text-gray-300">Yes! Pro plan includes a 14-day free trial. No credit card required to start.</p>
+              <p className="text-gray-600 dark:text-gray-300">Yes! All plans include immediate access with a 30-day money-back guarantee. Secure payment processing with Stripe.</p>
             </div>
           </div>
         </div>

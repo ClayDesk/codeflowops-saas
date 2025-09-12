@@ -366,11 +366,11 @@ export function QuotaDisplay({ onUpgrade }: QuotaDisplayProps) {
                 <span className="text-sm font-medium">💡 Growing Fast?</span>
               </div>
               <p className="text-sm text-gray-600">
-                You're already at {quota.monthly_runs.percentage.toFixed(0)}% usage. 
-                Starter plan gives you 50 deployments/month + 14-day free trial!
+                You're already at {quota.monthly_runs.percentage.toFixed(0)}% usage.
+                Upgrade to Starter plan for 50 deployments/month with immediate access!
               </p>
               <Button size="sm" onClick={onUpgrade} className="w-full">
-                🎯 Try Starter Free for 14 Days
+                🚀 Upgrade to Starter Now
               </Button>
             </div>
           ) : quota.plan.tier === 'starter' && quota.monthly_runs.percentage >= 60 ? (

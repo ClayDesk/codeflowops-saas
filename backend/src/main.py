@@ -359,7 +359,6 @@ if LEGACY_ROUTES_AVAILABLE:
     if payment_routes and hasattr(payment_routes, 'router'):
         app.include_router(
             payment_routes.router,
-            prefix="/api",
             tags=["Payment Management"]
         )
         logger.info("✅ Payment routes loaded successfully")
@@ -369,7 +368,6 @@ if LEGACY_ROUTES_AVAILABLE:
             from .routes.payment_routes import router as payment_router
             app.include_router(
                 payment_router,
-                prefix="/api",
                 tags=["Payment Management"]
             )
             logger.info("✅ Payment routes loaded successfully")

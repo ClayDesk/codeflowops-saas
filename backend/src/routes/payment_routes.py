@@ -34,21 +34,26 @@ stripe_service = StripeService()
 
 @router.post("/create-subscription")
 async def create_subscription(request: CreateSubscriptionRequest):
-    """Create a subscription with free trial"""
+    """Create a Stripe Checkout Session for subscription with payment collection"""
     try:
-        result = await stripe_service.create_customer_and_subscription(
+        result = await stripe_service.create_checkout_session(
             email=request.email,
             name=request.name,
             trial_days=request.trial_days
         )
-        
+
         return {
             "success": True,
+            "message": f"Subscription created with {request.trial_days} day trial",
             "subscription": result
         }
+
     except Exception as e:
-        logger.error(f"Failed to create subscription: {str(e)}")
-        raise HTTPException(status_code=400, detail=str(e))
+        logger.error(f"Subscription creation failed: {str(e)}")
+        raise HTTPException(
+            status_code=400,
+            detail=f"Failed to create subscription: {str(e)}"
+        )
 
 @router.post("/cancel-subscription")
 async def cancel_subscription(request: CancelSubscriptionRequest):
@@ -67,26 +72,6 @@ async def cancel_subscription(request: CancelSubscriptionRequest):
     except Exception as e:
         logger.error(f"Failed to cancel subscription: {str(e)}")
         raise HTTPException(status_code=400, detail=str(e))
-    """Create a Stripe Checkout Session for subscription with payment collection"""
-    try:
-        result = await stripe_service.create_checkout_session(
-            email=request.email,
-            name=request.name,
-            trial_days=request.trial_days
-        )
-        
-        return {
-            "success": True,
-            "message": f"Subscription created with {request.trial_days} day trial",
-            "subscription": result
-        }
-        
-    except Exception as e:
-        logger.error(f"Subscription creation failed: {str(e)}")
-        raise HTTPException(
-            status_code=400, 
-            detail=f"Failed to create subscription: {str(e)}"
-        )
 
 @router.post("/webhook")
 async def stripe_webhook(
@@ -156,17 +141,3 @@ async def get_user_subscription(request: Request):
     except Exception as e:
         logger.error(f"Failed to get user subscription: {str(e)}")
         raise HTTPException(status_code=400, detail=str(e))
-    """Get subscription status"""
-    try:
-        result = await stripe_service.get_subscription_status(subscription_id)
-        return {
-            "success": True,
-            "subscription": result
-        }
-        
-    except Exception as e:
-        logger.error(f"Failed to get subscription: {str(e)}")
-        raise HTTPException(
-            status_code=400, 
-            detail=f"Failed to get subscription: {str(e)}"
-        )

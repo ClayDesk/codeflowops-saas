@@ -602,7 +602,7 @@ Thank you.`)
                   <Alert>
                     <Shield className="h-4 w-4" />
                     <AlertDescription>
-                      You don't have an active subscription. <a href="/checkout" className="text-blue-600 hover:underline">Upgrade to Pro</a> to access premium features.
+                      You don't have an active subscription. <a href="/pricing" className="text-blue-600 hover:underline">Upgrade to Pro</a> to access premium features.
                     </AlertDescription>
                   </Alert>
                 </CardContent>

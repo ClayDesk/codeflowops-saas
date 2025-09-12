@@ -256,41 +256,24 @@ Thank you.`)
         const data = await response.json()
         setSubscription(data.subscription)
       } else {
-        console.warn('Failed to fetch subscription data')
-        // Set mock data for demo purposes
-        setSubscription({
-          id: 'sub_demo123',
-          status: 'active',
-          current_period_end: Date.now() + (30 * 24 * 60 * 60 * 1000), // 30 days from now
-          cancel_at_period_end: false,
-          plan: {
-            amount: 1900,
-            currency: 'usd',
-            interval: 'month'
-          }
-        })
+        console.warn('Failed to fetch subscription data - user may not have a subscription')
+        // Don't set mock data - user doesn't have a subscription
+        setSubscription(null)
       }
     } catch (error) {
       console.error('Error fetching subscription:', error)
-      // Set mock data for demo purposes
-      setSubscription({
-        id: 'sub_demo123',
-        status: 'active',
-        current_period_end: Date.now() + (30 * 24 * 60 * 60 * 1000),
-        cancel_at_period_end: false,
-        plan: {
-          amount: 1900,
-          currency: 'usd',
-          interval: 'month'
-        }
-      })
+      if (error instanceof TypeError && error.message.includes('Failed to fetch')) {
+        console.warn('Network error when fetching subscription - user may not have access')
+      }
+      // Don't set mock data - user doesn't have a subscription
+      setSubscription(null)
     }
   }
 
   // Cancel user subscription
   const cancelUserSubscription = async () => {
     if (!subscription?.id) {
-      alert('No subscription found to cancel')
+      alert('No active subscription found to cancel.')
       return
     }
 
@@ -313,13 +296,22 @@ Thank you.`)
         const data = await response.json()
         setSubscription(data.subscription)
         alert('Subscription cancelled successfully. You will retain access until the end of your billing period.')
+      } else if (response.status === 401) {
+        alert('Authentication failed. Please log in again.')
+      } else if (response.status === 404) {
+        alert('Subscription not found. It may have already been cancelled.')
+        setSubscription(null)
       } else {
-        const errorData = await response.json()
-        throw new Error(errorData.detail || 'Failed to cancel subscription')
+        const errorData = await response.json().catch(() => ({}))
+        throw new Error(errorData.detail || `Failed to cancel subscription (${response.status})`)
       }
     } catch (error) {
       console.error('Error cancelling subscription:', error)
-      alert(`Failed to cancel subscription: ${error instanceof Error ? error.message : 'Unknown error'}`)
+      if (error instanceof TypeError && error.message.includes('Failed to fetch')) {
+        alert('Network error. Please check your connection and try again.')
+      } else {
+        alert(`Failed to cancel subscription: ${error instanceof Error ? error.message : 'Unknown error'}`)
+      }
     } finally {
       setIsCancellingSubscription(false)
     }
@@ -595,19 +587,40 @@ Thank you.`)
           </TabsContent>
 
           <TabsContent value="subscription" className="space-y-6">
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Shield className="h-5 w-5" />
-                  Subscription Management
-                </CardTitle>
-                <CardDescription>
-                  Manage your CodeFlowOps Pro subscription
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-6">
-                {/* Subscription Status */}
-                <div className="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-950 dark:to-indigo-950 p-6 rounded-lg border border-blue-200 dark:border-blue-800">
+            {!subscription ? (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Shield className="h-5 w-5" />
+                    Subscription Management
+                  </CardTitle>
+                  <CardDescription>
+                    Manage your CodeFlowOps Pro subscription
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-6">
+                  <Alert>
+                    <Shield className="h-4 w-4" />
+                    <AlertDescription>
+                      You don't have an active subscription. <a href="/checkout" className="text-blue-600 hover:underline">Upgrade to Pro</a> to access premium features.
+                    </AlertDescription>
+                  </Alert>
+                </CardContent>
+              </Card>
+            ) : (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Shield className="h-5 w-5" />
+                    Subscription Management
+                  </CardTitle>
+                  <CardDescription>
+                    Manage your CodeFlowOps Pro subscription
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-6">
+                  {/* Subscription Status */}
+                  <div className="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-950 dark:to-indigo-950 p-6 rounded-lg border border-blue-200 dark:border-blue-800">
                   <div className="flex items-center justify-between mb-4">
                     <div>
                       <h3 className="text-lg font-semibold text-blue-900 dark:text-blue-100">CodeFlowOps Pro</h3>
@@ -704,6 +717,7 @@ Thank you.`)
                 </Alert>
               </CardContent>
             </Card>
+            )}
           </TabsContent>
 
           <TabsContent value="settings" className="space-y-6">

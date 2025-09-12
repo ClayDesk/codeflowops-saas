@@ -34,6 +34,7 @@ job_routes = None
 dashboard_routes = None
 session_management_routes = None
 admin_routes = None
+payment_routes = None
 
 try:
     import importlib
@@ -53,6 +54,7 @@ try:
     dashboard_routes = getattr(routes_module, 'dashboard_routes', None)
     session_management_routes = getattr(routes_module, 'session_management_routes', None)
     admin_routes = getattr(routes_module, 'admin_routes', None)
+    payment_routes = getattr(routes_module, 'payment_routes', None)
     
     LEGACY_ROUTES_AVAILABLE = True
 except ImportError:
@@ -352,6 +354,27 @@ if LEGACY_ROUTES_AVAILABLE:
             prefix="/api",
             tags=["Admin Panel"]
         )
+
+    # Include payment routes for Stripe subscription management
+    if payment_routes and hasattr(payment_routes, 'router'):
+        app.include_router(
+            payment_routes.router,
+            prefix="/api",
+            tags=["Payment Management"]
+        )
+        logger.info("✅ Payment routes loaded successfully")
+    else:
+        # Try to import payment routes directly
+        try:
+            from .routes.payment_routes import router as payment_router
+            app.include_router(
+                payment_router,
+                prefix="/api",
+                tags=["Payment Management"]
+            )
+            logger.info("✅ Payment routes loaded successfully")
+        except ImportError:
+            logger.warning("⚠️ Payment routes not available")
 
     # Billing routes removed (Stripe functionality removed)
     logger.info("Billing functionality has been removed from the application")

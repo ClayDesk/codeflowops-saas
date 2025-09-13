@@ -43,7 +43,7 @@ export function Hero() {
                 onClick={handleDeploy}
                 className="bg-gradient-to-r from-blue-600 to-purple-600 text-white px-12 py-5 text-xl font-semibold whitespace-nowrap flex items-center justify-center space-x-3 rounded-2xl transition-all hover:shadow-lg hover:from-blue-700 hover:to-purple-700 transform hover:scale-105"
               >
-                <span>{isAuthenticated ? 'Deploy Now' : 'Start Free Trial'}</span>
+                <span>{isAuthenticated ? 'Deploy Now' : 'Get Started'}</span>
                 <ArrowRight className="w-6 h-6" />
               </button>
             </div>

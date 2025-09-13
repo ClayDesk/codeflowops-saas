@@ -154,7 +154,7 @@ export function Features() {
               Join thousands of developers who have streamlined their deployment workflow
             </p>
             <button className="bg-white text-blue-600 px-8 py-3 rounded-xl font-semibold hover:bg-gray-50 transition-colors">
-              Start Free Trial
+              Get Started
             </button>
           </div>
         </div>

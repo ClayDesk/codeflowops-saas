@@ -93,8 +93,8 @@ export default function PricingPage() {
                   <span className="text-gray-600 dark:text-gray-300 ml-2">/month</span>
                 </div>
                 <div className="flex items-center justify-center mt-2 text-sm text-green-600 dark:text-green-400">
-                  <Clock className="w-4 h-4 mr-1" />
-                  7-day free trial
+                  <CheckCircle className="w-4 h-4 mr-1" />
+                  Immediate access
                 </div>
               </div>
             </CardHeader>
@@ -124,10 +124,10 @@ export default function PricingPage() {
                   className="w-full bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white font-semibold py-3 text-lg"
                   onClick={() => setShowCheckout(true)}
                 >
-                  Start Free Trial
+                  Get Started Now
                 </Button>
                 <p className="text-xs text-gray-500 dark:text-gray-400 text-center mt-3">
-                  Cancel anytime. No questions asked.
+                  Secure payment. Cancel anytime.
                 </p>
               </div>
             </CardContent>
@@ -150,9 +150,9 @@ export default function PricingPage() {
           <h2 className="text-3xl font-bold text-center mb-12 dark:text-white">Frequently Asked Questions</h2>
           <div className="grid md:grid-cols-2 gap-8">
             <div>
-              <h3 className="font-semibold mb-2 dark:text-white">How does the free trial work?</h3>
+              <h3 className="font-semibold mb-2 dark:text-white">How does the payment work?</h3>
               <p className="text-gray-600 dark:text-gray-300 text-sm">
-                Get full access to all Pro features for 7 days. No credit card required to start.
+                Get immediate access to all Pro features. Secure payment processing with your credit card.
               </p>
             </div>
             <div>

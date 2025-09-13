@@ -110,8 +110,8 @@ export function Pricing() {
                   <span className="text-gray-600 dark:text-gray-300 ml-2">/month</span>
                 </div>
                 <div className="flex items-center justify-center mt-2 text-sm text-green-600 dark:text-green-400">
-                  <Clock className="w-4 h-4 mr-1" />
-                  7-day free trial
+                  <CheckCircle className="w-4 h-4 mr-1" />
+                  Immediate access
                 </div>
               </div>
             </CardHeader>
@@ -126,16 +126,16 @@ export function Pricing() {
                 ))}
               </ul>
 
-              <Button 
+              <Button
                 className="w-full bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white py-3 font-semibold"
                 onClick={() => router.push('/pricing')}
               >
-                Start Free Trial
+                Get Started Now
                 <ArrowRight className="w-4 h-4 ml-2" />
               </Button>
 
               <div className="text-center text-xs text-gray-500 dark:text-gray-400">
-                No credit card required • Cancel anytime
+                Secure payment • Cancel anytime
               </div>
             </CardContent>
           </Card>

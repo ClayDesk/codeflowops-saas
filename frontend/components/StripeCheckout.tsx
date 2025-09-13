@@ -66,7 +66,7 @@ export function StripeCheckout({ onSuccess, onCancel }: StripeCheckoutProps) {
           </div>
           <CardTitle className="text-2xl font-bold">Sign In Required</CardTitle>
           <CardDescription>
-            Please sign in to start your free trial
+            Please sign in to start your subscription
           </CardDescription>
         </CardHeader>
 

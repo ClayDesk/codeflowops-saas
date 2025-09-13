@@ -149,7 +149,7 @@ export function Testimonials() {
                 onClick={() => router.push('/pricing')}
                 className="bg-white text-blue-600 px-8 py-3 rounded-lg font-semibold hover:bg-blue-50 transition-colors"
               >
-                Start Free Trial
+                Get Started
               </button>
             </div>
           </div>

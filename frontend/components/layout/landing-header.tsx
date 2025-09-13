@@ -120,7 +120,7 @@ export function LandingHeader() {
           </Link>
           <Link href="/auth/signup">
             <Button size="sm">
-              Start free trial
+              Get Started
             </Button>
           </Link>
         </div>
@@ -189,7 +189,7 @@ export function LandingHeader() {
                 </Link>
                 <Link href="/auth/signup" onClick={() => setMobileMenuOpen(false)}>
                   <Button className="w-full">
-                    Start free trial
+                    Get Started
                   </Button>
                 </Link>
               </div>

@@ -23,7 +23,7 @@ router = APIRouter(prefix="/api/v1/payments", tags=["payments"])
 class CreateSubscriptionRequest(BaseModel):
     email: str
     name: Optional[str] = None
-    trial_days: Optional[int] = 14
+    trial_days: Optional[int] = 0
 
 class CancelSubscriptionRequest(BaseModel):
     subscription_id: str

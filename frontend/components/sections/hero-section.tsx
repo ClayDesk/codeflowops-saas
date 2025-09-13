@@ -99,7 +99,7 @@ export function HeroSection() {
               
               <Link href="/auth/signup">
                 <Button size="lg" variant="outline" className="w-full sm:w-auto text-base px-8 py-6">
-                  Start free trial
+                  Get Started
                 </Button>
               </Link>
               

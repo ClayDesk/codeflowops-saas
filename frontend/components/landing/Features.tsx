@@ -161,7 +161,7 @@ export function Features() {
             </p>
             <Link href={isAuthenticated ? "/deploy" : "/register"}>
               <button className="bg-white text-blue-600 px-10 py-4 rounded-xl font-semibold text-lg hover:bg-gray-50 transition-colors">
-                {isAuthenticated ? 'Deploy Now' : 'Start Free Trial'}
+                {isAuthenticated ? 'Deploy Now' : 'Get Started'}
               </button>
             </Link>
           </div>

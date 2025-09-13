@@ -96,7 +96,7 @@ export function LandingFooter() {
               <div className="flex flex-col sm:flex-row gap-3">
                 <Link href="/auth/signup">
                   <Button className="w-full sm:w-auto">
-                    Start free trial
+                    Get Started
                   </Button>
                 </Link>
                 <Link href="/demo">

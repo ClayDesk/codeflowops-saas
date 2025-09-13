@@ -112,7 +112,7 @@ export function FeaturesSection() {
             <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
               <button className="btn-primary">
                 <Zap className="mr-2 h-5 w-5" />
-                Start free trial
+                Get Started
               </button>
               <button className="btn-outline">
                 Schedule demo

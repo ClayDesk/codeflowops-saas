@@ -27,7 +27,7 @@ export function CTASection() {
             ) : (
               <Link href="/register">
                 <Button size="lg">
-                  Start Free Trial
+                  Get Started
                   <ArrowRight className="ml-2 h-5 w-5" />
                 </Button>
               </Link>

@@ -4,6 +4,7 @@ import './globals.css'
 import { Navbar } from '@/components/landing/Navbar'
 import { Footer } from '@/components/landing/Footer'
 import { Providers } from './providers'
+import { InactivityWarning } from '@/components/InactivityWarning'
 
 const inter = Inter({
   subsets: ['latin'],
@@ -36,6 +37,7 @@ export default function RootLayout({
       <body className="min-h-screen bg-background font-sans antialiased">
         <Providers>
           <Navbar />
+          <InactivityWarning />
           <main className="min-h-[80vh] flex flex-col justify-between">
             {children}
           </main>

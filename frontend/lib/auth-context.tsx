@@ -67,6 +67,9 @@ interface AuthContextType extends AuthState {
   profilePicture: string | null
   updateProfilePicture: (imageFile: File) => Promise<void>
   removeProfilePicture: () => void
+  // Inactivity tracking
+  lastActivity: number
+  inactivityTimeout: number
 }
 
 // Create context
@@ -77,7 +80,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
   const [loading, setLoading] = useState(true)
   const [profilePicture, setProfilePicture] = useState<string | null>(null)
+  const [lastActivity, setLastActivity] = useState<number>(Date.now())
+  const [logoutTimer, setLogoutTimer] = useState<NodeJS.Timeout | null>(null)
   const router = useRouter()
+
+  // Inactivity timeout in milliseconds (5 minutes)
+  const INACTIVITY_TIMEOUT = 5 * 60 * 1000
 
   const isAuthenticated = !!user
 
@@ -322,6 +330,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         throw error
       }
       throw new Error('Password reset failed due to network error')
+    }
+  }
+
+  // Activity tracking functions
+  const updateActivity = () => {
+    setLastActivity(Date.now())
+  }
+
+  const resetLogoutTimer = () => {
+    if (logoutTimer) {
+      clearTimeout(logoutTimer)
+    }
+    
+    if (isAuthenticated) {
+      const timer = setTimeout(() => {
+        console.log('Auto-logout due to inactivity (5 minutes)')
+        logout()
+      }, INACTIVITY_TIMEOUT)
+      setLogoutTimer(timer)
     }
   }
 
@@ -798,7 +825,52 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     profilePicture,
     updateProfilePicture,
     removeProfilePicture,
+    // Inactivity tracking
+    lastActivity,
+    inactivityTimeout: INACTIVITY_TIMEOUT,
   }
+
+  // Inactivity tracking useEffect
+  useEffect(() => {
+    const events = ['mousedown', 'mousemove', 'keypress', 'scroll', 'touchstart', 'click']
+    
+    const handleActivity = () => {
+      updateActivity()
+      resetLogoutTimer()
+    }
+
+    // Add event listeners for user activity
+    events.forEach(event => {
+      document.addEventListener(event, handleActivity, true)
+    })
+
+    // Start the logout timer if user is authenticated
+    if (isAuthenticated) {
+      resetLogoutTimer()
+    }
+
+    // Cleanup function
+    return () => {
+      events.forEach(event => {
+        document.removeEventListener(event, handleActivity, true)
+      })
+      if (logoutTimer) {
+        clearTimeout(logoutTimer)
+      }
+    }
+  }, [isAuthenticated])
+
+  // Reset timer when authentication state changes
+  useEffect(() => {
+    if (isAuthenticated) {
+      resetLogoutTimer()
+    } else {
+      if (logoutTimer) {
+        clearTimeout(logoutTimer)
+        setLogoutTimer(null)
+      }
+    }
+  }, [isAuthenticated])
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
 }

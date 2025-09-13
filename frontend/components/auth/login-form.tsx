@@ -21,13 +21,21 @@ export function LoginForm({ redirectTo = '/deploy' }: LoginFormProps) {
   const [showPassword, setShowPassword] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState('')
+  const [mounted, setMounted] = useState(false)
 
   const { login, isAuthenticated, loading } = useAuth()
   const router = useRouter()
   const searchParams = useSearchParams()
 
-  // Check for OAuth success and redirect
+  // Mark component as mounted to prevent hydration issues
   useEffect(() => {
+    setMounted(true)
+  }, [])
+
+  // Check for OAuth success and redirect - only after component is mounted
+  useEffect(() => {
+    if (!mounted || typeof window === 'undefined') return
+
     const authenticated = searchParams.get('authenticated')
     if (authenticated === 'true' && !loading) {
       // Give the auth context a moment to update, then redirect
@@ -41,7 +49,7 @@ export function LoginForm({ redirectTo = '/deploy' }: LoginFormProps) {
         }
       }, 1000)
     }
-  }, [searchParams, isAuthenticated, loading, router, redirectTo])
+  }, [searchParams, isAuthenticated, loading, router, redirectTo, mounted])
 
   // Auto-redirect if already authenticated
   useEffect(() => {
@@ -172,16 +180,19 @@ export function LoginForm({ redirectTo = '/deploy' }: LoginFormProps) {
                 variant="outline"
                 className="w-full"
                 onClick={async () => {
+                  // Only run on client side
+                  if (typeof window === 'undefined') return
+
                   try {
                     const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'https://api.codeflowops.com'
                     const redirectUri = `${window.location.origin}/auth/callback?next=/profile`
-                    
+
                     // Get GitHub authorization URL from backend
                     const response = await fetch(
                       `${API_BASE}/api/v1/auth/github/authorize?redirect_uri=${encodeURIComponent(redirectUri)}`
                     )
                     const data = await response.json()
-                    
+
                     if (data.authorization_url) {
                       // Redirect to GitHub OAuth authorization page
                       window.location.href = data.authorization_url

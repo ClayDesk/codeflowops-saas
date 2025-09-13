@@ -163,6 +163,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }
 
   const getStoredToken = () => {
+    // Check if we're on the client side
+    if (typeof window === 'undefined') return null
+
     // Try cookie first (server-side session), fallback to localStorage
     return getCookieValue('auth_token') || getCookieValue('codeflowops_access_token') || localStorage.getItem(ACCESS_TOKEN_KEY)
   }
@@ -676,6 +679,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   // Load profile picture from localStorage when user changes
   useEffect(() => {
+    if (typeof window === 'undefined') return
+
     if (user?.id) {
       const savedPicture = localStorage.getItem(`profile_picture_${user.id}`)
       if (savedPicture) {
@@ -765,11 +770,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   // Initialize auth state
   useEffect(() => {
+    // Only run on client side
+    if (typeof window === 'undefined') {
+      setLoading(false)
+      return
+    }
+
     const initializeAuth = async () => {
       try {
         // First check if user has GitHub authentication
         const hasGitHubAuth = await checkGitHubAuth()
-        
+
         if (!hasGitHubAuth) {
           // Fallback to traditional token authentication
           const storedUser = getStoredUser()
@@ -832,8 +843,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   // Inactivity tracking useEffect
   useEffect(() => {
+    // Only run on client side
+    if (typeof window === 'undefined') return
+
     const events = ['mousedown', 'mousemove', 'keypress', 'scroll', 'touchstart', 'click']
-    
+
     const handleActivity = () => {
       updateActivity()
       resetLogoutTimer()

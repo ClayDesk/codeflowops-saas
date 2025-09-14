@@ -16,12 +16,10 @@ import {
   User, 
   Mail, 
   Shield, 
-  History, 
   Settings,
   CheckCircle,
   XCircle,
   Clock,
-  Globe,
   Github,
   Loader2,
   Edit,
@@ -53,7 +51,6 @@ function ProfilePageContent() {
     fetchUserProfile, 
     updateUserProfile, 
     fetchUserDeployments, 
-    clearDeploymentHistory,
     profilePicture,
     updateProfilePicture,
     removeProfilePicture
@@ -66,7 +63,7 @@ function ProfilePageContent() {
     email: user?.email || ''
   })
   const [isUploadingPicture, setIsUploadingPicture] = useState(false)
-  const [activeTab, setActiveTab] = useState('overview')
+  const [activeTab, setActiveTab] = useState('subscription')
   const [subscription, setSubscription] = useState<any>(null)
   const [isCancellingSubscription, setIsCancellingSubscription] = useState(false)
 
@@ -110,7 +107,7 @@ function ProfilePageContent() {
   // Handle tab selection from URL parameters
   useEffect(() => {
     const tab = searchParams.get('tab')
-    if (tab && ['overview', 'deployments', 'settings'].includes(tab)) {
+    if (tab && ['subscription', 'settings'].includes(tab)) {
       setActiveTab(tab)
     }
   }, [searchParams])
@@ -156,49 +153,7 @@ function ProfilePageContent() {
     )
   }
 
-  // Filter deployments to show only last 7 days
-  const getRecentDeployments = () => {
-    const sevenDaysAgo = new Date()
-    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7)
-    
-    return deployments.filter(deployment => {
-      const dateString = deployment.createdAt || deployment.created_at
-      if (!dateString) return false
-      const deploymentDate = new Date(dateString)
-      return deploymentDate >= sevenDaysAgo
-    })
-  }
 
-  // Handle clearing deployment history
-  const handleClearHistory = async () => {
-    try {
-      setIsLoading(true)
-      
-      // Call the API to clear history through auth context
-      await clearDeploymentHistory()
-      
-      // Refetch deployments from backend to get the actual cleared state
-      try {
-        const deploymentsResponse = await fetchUserDeployments() as { deployments?: Deployment[] }
-        if (deploymentsResponse?.deployments) {
-          setDeployments(deploymentsResponse.deployments)
-        } else {
-          setDeployments([])
-        }
-      } catch (fetchError) {
-        console.warn('Failed to refetch deployments after clear, setting to empty:', fetchError)
-        setDeployments([])
-      }
-      
-      console.log('Deployment history cleared successfully')
-      
-    } catch (error) {
-      console.error('Error clearing deployment history:', error)
-      console.warn('Failed to clear deployment history')
-    } finally {
-      setIsLoading(false)
-    }
-  }
 
   // Handle profile picture upload
   const handleProfilePictureUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -416,175 +371,14 @@ Thank you.`)
         </div>
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="grid w-full grid-cols-4">
-            <TabsTrigger value="overview">Overview</TabsTrigger>
-            <TabsTrigger value="deployments">Deployments</TabsTrigger>
+          <TabsList className="grid w-full grid-cols-2">
             <TabsTrigger value="subscription">Subscription</TabsTrigger>
             <TabsTrigger value="settings">Settings</TabsTrigger>
           </TabsList>
 
-          <TabsContent value="overview" className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              {/* Stats Cards */}
-              <Card>
-                <CardContent className="pt-6">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm font-medium text-muted-foreground">Total Deployments</p>
-                      <p className="text-2xl font-bold">{deployments.length}</p>
-                    </div>
-                    <Globe className="h-8 w-8 text-muted-foreground" />
-                  </div>
-                </CardContent>
-              </Card>
 
-              <Card>
-                <CardContent className="pt-6">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm font-medium text-muted-foreground">Successful Deployments</p>
-                      <p className="text-2xl font-bold">
-                        {deployments.filter(d => d.status === 'success').length}
-                      </p>
-                    </div>
-                    <CheckCircle className="h-8 w-8 text-green-500" />
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
 
-            {/* Recent Deployments */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <History className="h-5 w-5" />
-                  Recent Deployments
-                </CardTitle>
-                <CardDescription>
-                  Your latest deployment activity
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                {isLoading ? (
-                  <div className="flex items-center justify-center py-8">
-                    <Loader2 className="h-8 w-8 animate-spin" />
-                  </div>
-                ) : deployments.length === 0 ? (
-                  <div className="text-center py-8">
-                    <Globe className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
-                    <p className="text-muted-foreground">No deployments yet</p>
-                  </div>
-                ) : (
-                  <div className="space-y-4">
-                    {deployments.slice(0, 3).map((deployment) => (
-                      <div key={deployment.id} className="flex items-center justify-between p-4 border rounded-lg">
-                        <div className="flex items-center space-x-3">
-                          {getStatusIcon(deployment.status)}
-                          <div>
-                            <p className="font-medium">{deployment.name}</p>
-                            <p className="text-sm text-muted-foreground">{deployment.repository}</p>
-                          </div>
-                        </div>
-                        <div className="flex items-center space-x-3">
-                          <Badge variant="outline">{deployment.technology}</Badge>
-                          {getStatusBadge(deployment.status)}
-                          <p className="text-sm text-muted-foreground">
-                            {new Date(deployment.createdAt || deployment.created_at || '').toLocaleDateString()}
-                          </p>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          </TabsContent>
 
-          <TabsContent value="deployments" className="space-y-6">
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
-                <div>
-                  <CardTitle className="flex items-center gap-2">
-                    <Globe className="h-5 w-5" />
-                    Recent Deployments
-                  </CardTitle>
-                  <CardDescription>
-                    Deployment history from the last 7 days
-                  </CardDescription>
-                </div>
-                <Button 
-                  variant="outline" 
-                  size="sm" 
-                  onClick={handleClearHistory}
-                  disabled={isLoading || getRecentDeployments().length === 0}
-                  className="text-red-600 hover:text-red-700 hover:bg-red-50 dark:text-red-400 dark:hover:text-red-300 dark:hover:bg-red-950"
-                >
-                  <Trash2 className="h-4 w-4 mr-2" />
-                  Clear History
-                </Button>
-              </CardHeader>
-              <CardContent>
-                {/* Auto-deletion notice */}
-                <Alert className="mb-4 bg-blue-50 border-blue-200">
-                  <History className="h-4 w-4" />
-                  <AlertDescription className="text-blue-700">
-                    <strong>Note:</strong> Deployment history is automatically deleted after 7 days for security and storage optimization.
-                  </AlertDescription>
-                </Alert>
-
-                {isLoading ? (
-                  <div className="flex items-center justify-center py-8">
-                    <Loader2 className="h-8 w-8 animate-spin" />
-                  </div>
-                ) : getRecentDeployments().length === 0 ? (
-                  <div className="text-center py-8">
-                    <History className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
-                    <h3 className="text-lg font-medium mb-2">No Recent Deployments</h3>
-                    <p className="text-muted-foreground">
-                      You haven&apos;t deployed anything in the last 7 days.
-                    </p>
-                  </div>
-                ) : (
-                  <div className="space-y-4">
-                    {getRecentDeployments().map((deployment) => (
-                      <div key={deployment.id} className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50">
-                        <div className="flex items-center space-x-3">
-                          {getStatusIcon(deployment.status)}
-                          <div>
-                            <p className="font-medium">{deployment.name}</p>
-                            <div className="flex items-center space-x-2 text-sm text-muted-foreground">
-                              <Github className="h-3 w-3" />
-                              <span>{deployment.repository}</span>
-                            </div>
-                            {deployment.url && (
-                              <div className="flex items-center space-x-2 text-sm text-blue-600">
-                                <Globe className="h-3 w-3" />
-                                <a href={deployment.url} target="_blank" rel="noopener noreferrer" className="hover:underline">
-                                  {deployment.url}
-                                </a>
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                        <div className="flex items-center space-x-3">
-                          <Badge variant="outline">{deployment.technology}</Badge>
-                          {getStatusBadge(deployment.status)}
-                          <div className="text-right">
-                            <p className="text-sm text-muted-foreground">
-                              {new Date(deployment.createdAt || deployment.created_at || '').toLocaleDateString()}
-                            </p>
-                            <p className="text-xs text-muted-foreground">
-                              {new Date(deployment.createdAt || deployment.created_at || '').toLocaleTimeString()}
-                            </p>
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          </TabsContent>
 
           <TabsContent value="subscription" className="space-y-6">
             {!subscription ? (

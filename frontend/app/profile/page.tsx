@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, Suspense } from 'react'
 import { useSearchParams } from 'next/navigation'
+import Link from 'next/link'
 import { useAuth } from '@/lib/auth-context'
 import { useTheme } from 'next-themes'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -396,7 +397,7 @@ Thank you.`)
                   <Alert>
                     <Shield className="h-4 w-4" />
                     <AlertDescription>
-                      You don't have an active subscription. <a href="/pricing" className="text-blue-600 hover:underline">Upgrade to Pro</a> to access premium features.
+                      You don't have an active subscription. <Link href="/pricing" className="text-blue-600 hover:underline">Upgrade to Pro</Link> to access premium features.
                     </AlertDescription>
                   </Alert>
                 </CardContent>

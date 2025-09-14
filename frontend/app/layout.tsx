@@ -1,3 +1,5 @@
+'use client'
+
 import type { Metadata } from 'next'
 import { Inter } from 'next/font/google'
 import './globals.css'
@@ -5,6 +7,32 @@ import { Navbar } from '@/components/landing/Navbar'
 import { Footer } from '@/components/landing/Footer'
 import { Providers } from './providers'
 import { InactivityWarning } from '@/components/InactivityWarning'
+import { usePathname } from 'next/navigation'
+import { useEffect, useState } from 'react'
+
+// Client component for conditional navbar
+function ConditionalNavbar() {
+  const [mounted, setMounted] = useState(false)
+  const pathname = usePathname()
+
+  useEffect(() => {
+    setMounted(true)
+  }, [])
+
+  if (!mounted) return null
+
+  // Hide navbar on checkout and auth pages for cleaner UX
+  const hideNavbar = pathname?.includes('/checkout') ||
+                    pathname?.includes('/login') ||
+                    pathname?.includes('/register') ||
+                    pathname?.includes('/reset-password')
+
+  if (hideNavbar) {
+    return null
+  }
+
+  return <Navbar />
+}
 
 const inter = Inter({
   subsets: ['latin'],
@@ -36,7 +64,7 @@ export default function RootLayout({
     <html lang="en" className={inter.variable}>
       <body className="min-h-screen bg-background font-sans antialiased">
         <Providers>
-          <Navbar />
+          <ConditionalNavbar />
           <InactivityWarning />
           <main className="min-h-[80vh] flex flex-col justify-between">
             {children}

@@ -26,14 +26,18 @@ export default function PricingPage() {
       <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 dark:from-gray-900 dark:via-gray-950 dark:to-blue-950">
         <div className="container mx-auto px-4 py-16">
           <div className="max-w-2xl mx-auto">
-            <div className="text-center mb-8">
+            {/* Back Button */}
+            <div className="mb-8">
               <Button 
                 variant="ghost" 
                 onClick={() => setShowCheckout(false)}
-                className="mb-4"
+                className="text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300"
               >
                 ← Back to Pricing
               </Button>
+            </div>
+            
+            <div className="text-center mb-8">
               <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">
                 Complete Your Subscription
               </h1>

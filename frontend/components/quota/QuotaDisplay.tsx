@@ -66,7 +66,7 @@ export function QuotaDisplay({ onUpgrade }: QuotaDisplayProps) {
       setLoading(true)
       const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'https://api.codeflowops.com'
       
-      const token = localStorage.getItem('codeflowops_access_token')
+      const token = localStorage.getItem('codeflowops_access_token') || localStorage.getItem('auth_token')
       
       let response
       if (!token) {
@@ -248,7 +248,7 @@ export function QuotaDisplay({ onUpgrade }: QuotaDisplayProps) {
               </div>
             </AlertDescription>
           </Alert>
-        ) : quota.monthly_runs.percentage >= 80 ? (
+        ) : quota.monthly_runs.percentage >= 80 && quota.plan.tier !== 'pro' ? (
           <Alert variant="destructive">
             <AlertTriangle className="h-4 w-4" />
             <AlertDescription>
@@ -346,7 +346,17 @@ export function QuotaDisplay({ onUpgrade }: QuotaDisplayProps) {
 
         {/* Upgrade Suggestions & Actions */}
         <div className="pt-4 border-t space-y-3">
-          {quota.upgrade_suggestion ? (
+          {quota.plan.tier === 'pro' ? (
+            <div className="text-center py-2">
+              <div className="flex items-center justify-center space-x-2 text-green-600">
+                <CheckCircle className="h-4 w-4" />
+                <span className="text-sm font-medium">✨ Pro Subscriber</span>
+              </div>
+              <p className="text-xs text-gray-600 mt-1">
+                You have unlimited deployments and premium features
+              </p>
+            </div>
+          ) : quota.upgrade_suggestion ? (
             <div className="space-y-3">
               <div className="flex items-center space-x-2">
                 <TrendingUp className="h-4 w-4 text-blue-600" />

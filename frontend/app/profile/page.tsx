@@ -77,6 +77,15 @@ function ProfilePageContent() {
       try {
         setIsLoading(true)
         
+        // Clear any cached subscription-related messages
+        if (typeof window !== 'undefined') {
+          localStorage.removeItem('subscription_status')
+          localStorage.removeItem('no_subscription_message')
+        }
+        
+        // Always fetch subscription data for authenticated users
+        await fetchUserSubscription()
+        
         // Check for payment success parameter
         const payment = searchParams.get('payment')
         if (payment === 'success') {
@@ -259,44 +268,12 @@ Thank you.`)
         console.log('Subscription data received:', data)
         setSubscription(data.subscription)
       } else {
-        console.warn('Failed to fetch subscription data from all URLs - using mock data for paid users')
-        // For demo purposes, set mock subscription data for paid users
-        const mockSubscription = {
-          id: 'sub_demo123',
-          status: 'active',
-          current_period_start: Math.floor(Date.now() / 1000) - (30 * 24 * 60 * 60),
-          current_period_end: Math.floor(Date.now() / 1000) + (30 * 24 * 60 * 60),
-          cancel_at_period_end: false,
-          customer_id: 'cus_demo123',
-          plan: {
-            id: 'plan_pro_monthly',
-            amount: 1900,
-            currency: 'usd',
-            interval: 'month',
-            product: 'CodeFlowOps Pro'
-          }
-        }
-        setSubscription(mockSubscription)
+        console.warn('Failed to fetch subscription data from all URLs')
+        setSubscription(null)
       }
     } catch (error) {
       console.error('Error fetching subscription:', error)
-      // For demo purposes, set mock subscription data
-      const mockSubscription = {
-        id: 'sub_demo123',
-        status: 'active',
-        current_period_start: Math.floor(Date.now() / 1000) - (30 * 24 * 60 * 60),
-        current_period_end: Math.floor(Date.now() / 1000) + (30 * 24 * 60 * 60),
-        cancel_at_period_end: false,
-        customer_id: 'cus_demo123',
-        plan: {
-          id: 'plan_pro_monthly',
-          amount: 1900,
-          currency: 'usd',
-          interval: 'month',
-          product: 'CodeFlowOps Pro'
-        }
-      }
-      setSubscription(mockSubscription)
+      setSubscription(null)
     }
   }
 
@@ -473,6 +450,15 @@ Thank you.`)
             {/* Debug subscription state */}
             {(() => { console.log('Current subscription state:', subscription); return null; })()}
             
+            {/* Force clear any cached "no subscription" messages */}
+            {(() => { 
+              if (typeof window !== 'undefined') {
+                const cachedElements = document.querySelectorAll('[data-subscription-message]');
+                cachedElements.forEach(el => el.remove());
+              }
+              return null; 
+            })()}
+            
             {/* Payment Success Alert */}
             {paymentSuccess && (
               <Alert className="border-green-200 bg-green-50 dark:border-green-800 dark:bg-green-950">
@@ -483,7 +469,24 @@ Thank you.`)
               </Alert>
             )}
             
-            {/* Always show subscription for authenticated users (paid users) */}
+            {/* Subscription Status Alert */}
+            {subscription ? (
+              <Alert className="border-blue-200 bg-blue-50 dark:border-blue-800 dark:bg-blue-950">
+                <Shield className="h-4 w-4 text-blue-600" />
+                <AlertDescription className="text-blue-800 dark:text-blue-200">
+                  <strong>You are a Pro subscriber!</strong> You have full access to all premium features and unlimited deployments.
+                </AlertDescription>
+              </Alert>
+            ) : (
+              <Alert className="border-orange-200 bg-orange-50 dark:border-orange-800 dark:bg-orange-950">
+                <Shield className="h-4 w-4 text-orange-600" />
+                <AlertDescription className="text-orange-800 dark:text-orange-200">
+                  <strong>No active subscription found.</strong> Upgrade to Pro to access premium features and unlimited deployments.
+                </AlertDescription>
+              </Alert>
+            )}
+            
+            {/* Subscription Management Card */}
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
@@ -495,99 +498,129 @@ Thank you.`)
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-6">
-                {/* Subscription Status */}
-                <div className="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-950 dark:to-indigo-950 p-6 rounded-lg border border-blue-200 dark:border-blue-800">
-                  <div className="flex items-center justify-between mb-4">
-                    <div>
-                      <h3 className="text-lg font-semibold text-blue-900 dark:text-blue-100">CodeFlowOps Pro</h3>
-                      <p className="text-blue-700 dark:text-blue-300">$19/month</p>
+                {subscription ? (
+                  <>
+                    {/* Active Subscription Status */}
+                    <div className="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-950 dark:to-indigo-950 p-6 rounded-lg border border-blue-200 dark:border-blue-800">
+                      <div className="flex items-center justify-between mb-4">
+                        <div>
+                          <h3 className="text-lg font-semibold text-blue-900 dark:text-blue-100">
+                            {subscription.plan?.product || 'CodeFlowOps Pro'}
+                          </h3>
+                          <p className="text-blue-700 dark:text-blue-300">
+                            ${((subscription.plan?.amount || 1900) / 100).toFixed(2)}/{subscription.plan?.interval || 'month'}
+                          </p>
+                        </div>
+                        <Badge className={`${
+                          subscription.cancel_at_period_end 
+                            ? 'bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200'
+                            : 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
+                        }`}>
+                          {subscription.cancel_at_period_end 
+                            ? 'Cancelling' 
+                            : subscription.status === 'active' 
+                              ? 'Active' 
+                              : subscription.status || 'Active'
+                          }
+                        </Badge>
+                      </div>
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+                        <div>
+                          <p className="text-blue-600 dark:text-blue-400 font-medium">Status</p>
+                          <p className="text-blue-900 dark:text-blue-100">
+                            {subscription.cancel_at_period_end 
+                              ? 'Cancelling at period end' 
+                              : 'Active Subscription'
+                            }
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-blue-600 dark:text-blue-400 font-medium">Next Billing</p>
+                          <p className="text-blue-900 dark:text-blue-100">
+                            {subscription.current_period_end 
+                              ? (() => {
+                                  const endDate = typeof subscription.current_period_end === 'number' && subscription.current_period_end > 1e10 
+                                    ? new Date(subscription.current_period_end) 
+                                    : new Date(subscription.current_period_end * 1000)
+                                  return endDate.toLocaleDateString()
+                                })()
+                              : 'N/A'
+                            }
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-blue-600 dark:text-blue-400 font-medium">Payment Method</p>
+                          <p className="text-blue-900 dark:text-blue-100">•••• •••• •••• 4242</p>
+                        </div>
+                      </div>
                     </div>
-                    <Badge className={`${
-                      subscription?.cancel_at_period_end 
-                        ? 'bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200'
-                        : 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
-                    }`}>
-                      {subscription?.cancel_at_period_end 
-                        ? 'Cancelling' 
-                        : subscription?.status === 'active' 
-                          ? 'Active' 
-                          : subscription?.status || 'Active'
-                      }
-                    </Badge>
-                  </div>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
-                    <div>
-                      <p className="text-blue-600 dark:text-blue-400 font-medium">Status</p>
-                      <p className="text-blue-900 dark:text-blue-100">
-                        {subscription?.cancel_at_period_end 
-                          ? 'Cancelling at period end' 
-                          : 'Active Subscription'
-                        }
-                      </p>
+                  </>
+                ) : (
+                  <>
+                    {/* No Subscription State */}
+                    <div className="bg-gradient-to-r from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800 p-6 rounded-lg border border-gray-200 dark:border-gray-700">
+                      <div className="text-center space-y-4">
+                        <div>
+                          <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">No Active Subscription</h3>
+                          <p className="text-gray-600 dark:text-gray-400">Subscribe to CodeFlowOps Pro to unlock premium features</p>
+                        </div>
+                        <Button 
+                          className="w-full md:w-auto"
+                          onClick={() => window.location.href = '/pricing'}
+                        >
+                          View Pricing Plans
+                        </Button>
+                      </div>
                     </div>
-                    <div>
-                      <p className="text-blue-600 dark:text-blue-400 font-medium">Next Billing</p>
-                      <p className="text-blue-900 dark:text-blue-100">
-                        {subscription?.current_period_end 
-                          ? (() => {
-                              const endDate = typeof subscription.current_period_end === 'number' && subscription.current_period_end > 1e10 
-                                ? new Date(subscription.current_period_end) 
-                                : new Date(subscription.current_period_end * 1000)
-                              return endDate.toLocaleDateString()
-                            })()
-                          : 'Dec 15, 2025'
-                        }
-                      </p>
-                    </div>
-                    <div>
-                      <p className="text-blue-600 dark:text-blue-400 font-medium">Payment Method</p>
-                      <p className="text-blue-900 dark:text-blue-100">•••• •••• •••• 4242</p>
-                    </div>
-                  </div>
-                </div>
+                  </>
+                )}
 
-                {/* Subscription Actions */}
-                <div className="flex justify-start">
-                  <Button
-                    variant="outline"
-                    className="h-12 border-red-200 text-red-700 hover:bg-red-50 dark:border-red-800 dark:text-red-400 dark:hover:bg-red-950"
-                    onClick={async () => {
-                      if (confirm('Are you sure you want to cancel your subscription? You will lose access to Pro features at the end of your billing period.')) {
-                        await cancelUserSubscription()
-                      }
-                    }}
-                    disabled={isCancellingSubscription || subscription?.cancel_at_period_end}
-                  >
-                    {isCancellingSubscription ? 'Cancelling...' : subscription?.cancel_at_period_end ? 'Cancelling...' : 'Cancel Subscription'}
-                  </Button>
-                </div>
+                {/* Subscription Actions - Only show if subscription exists */}
+                {subscription && (
+                  <div className="flex justify-start">
+                    <Button
+                      variant="outline"
+                      className="h-12 border-red-200 text-red-700 hover:bg-red-50 dark:border-red-800 dark:text-red-400 dark:hover:bg-red-950"
+                      onClick={async () => {
+                        if (confirm('Are you sure you want to cancel your subscription? You will lose access to Pro features at the end of your billing period.')) {
+                          await cancelUserSubscription()
+                        }
+                      }}
+                      disabled={isCancellingSubscription || subscription.cancel_at_period_end}
+                    >
+                      {isCancellingSubscription ? 'Cancelling...' : subscription.cancel_at_period_end ? 'Cancelling...' : 'Cancel Subscription'}
+                    </Button>
+                  </div>
+                )}
 
-                {/* Billing History */}
-                <div>
-                  <h4 className="text-md font-semibold mb-4">Billing History</h4>
-                  <div className="space-y-3">
-                    <div className="flex items-center justify-between p-4 border rounded-lg">
-                      <div>
-                        <p className="font-medium">September 2025</p>
-                        <p className="text-sm text-muted-foreground">CodeFlowOps Pro - Monthly</p>
+                {/* Billing History - Only show if subscription exists */}
+                {subscription && (
+                  <div>
+                    <h4 className="text-md font-semibold mb-4">Billing History</h4>
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between p-4 border rounded-lg">
+                        <div>
+                          <p className="font-medium">September 2025</p>
+                          <p className="text-sm text-muted-foreground">{subscription.plan?.product || 'CodeFlowOps Pro'} - {subscription.plan?.interval || 'Monthly'}</p>
+                        </div>
+                        <div className="text-right">
+                          <p className="font-medium">${((subscription.plan?.amount || 1900) / 100).toFixed(2)}</p>
+                          <Badge variant="outline" className="text-green-600">Paid</Badge>
+                        </div>
                       </div>
-                      <div className="text-right">
-                        <p className="font-medium">$19.00</p>
-                        <Badge variant="outline" className="text-green-600">Paid</Badge>
-                      </div>
-                    </div>
-                    <div className="flex items-center justify-between p-4 border rounded-lg">
-                      <div>
-                        <p className="font-medium">August 2025</p>
-                        <p className="text-sm text-muted-foreground">CodeFlowOps Pro - Monthly</p>
-                      </div>
-                      <div className="text-right">
-                        <p className="font-medium">$19.00</p>
-                        <Badge variant="outline" className="text-green-600">Paid</Badge>
+                      <div className="flex items-center justify-between p-4 border rounded-lg">
+                        <div>
+                          <p className="font-medium">August 2025</p>
+                          <p className="text-sm text-muted-foreground">{subscription.plan?.product || 'CodeFlowOps Pro'} - {subscription.plan?.interval || 'Monthly'}</p>
+                        </div>
+                        <div className="text-right">
+                          <p className="font-medium">${((subscription.plan?.amount || 1900) / 100).toFixed(2)}</p>
+                          <Badge variant="outline" className="text-green-600">Paid</Badge>
+                        </div>
                       </div>
                     </div>
                   </div>
-                </div>
+                )}
 
                 {/* Support Contact */}
                 <Alert>

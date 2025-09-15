@@ -67,6 +67,7 @@ function ProfilePageContent() {
   const [activeTab, setActiveTab] = useState('subscription')
   const [subscription, setSubscription] = useState<any>(null)
   const [isCancellingSubscription, setIsCancellingSubscription] = useState(false)
+  const [paymentSuccess, setPaymentSuccess] = useState(false)
 
   // Fetch user data from API
   useEffect(() => {
@@ -75,6 +76,20 @@ function ProfilePageContent() {
       
       try {
         setIsLoading(true)
+        
+        // Check for payment success parameter
+        const payment = searchParams.get('payment')
+        if (payment === 'success') {
+          setPaymentSuccess(true)
+          // Refresh subscription data immediately after payment
+          await fetchUserSubscription()
+          // Clear the payment parameter from URL after showing success
+          setTimeout(() => {
+            const newUrl = window.location.pathname + window.location.search.replace(/[?&]payment=success/, '')
+            window.history.replaceState({}, '', newUrl)
+            setPaymentSuccess(false)
+          }, 5000)
+        }
         
         // Use auth context functions for consistent error handling
         const profileResponse = await fetchUserProfile()
@@ -103,7 +118,7 @@ function ProfilePageContent() {
     if (isAuthenticated) {
       fetchUserData()
     }
-  }, [isAuthenticated, fetchUserProfile, fetchUserDeployments])
+  }, [isAuthenticated, searchParams, fetchUserProfile, fetchUserDeployments])
 
   // Handle tab selection from URL parameters
   useEffect(() => {
@@ -306,6 +321,16 @@ Thank you.`)
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 py-8">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        {/* Payment Success Alert */}
+        {paymentSuccess && (
+          <Alert className="mb-6 border-green-200 bg-green-50 dark:border-green-800 dark:bg-green-950">
+            <CheckCircle className="h-4 w-4 text-green-600" />
+            <AlertDescription className="text-green-800 dark:text-green-200">
+              <strong>Payment Successful!</strong> Welcome to CodeFlowOps Pro! Your subscription has been activated and you now have access to all premium features.
+            </AlertDescription>
+          </Alert>
+        )}
+        
         {/* Header */}
         <div className="mb-8">
           <div className="flex items-center space-x-4">

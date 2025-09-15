@@ -10,13 +10,16 @@ import { SDKDeploymentWizard } from '@/components/deployment/sdk-deployment-wiza
 import { Rocket, Github, Zap, ArrowRight, CheckCircle } from 'lucide-react'
 import { useAuthGuard } from '@/hooks/use-auth-guard'
 import { Skeleton } from '@/components/ui/skeleton'
+import { useAuth } from '@/lib/auth-context'
 
 function DeployPageContent() {
   const [showDeploymentFlow, setShowDeploymentFlow] = useState(false)
   const [prefilledRepo, setPrefilledRepo] = useState('')
   const [oauthProcessing, setOauthProcessing] = useState(false)
   const [stripeSuccess, setStripeSuccess] = useState(false)
+  const [redirectingToProfile, setRedirectingToProfile] = useState(false)
   const searchParams = useSearchParams()
+  const { fetchUserProfile } = useAuth()
 
   // Check for OAuth callback parameters first
   useEffect(() => {
@@ -30,12 +33,20 @@ function DeployPageContent() {
       // Handle Stripe success redirect
       if (success === 'true' && subscription === 'completed') {
         setStripeSuccess(true)
-        // Clear success params from URL after a delay
+        
+        // Refresh user profile data to get updated subscription status
+        try {
+          await fetchUserProfile()
+        } catch (error) {
+          console.warn('Failed to refresh user profile after payment:', error)
+        }
+        
+        // Redirect to profile page after showing success message briefly
         setTimeout(() => {
-          const newUrl = window.location.pathname
-          window.history.replaceState({}, '', newUrl)
-          setStripeSuccess(false)
-        }, 5000)
+          setRedirectingToProfile(true)
+          window.location.href = '/profile?tab=subscription&payment=success'
+        }, 3000)
+        
         return
       }
 
@@ -118,7 +129,12 @@ function DeployPageContent() {
           <Alert className="mb-8 border-green-200 bg-green-50 dark:border-green-800 dark:bg-green-950">
             <CheckCircle className="h-4 w-4 text-green-600" />
             <AlertDescription className="text-green-800 dark:text-green-200">
-              <strong>Welcome to CodeFlowOps Pro!</strong> Your subscription has been activated successfully. You now have access to all Pro features.
+              <strong>Welcome to CodeFlowOps Pro!</strong> Your subscription has been activated successfully. 
+              {redirectingToProfile ? (
+                <span className="block mt-2">Redirecting to your profile to view your subscription details...</span>
+              ) : (
+                <span className="block mt-2">You now have access to all Pro features. Redirecting to your profile...</span>
+              )}
             </AlertDescription>
           </Alert>
         )}

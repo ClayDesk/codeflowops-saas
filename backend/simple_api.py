@@ -867,6 +867,126 @@ async def get_public_pricing(
         "personalized": False
     }
 
+# Subscription endpoints
+@router.get("/api/v1/billing/subscription")
+async def get_user_subscription(request: Request):
+    """
+    Get current user's subscription status
+    Requires authentication via Authorization header
+    """
+    try:
+        # Extract token from Authorization header
+        auth_header = request.headers.get("Authorization")
+        if not auth_header or not auth_header.startswith("Bearer "):
+            raise HTTPException(status_code=401, detail="Missing or invalid authorization header")
+
+        token = auth_header.split(" ")[1]
+
+        # Extract user info from token (simplified - in production use proper JWT validation)
+        try:
+            parts = token.split("-")
+            if len(parts) >= 3 and parts[0] == "token":
+                user_id = parts[1]
+            else:
+                raise HTTPException(status_code=401, detail="Invalid token format")
+        except:
+            raise HTTPException(status_code=401, detail="Invalid token")
+
+        # Find user by ID
+        user_email = None
+        for email, user_data in verified_users.items():
+            if user_data.get("id") == user_id:
+                user_email = email
+                break
+
+        if not user_email:
+            raise HTTPException(status_code=404, detail="User not found")
+
+        # For demo purposes, return a mock Pro subscription
+        # In production, this would query your actual billing/subscription database
+        subscription_data = {
+            "id": f"sub_{user_id}_demo",
+            "status": "active",
+            "plan": {
+                "id": "pro",
+                "name": "Pro",
+                "product": "CodeFlowOps Pro",
+                "amount": 1900,  # $19.00 in cents
+                "currency": "usd",
+                "interval": "month"
+            },
+            "current_period_start": "2024-09-16T00:00:00+00:00",
+            "current_period_end": "2025-12-31T23:59:59+00:00",
+            "trial_end": None,
+            "cancel_at_period_end": False
+        }
+
+        logger.info(f"Subscription data retrieved for user {user_email}")
+
+        return {
+            "success": True,
+            "message": "Subscription retrieved successfully",
+            "subscription": subscription_data
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error retrieving subscription: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to retrieve subscription: {str(e)}")
+
+@router.get("/api/v1/auth/github/subscription")
+async def get_github_user_subscription(request: Request):
+    """
+    Get GitHub OAuth user's subscription status
+    Requires authentication via Authorization header
+    """
+    try:
+        # Extract token from Authorization header
+        auth_header = request.headers.get("Authorization")
+        if not auth_header or not auth_header.startswith("Bearer "):
+            raise HTTPException(status_code=401, detail="Missing or invalid authorization header")
+
+        token = auth_header.split(" ")[1]
+
+        # For GitHub users, we'll use a different token format or validation
+        # For now, we'll accept any valid-looking token and return mock data
+        if not token or len(token) < 10:
+            raise HTTPException(status_code=401, detail="Invalid token")
+
+        # For demo purposes, return a mock Pro subscription for GitHub users
+        # In production, this would query your actual billing/subscription database
+        subscription_data = {
+            "id": f"sub_github_demo_{random.randint(1000, 9999)}",
+            "status": "active",
+            "plan": {
+                "id": "pro",
+                "name": "Pro",
+                "product": "CodeFlowOps Pro",
+                "amount": 1900,  # $19.00 in cents
+                "currency": "usd",
+                "interval": "month"
+            },
+            "current_period_start": "2024-09-16T00:00:00+00:00",
+            "current_period_end": "2025-12-31T23:59:59+00:00",
+            "trial_end": None,
+            "cancel_at_period_end": False
+        }
+
+        logger.info(f"GitHub subscription data retrieved for token: {token[:10]}...")
+
+        return {
+            "success": True,
+            "message": "GitHub subscription retrieved successfully",
+            "subscription": subscription_data
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error retrieving GitHub subscription: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to retrieve GitHub subscription: {str(e)}")
+
 @router.get("/favicon.ico")
 async def favicon():
     """Return proper favicon response to prevent 404s and reduce server load"""
@@ -3309,6 +3429,10 @@ async def get_github_user_subscription():
 
 # Add modular stack routers if available
 try:
+    # Include the main router first
+    app.include_router(router, prefix="/api/v1", tags=["main"])
+    logger.info("✅ Main router mounted at /api/v1")
+    
     # Force mount Node.js LightSail router (for Node.js backend deployments)
     logger.info("🔧 Force mounting Node.js LightSail router...")
     from routers.stacks.nodejs_lightsail_router import router as nodejs_lightsail_router

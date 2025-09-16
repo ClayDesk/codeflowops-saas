@@ -3266,6 +3266,47 @@ async def get_current_user():
             "full_name": "Demo User"
         }
 
+# Add GitHub subscription endpoint for frontend compatibility
+@app.get("/api/v1/auth/github/subscription")
+async def get_github_user_subscription():
+    """
+    Get subscription status for GitHub OAuth users - matches frontend expectation
+    """
+    try:
+        logger.info("Fetching GitHub user subscription status")
+
+        # Return demo subscription data that matches frontend expectations
+        return {
+            "status": "active",
+            "plan": {
+                "product": "CodeFlowOps Pro",
+                "amount": 1900,
+                "currency": "usd",
+                "interval": "month"
+            },
+            "current_period_end": "2025-12-31T23:59:59+00:00",
+            "trial_end": None,
+            "cancel_at_period_end": False,
+            "id": "sub_demo_123"
+        }
+
+    except Exception as e:
+        logger.error(f"Error in GitHub subscription endpoint: {str(e)}")
+        # Return demo data on error
+        return {
+            "status": "active",
+            "plan": {
+                "product": "CodeFlowOps Pro",
+                "amount": 1900,
+                "currency": "usd",
+                "interval": "month"
+            },
+            "current_period_end": "2025-12-31T23:59:59+00:00",
+            "trial_end": None,
+            "cancel_at_period_end": False,
+            "id": "sub_demo_123"
+        }
+
 # Add modular stack routers if available
 try:
     # Force mount Node.js LightSail router (for Node.js backend deployments)

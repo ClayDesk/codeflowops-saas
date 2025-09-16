@@ -224,50 +224,27 @@ Thank you.`)
   // Fetch user subscription data
   const fetchUserSubscription = async () => {
     try {
-      // Use the backend API directly - try multiple possible URLs
-      const possibleUrls = [
-        process.env.NEXT_PUBLIC_API_URL,
-        'https://api.codeflowops.com',
-        'http://codeflowops.us-east-1.elasticbeanstalk.com'
-      ].filter(Boolean)
+      // Use the correct API URL for production
+      const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'https://api.codeflowops.com'
       
       const token = localStorage.getItem('auth_token') || localStorage.getItem('codeflowops_access_token')
       
-      console.log('Fetching subscription data, auth token present:', !!token)
+      console.log('Fetching subscription data from:', `${API_BASE}/api/v1/payments/subscription/user`)
       
-      let response = null
-      let apiUrl = ''
-      
-      // Try each possible API URL
-      for (const url of possibleUrls) {
-        try {
-          apiUrl = url
-          console.log('Trying API URL:', `${url}/api/v1/payments/subscription/user`)
-          
-          response = await fetch(`${url}/api/v1/payments/subscription/user`, {
-            method: 'GET',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': token ? `Bearer ${token}` : ''
-            }
-          })
-          
-          if (response.ok) {
-            console.log('Successfully connected to API at:', url)
-            break
-          }
-        } catch (error) {
-          console.log('Failed to connect to API at:', url, error)
-          continue
+      const response = await fetch(`${API_BASE}/api/v1/payments/subscription/user`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': token ? `Bearer ${token}` : ''
         }
-      }
+      })
       
-      if (response && response.ok) {
+      if (response.ok) {
         const data = await response.json()
         console.log('Subscription data received:', data)
         setSubscription(data.subscription)
       } else {
-        console.warn('Failed to fetch subscription data from all URLs')
+        console.warn('Failed to fetch subscription data:', response.status, response.statusText)
         setSubscription(null)
       }
     } catch (error) {

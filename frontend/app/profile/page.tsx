@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useEffect, Suspense } from 'react'
+import React, { useState, useEffect, useCallback, Suspense } from 'react'
 import { useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { useAuth } from '@/lib/auth-context'
@@ -69,6 +69,49 @@ function ProfilePageContent() {
   const [isCancellingSubscription, setIsCancellingSubscription] = useState(false)
   const [paymentSuccess, setPaymentSuccess] = useState(false)
 
+  // Fetch user subscription data
+  const fetchUserSubscription = useCallback(async () => {
+    try {
+      // Use the correct API URL for production
+      const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'https://api.codeflowops.com'
+      
+      const token = localStorage.getItem('auth_token') || localStorage.getItem('codeflowops_access_token')
+      
+      // Determine the correct endpoint based on user provider
+      let endpoint = `${API_BASE}/api/v1/billing/subscription` // Default for regular users
+      
+      if (user?.provider === 'github') {
+        endpoint = `${API_BASE}/api/v1/auth/github/subscription`
+      }
+      
+      console.log('Fetching subscription data from:', endpoint)
+      console.log('User provider:', user?.provider)
+      
+      const response = await fetch(endpoint, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': token ? `Bearer ${token}` : ''
+        }
+      })
+      
+      if (response.ok) {
+        const data = await response.json()
+        console.log('Subscription data received:', data)
+        console.log('Setting subscription to:', data.subscription || data)
+        setSubscription(data.subscription || data)
+        console.log('Subscription state after setting:', subscription)
+      } else {
+        console.warn('Failed to fetch subscription data:', response.status, response.statusText)
+        console.warn('Response text:', await response.text())
+        setSubscription(null)
+      }
+    } catch (error) {
+      console.error('Error fetching subscription:', error)
+      setSubscription(null)
+    }
+  }, [user?.provider])
+
   // Fetch user data from API
   useEffect(() => {
     const fetchUserData = async () => {
@@ -127,7 +170,7 @@ function ProfilePageContent() {
     if (isAuthenticated) {
       fetchUserData()
     }
-  }, [isAuthenticated, searchParams, fetchUserProfile, fetchUserDeployments])
+  }, [isAuthenticated, searchParams, fetchUserProfile, fetchUserDeployments, fetchUserSubscription])
 
   // Handle tab selection from URL parameters
   useEffect(() => {
@@ -219,38 +262,6 @@ Please confirm the deletion of my account and all associated data.
 Thank you.`)
     
     window.location.href = `mailto:support@codeflowops.com?subject=${subject}&body=${body}`
-  }
-
-  // Fetch user subscription data
-  const fetchUserSubscription = async () => {
-    try {
-      // Use the correct API URL for production
-      const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'https://api.codeflowops.com'
-      
-      const token = localStorage.getItem('auth_token') || localStorage.getItem('codeflowops_access_token')
-      
-      console.log('Fetching subscription data from:', `${API_BASE}/api/v1/payments/subscription/user`)
-      
-      const response = await fetch(`${API_BASE}/api/v1/payments/subscription/user`, {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': token ? `Bearer ${token}` : ''
-        }
-      })
-      
-      if (response.ok) {
-        const data = await response.json()
-        console.log('Subscription data received:', data)
-        setSubscription(data.subscription)
-      } else {
-        console.warn('Failed to fetch subscription data:', response.status, response.statusText)
-        setSubscription(null)
-      }
-    } catch (error) {
-      console.error('Error fetching subscription:', error)
-      setSubscription(null)
-    }
   }
 
   // Cancel user subscription
@@ -424,7 +435,11 @@ Thank you.`)
 
           <TabsContent value="subscription" className="space-y-6">
             {/* Debug subscription state */}
-            {(() => { console.log('Current subscription state:', subscription); return null; })()}
+            {(() => { 
+              console.log('Profile page subscription state:', subscription); 
+              console.log('Auth context user:', user);
+              return null; 
+            })()}
             
             {/* Force clear any cached "no subscription" messages */}
             {(() => { 

@@ -91,6 +91,14 @@ async def login(request: LoginRequest):
                 detail=auth_result.error_message or "Incorrect username or password"
             )
         
+        # NEW: Sync user to database for future subscription features
+        try:
+            from src.middleware.user_sync import UserSyncMiddleware
+            auth_result = await UserSyncMiddleware.sync_user_on_login(auth_result)
+        except Exception as e:
+            # Don't block authentication if sync fails
+            logger.warning(f"User sync failed for {auth_result.email}: {e}")
+        
         # Return success response
         return AuthResponse(
             message="Login successful",

@@ -174,6 +174,10 @@ async def login(request: LoginRequest):
                 detail=auth_result.error_message or "Incorrect username or password"
             )
         
+        # NEW: Sync user to database if not exists
+        from ..middleware.user_sync import UserSyncMiddleware
+        auth_result = await UserSyncMiddleware.sync_user_on_login(auth_result)
+        
         # Return success response
         return AuthResponse(
             message="Login successful",
@@ -222,6 +226,10 @@ async def register(request: RegisterRequest):
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail=auth_result.error_message or "Registration failed"
             )
+        
+        # NEW: Ensure user is synced to database immediately after registration
+        from ..middleware.user_sync import UserSyncMiddleware
+        auth_result = await UserSyncMiddleware.sync_user_on_login(auth_result)
         
         # Return success response (registration automatically logs in)
         return AuthResponse(

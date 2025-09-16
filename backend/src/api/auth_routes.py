@@ -145,6 +145,16 @@ class ConfirmResetPasswordResponse(BaseModel):
 
 # cognito_provider is already initialized above during import handling
 
+@router.get("/status")
+async def auth_status():
+    """Check authentication service status"""
+    return {
+        "service": "authentication",
+        "status": "available" if cognito_provider else "unavailable",
+        "provider": "aws_cognito",
+        "import_error": import_error_msg if not cognito_provider else None
+    }
+
 @router.post("/login", response_model=AuthResponse)
 async def login(request: LoginRequest):
     """Authenticate user with username/email and password"""

@@ -9,15 +9,44 @@ from pathlib import Path
 
 # Database URL from environment or default to SQLite
 
-# Get absolute path to database file
-backend_dir = Path(__file__).parent.parent.parent
-data_dir = backend_dir.parent / "data"
-db_path = data_dir / "codeflowops.db"
+# Get absolute path to database file with fallback handling
+def get_database_url():
+    """Get database URL with proper fallback handling for production environments"""
+    # Check if DATABASE_URL is explicitly set
+    if os.getenv("DATABASE_URL"):
+        return os.getenv("DATABASE_URL")
+    
+    # Try to use the preferred data directory
+    try:
+        backend_dir = Path(__file__).parent.parent.parent
+        data_dir = backend_dir.parent / "data"
+        db_path = data_dir / "codeflowops.db"
+        
+        # Try to create directory
+        data_dir.mkdir(exist_ok=True)
+        
+        # Test if we can write to the directory
+        test_file = data_dir / ".test_write"
+        test_file.touch()
+        test_file.unlink()
+        
+        return f"sqlite:///{str(db_path)}"
+        
+    except (PermissionError, OSError) as e:
+        # Fallback to tmp directory or current directory
+        import tempfile
+        try:
+            # Try temp directory
+            temp_dir = Path(tempfile.gettempdir()) / "codeflowops"
+            temp_dir.mkdir(exist_ok=True)
+            temp_db_path = temp_dir / "codeflowops.db"
+            return f"sqlite:///{str(temp_db_path)}"
+        except:
+            # Final fallback to current directory
+            current_db_path = Path.cwd() / "codeflowops.db"
+            return f"sqlite:///{str(current_db_path)}"
 
-# Ensure data directory exists
-data_dir.mkdir(exist_ok=True)
-
-DATABASE_URL = os.getenv("DATABASE_URL", f"sqlite:///{str(db_path)}")
+DATABASE_URL = get_database_url()
 
 # Create engine with SQLite-specific settings
 if DATABASE_URL.startswith("sqlite"):

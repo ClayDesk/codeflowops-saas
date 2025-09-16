@@ -285,7 +285,7 @@ except ImportError:
 if AUTH_AVAILABLE:
     app.include_router(
         auth_router,
-        prefix="/api/auth",
+        prefix="/api/v1/auth",
         tags=["Authentication"]
     )
 

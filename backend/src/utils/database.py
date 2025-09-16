@@ -5,9 +5,19 @@ from sqlalchemy.ext.declarative import declarative_base
 from typing import Generator
 import os
 from contextlib import contextmanager
+from pathlib import Path
 
 # Database URL from environment or default to SQLite
-DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///../../data/codeflowops.db")
+
+# Get absolute path to database file
+backend_dir = Path(__file__).parent.parent.parent
+data_dir = backend_dir.parent / "data"
+db_path = data_dir / "codeflowops.db"
+
+# Ensure data directory exists
+data_dir.mkdir(exist_ok=True)
+
+DATABASE_URL = os.getenv("DATABASE_URL", f"sqlite:///{str(db_path)}")
 
 # Create engine with SQLite-specific settings
 if DATABASE_URL.startswith("sqlite"):

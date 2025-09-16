@@ -259,3 +259,140 @@ class Usage(Base):
     
     def __repr__(self):
         return f"<Usage(resource='{self.resource_type}', quantity={self.quantity})>"
+
+class SubscriptionPlan(enum.Enum):
+    FREE = "free"
+    PRO = "pro"
+    ENTERPRISE = "enterprise"
+
+class SubscriptionStatus(enum.Enum):
+    ACTIVE = "active"
+    TRIALING = "trialing"
+    PAST_DUE = "past_due"
+    CANCELED = "canceled"
+    INCOMPLETE = "incomplete"
+    INCOMPLETE_EXPIRED = "incomplete_expired"
+    UNPAID = "unpaid"
+
+class Customer(Base):
+    """
+    Stripe customer information linked to users
+    """
+    __tablename__ = "customers"
+    
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    user_id = Column(String, ForeignKey("users.id"), nullable=False, unique=True)
+    
+    # Stripe Information
+    stripe_customer_id = Column(String(100), unique=True, nullable=False)
+    
+    # Customer Details
+    email = Column(String(255), nullable=False)
+    name = Column(String(200))
+    
+    # Metadata
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    # Relationships
+    user = relationship("User", backref="customer")
+    subscriptions = relationship("Subscription", back_populates="customer")
+    
+    def __repr__(self):
+        return f"<Customer(email='{self.email}', stripe_id='{self.stripe_customer_id}')>"
+
+class Subscription(Base):
+    """
+    Stripe subscription information
+    """
+    __tablename__ = "subscriptions"
+    
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    customer_id = Column(String, ForeignKey("customers.id"), nullable=False)
+    
+    # Stripe Information
+    stripe_subscription_id = Column(String(100), unique=True, nullable=False)
+    stripe_price_id = Column(String(100), nullable=False)
+    
+    # Subscription Details
+    plan = Column(Enum(SubscriptionPlan), nullable=False)
+    status = Column(Enum(SubscriptionStatus), nullable=False)
+    
+    # Billing Information
+    amount = Column(Integer, nullable=False)  # Amount in cents
+    currency = Column(String(3), default="usd")
+    interval = Column(String(20), nullable=False)  # month, year
+    
+    # Dates
+    trial_start = Column(DateTime)
+    trial_end = Column(DateTime)
+    current_period_start = Column(DateTime, nullable=False)
+    current_period_end = Column(DateTime, nullable=False)
+    cancel_at_period_end = Column(Boolean, default=False)
+    canceled_at = Column(DateTime)
+    ended_at = Column(DateTime)
+    
+    # Metadata
+    metadata_json = Column(Text)  # Additional Stripe metadata
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    # Relationships
+    customer = relationship("Customer", back_populates="subscriptions")
+    
+    def __repr__(self):
+        return f"<Subscription(plan='{self.plan.value}', status='{self.status.value}')>"
+    
+    @property
+    def is_active(self) -> bool:
+        """Check if subscription is currently active"""
+        return self.status in [SubscriptionStatus.ACTIVE, SubscriptionStatus.TRIALING]
+    
+    @property
+    def is_trial(self) -> bool:
+        """Check if subscription is in trial period"""
+        return self.status == SubscriptionStatus.TRIALING
+    
+    @property
+    def days_until_end(self) -> int:
+        """Calculate days until current period ends"""
+        if not self.current_period_end:
+            return 0
+        
+        from datetime import datetime
+        now = datetime.utcnow()
+        if self.current_period_end.replace(tzinfo=None) > now:
+            delta = self.current_period_end.replace(tzinfo=None) - now
+            return delta.days
+        return 0
+
+class Payment(Base):
+    """
+    Payment transaction records
+    """
+    __tablename__ = "payments"
+    
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    customer_id = Column(String, ForeignKey("customers.id"), nullable=False)
+    subscription_id = Column(String, ForeignKey("subscriptions.id"))
+    
+    # Stripe Information
+    stripe_payment_intent_id = Column(String(100), unique=True)
+    stripe_invoice_id = Column(String(100))
+    
+    # Payment Details
+    amount = Column(Integer, nullable=False)  # Amount in cents
+    currency = Column(String(3), default="usd")
+    status = Column(String(50), nullable=False)  # succeeded, failed, pending, etc.
+    
+    # Metadata
+    description = Column(Text)
+    metadata_json = Column(Text)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    
+    # Relationships
+    customer = relationship("Customer")
+    subscription = relationship("Subscription")
+    
+    def __repr__(self):
+        return f"<Payment(amount={self.amount}, status='{self.status}')>"

@@ -3,7 +3,7 @@ Simple Payment API Routes
 Just subscription creation and webhook handling
 """
 
-from fastapi import APIRouter, HTTPException, Request, Header
+from fastapi import APIRouter, HTTPException, Request, Header, Depends
 from pydantic import BaseModel
 from typing import Optional
 import logging
@@ -12,8 +12,10 @@ import time
 # Import service with fallback paths
 try:
     from ..services.stripe_service import StripeService
+    from ..auth.dependencies import get_current_user
 except ImportError:
     from src.services.stripe_service import StripeService
+    from src.auth.dependencies import get_current_user
 
 logger = logging.getLogger(__name__)
 
@@ -103,39 +105,48 @@ async def stripe_webhook(
         )
 
 @router.get("/subscription/user")
-async def get_user_subscription(request: Request):
+async def get_user_subscription(current_user = Depends(get_current_user)):
     """Get current user's subscription"""
     try:
-        # Get user from auth token (simplified for demo)
-        # In production, you'd validate the JWT token and get user info
-        auth_header = request.headers.get('authorization', '')
-        if not auth_header.startswith('Bearer '):
-            raise HTTPException(status_code=401, detail="Invalid authorization header")
+        from ..services.subscription_service import SubscriptionService
         
-        # For demo purposes, return mock subscription data
-        # In production, you'd look up the user's subscription from your database
-        current_time = int(time.time())
-        thirty_days = 30 * 24 * 60 * 60
+        # Get user's subscription from database
+        subscription_data = await SubscriptionService.get_user_subscription(current_user.id)
         
-        mock_subscription = {
-            'id': 'sub_demo123',
-            'status': 'active',
-            'current_period_start': current_time - thirty_days,  # 30 days ago
-            'current_period_end': current_time + thirty_days,    # 30 days from now
-            'cancel_at_period_end': False,
-            'customer_id': 'cus_demo123',
-            'plan': {
-                'id': 'plan_pro_monthly',
-                'amount': 1900,
-                'currency': 'usd',
-                'interval': 'month',
-                'product': 'CodeFlowOps Pro'
+        if not subscription_data:
+            # No subscription found - user is on free plan
+            return {
+                "success": True,
+                "subscription": None,
+                "plan": "free",
+                "message": "No active subscription found"
             }
+        
+        # Format subscription data for frontend
+        formatted_subscription = {
+            'id': subscription_data.get('stripe_subscription_id'),
+            'status': subscription_data.get('status'),
+            'current_period_start': subscription_data.get('current_period_start'),
+            'current_period_end': subscription_data.get('current_period_end'),
+            'cancel_at_period_end': subscription_data.get('cancel_at_period_end', False),
+            'trial_start': subscription_data.get('trial_start'),
+            'trial_end': subscription_data.get('trial_end'),
+            'plan': {
+                'id': subscription_data.get('plan', 'pro'),
+                'amount': subscription_data.get('amount', 0),
+                'currency': subscription_data.get('currency', 'usd'),
+                'interval': subscription_data.get('interval', 'month'),
+                'product': f"CodeFlowOps {subscription_data.get('plan', 'Pro').title()}"
+            },
+            'is_active': subscription_data.get('is_active', False),
+            'is_trial': subscription_data.get('is_trial', False),
+            'days_until_end': subscription_data.get('days_until_end', 0)
         }
         
         return {
             "success": True,
-            "subscription": mock_subscription
+            "subscription": formatted_subscription,
+            "plan": subscription_data.get('plan', 'free')
         }
         
     except Exception as e:

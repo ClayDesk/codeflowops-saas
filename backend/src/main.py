@@ -376,28 +376,20 @@ if LEGACY_ROUTES_AVAILABLE:
 
 # Include new payments API routes that work with actual database structure
 try:
-    from .api.payments_routes import router as payments_api_router, billing_router
+    from .api.payments_routes import router as payments_api_router
     app.include_router(
         payments_api_router,
         tags=["Payments API"]
     )
-    app.include_router(
-        billing_router,
-        tags=["Billing API"]
-    )
-    logger.info("✅ New payments and billing API routes loaded successfully")
+    logger.info("✅ New payments API routes loaded successfully")
 except ImportError:
     try:
-        from api.payments_routes import router as payments_api_router, billing_router
+        from api.payments_routes import router as payments_api_router
         app.include_router(
             payments_api_router,
             tags=["Payments API"]
         )
-        app.include_router(
-            billing_router,
-            tags=["Billing API"]
-        )
-        logger.info("✅ New payments and billing API routes loaded successfully (fallback)")
+        logger.info("✅ New payments API routes loaded successfully (fallback)")
     except ImportError:
         logger.warning("⚠️ New payments API routes not available")
 

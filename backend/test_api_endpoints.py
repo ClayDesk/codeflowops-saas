@@ -21,7 +21,8 @@ def test_backend_endpoints():
         "/api/health",
         "/api/v1/auth/health",
         "/api/v1/auth/me",
-        "/api/v1/payments/subscription/user"
+        "/api/v1/payments/subscription/user",
+        "/api/v1/payments/billing/subscription"
     ]
 
     headers = {
@@ -47,6 +48,11 @@ def test_backend_endpoints():
                 headers_with_auth['Authorization'] = 'Bearer demo-token'
 
                 response = requests.get(url, headers=headers_with_auth, timeout=10)
+                
+                # Test the new billing endpoint
+                if 'billing/subscription' in url:
+                    print(f"  Testing billing endpoint: {url}")
+                    response = requests.get(url, headers=headers_with_auth, timeout=10)
 
                 if response.status_code == 200:
                     try:

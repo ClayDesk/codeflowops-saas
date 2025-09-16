@@ -102,15 +102,13 @@ async def cancel_subscription(
             detail=f"Failed to cancel subscription: {str(e)}"
         )
 
-# Additional billing router for frontend compatibility
-billing_router = APIRouter(prefix="/api/v1/billing", tags=["billing"])
-
-@billing_router.get("/subscription")
-async def get_subscription_status(
+# Add billing endpoint to existing router for compatibility
+@router.get("/billing/subscription")
+async def get_billing_subscription(
     credentials: Optional[HTTPAuthorizationCredentials] = Depends(HTTPBearer(auto_error=False))
 ):
     """
-    Get subscription status - matches frontend expectation: /api/v1/billing/subscription
+    Get subscription status - matches frontend expectation: /api/v1/payments/billing/subscription
     """
     try:
         logger.info("Fetching billing subscription status")

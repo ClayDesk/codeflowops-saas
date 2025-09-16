@@ -3191,6 +3191,54 @@ async def get_subscription_status():
             "id": "sub_demo_123"
         }
 
+# Add user subscription endpoint that matches profile page expectations
+@app.get("/api/v1/payments/subscription/user")
+async def get_user_subscription():
+    """
+    Get current user's subscription status - matches profile page expectation
+    Returns data wrapped in 'subscription' key as expected by frontend
+    """
+    try:
+        logger.info("Fetching user subscription status")
+
+        # Return demo subscription data wrapped in subscription key
+        return {
+            "subscription": {
+                "status": "active",
+                "plan": {
+                    "product": "CodeFlowOps Pro",
+                    "amount": 1900,
+                    "currency": "usd",
+                    "interval": "month"
+                },
+                "current_period_end": "2025-12-31T23:59:59+00:00",
+                "trial_end": None,
+                "cancel_at_period_end": False,
+                "id": "sub_demo_123"
+            },
+            "message": "Subscription status retrieved successfully"
+        }
+
+    except Exception as e:
+        logger.error(f"Error in user subscription endpoint: {str(e)}")
+        # Return demo data on error
+        return {
+            "subscription": {
+                "status": "active",
+                "plan": {
+                    "product": "CodeFlowOps Pro",
+                    "amount": 1900,
+                    "currency": "usd",
+                    "interval": "month"
+                },
+                "current_period_end": "2025-12-31T23:59:59+00:00",
+                "trial_end": None,
+                "cancel_at_period_end": False,
+                "id": "sub_demo_123"
+            },
+            "message": "Subscription status retrieved (fallback)"
+        }
+
 # Add user data endpoint for frontend compatibility
 @app.get("/api/v1/auth/me")
 async def get_current_user():

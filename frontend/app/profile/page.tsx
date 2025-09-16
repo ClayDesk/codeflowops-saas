@@ -228,7 +228,6 @@ Thank you.`)
       const possibleUrls = [
         process.env.NEXT_PUBLIC_API_URL,
         'https://api.codeflowops.com',
-        'https://www.codeflowops.com/api',
         'http://codeflowops.us-east-1.elasticbeanstalk.com'
       ].filter(Boolean)
       

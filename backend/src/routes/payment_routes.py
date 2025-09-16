@@ -108,8 +108,50 @@ async def stripe_webhook(
 async def get_user_subscription(current_user = None):
     """Get current user's subscription"""
     try:
-        # For demo purposes, return mock subscription data
-        # This endpoint works without authentication for frontend compatibility
+        # Try to get real subscription data from database
+        try:
+            from ..services.subscription_service import SubscriptionService
+
+            # For now, use a demo user ID since we don't have authentication
+            # In production, this would come from current_user.id
+            demo_user_id = "demo-user-123"
+
+            # Get user's subscription from database
+            subscription_data = await SubscriptionService.get_user_subscription(demo_user_id)
+
+            if subscription_data:
+                # Format subscription data for frontend
+                formatted_subscription = {
+                    'id': subscription_data.get('stripe_subscription_id'),
+                    'status': subscription_data.get('status'),
+                    'current_period_start': subscription_data.get('current_period_start'),
+                    'current_period_end': subscription_data.get('current_period_end'),
+                    'cancel_at_period_end': subscription_data.get('cancel_at_period_end', False),
+                    'trial_start': subscription_data.get('trial_start'),
+                    'trial_end': subscription_data.get('trial_end'),
+                    'plan': {
+                        'id': subscription_data.get('plan', 'pro'),
+                        'amount': subscription_data.get('amount', 1900),
+                        'currency': subscription_data.get('currency', 'usd'),
+                        'interval': subscription_data.get('interval', 'month'),
+                        'product': f"CodeFlowOps {subscription_data.get('plan', 'Pro').title()}"
+                    },
+                    'is_active': subscription_data.get('is_active', True),
+                    'is_trial': subscription_data.get('is_trial', False),
+                    'days_until_end': subscription_data.get('days_until_end', 365)
+                }
+
+                return {
+                    "success": True,
+                    "subscription": formatted_subscription,
+                    "plan": subscription_data.get('plan', 'pro'),
+                    "message": "Subscription status retrieved successfully"
+                }
+
+        except Exception as service_error:
+            logger.warning(f"Subscription service error, falling back to demo data: {service_error}")
+
+        # Fallback to demo subscription data if service fails
         return {
             "success": True,
             "subscription": {
@@ -132,7 +174,7 @@ async def get_user_subscription(current_user = None):
                 'days_until_end': 365
             },
             "plan": "pro",
-            "message": "Subscription status retrieved successfully"
+            "message": "Subscription status retrieved (demo data)"
         }
         
     except Exception as e:

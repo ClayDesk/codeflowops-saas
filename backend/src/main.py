@@ -374,6 +374,25 @@ if LEGACY_ROUTES_AVAILABLE:
         except ImportError:
             logger.warning("⚠️ Payment routes not available")
 
+# Include new payments API routes that work with actual database structure
+try:
+    from .api.payments_routes import router as payments_api_router
+    app.include_router(
+        payments_api_router,
+        tags=["Payments API"]
+    )
+    logger.info("✅ New payments API routes loaded successfully")
+except ImportError:
+    try:
+        from api.payments_routes import router as payments_api_router
+        app.include_router(
+            payments_api_router,
+            tags=["Payments API"]
+        )
+        logger.info("✅ New payments API routes loaded successfully (fallback)")
+    except ImportError:
+        logger.warning("⚠️ New payments API routes not available")
+
     # Billing routes removed (Stripe functionality removed)
     logger.info("Billing functionality has been removed from the application")
 

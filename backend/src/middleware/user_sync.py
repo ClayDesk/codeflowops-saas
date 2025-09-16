@@ -35,23 +35,28 @@ class UserSyncMiddleware:
             return None
             
         try:
-            with get_db_context() as db:
-                # Check if user already exists (using raw SQL to match actual schema)
-                result = db.execute(
-                    "SELECT * FROM users WHERE email = ?", 
-                    (auth_result.email,)
-                ).fetchone()
+            # Use direct SQLite connection instead of get_db_context
+            import sqlite3
+            import os
+            
+            db_path = os.path.join(os.path.dirname(__file__), '..', '..', 'data', 'codeflowops.db')
+            
+            with sqlite3.connect(db_path) as conn:
+                cursor = conn.cursor()
+                
+                # Check if user already exists
+                cursor.execute("SELECT user_id, email FROM users WHERE email = ?", (auth_result.email,))
+                result = cursor.fetchone()
                 
                 if result:
                     logger.debug(f"User {auth_result.email} already exists in database")
-                    # Return a simple dict representation
                     return {
-                        "user_id": result[0],  # user_id is first column
-                        "email": result[1],    # email is second column
+                        "user_id": result[0],
+                        "email": result[1],
                         "exists": True
                     }
                 
-                # Create new user record from Cognito data using raw SQL
+                # Create new user record from Cognito data using SQLite
                 logger.info(f"Creating database record for Cognito user: {auth_result.email}")
                 
                 user_id = auth_result.user_id or str(uuid.uuid4())
@@ -59,7 +64,7 @@ class UserSyncMiddleware:
                 full_name = auth_result.full_name or _extract_name_from_email(auth_result.email)
                 now = datetime.utcnow().isoformat()
                 
-                db.execute("""
+                cursor.execute("""
                     INSERT INTO users (
                         user_id, email, username, full_name, hashed_password,
                         role, organization, is_active, created_at, updated_at, last_login
@@ -78,7 +83,7 @@ class UserSyncMiddleware:
                     None
                 ))
                 
-                db.commit()
+                conn.commit()
                 
                 logger.info(f"✅ Successfully created database user record for {auth_result.email}")
                 logger.info(f"   User ID: {user_id}")

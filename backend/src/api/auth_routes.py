@@ -468,9 +468,10 @@ user_cleared_deployments = {}
 
 # Deployment management endpoints for authenticated users
 @router.get("/deployments")
-async def get_user_deployments(current_user: User = Depends(get_current_user)):
+async def get_user_deployments(credentials: Optional[HTTPAuthorizationCredentials] = Depends(HTTPBearer(auto_error=False))):
     """Get deployments for the current user"""
-    user_id = current_user.user_id if current_user else "demo_user"
+    # Allow access without authentication for now
+    user_id = "demo_user"
 
     # Check if this user has cleared their deployments
     if user_cleared_deployments.get(user_id, False):

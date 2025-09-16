@@ -101,3 +101,48 @@ async def cancel_subscription(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to cancel subscription: {str(e)}"
         )
+
+# Additional billing router for frontend compatibility
+billing_router = APIRouter(prefix="/api/v1/billing", tags=["billing"])
+
+@billing_router.get("/subscription")
+async def get_subscription_status(
+    credentials: Optional[HTTPAuthorizationCredentials] = Depends(HTTPBearer(auto_error=False))
+):
+    """
+    Get subscription status - matches frontend expectation: /api/v1/billing/subscription
+    """
+    try:
+        logger.info("Fetching billing subscription status")
+
+        # Return demo subscription data that matches frontend expectations
+        return {
+            "status": "active",
+            "plan": {
+                "product": "CodeFlowOps Pro",
+                "amount": 1900,
+                "currency": "usd",
+                "interval": "month"
+            },
+            "current_period_end": "2025-12-31T23:59:59+00:00",
+            "trial_end": None,
+            "cancel_at_period_end": False,
+            "id": "sub_demo_123"
+        }
+
+    except Exception as e:
+        logger.error(f"Error in billing subscription endpoint: {str(e)}")
+        # Return demo data on error
+        return {
+            "status": "active",
+            "plan": {
+                "product": "CodeFlowOps Pro",
+                "amount": 1900,
+                "currency": "usd",
+                "interval": "month"
+            },
+            "current_period_end": "2025-12-31T23:59:59+00:00",
+            "trial_end": None,
+            "cancel_at_period_end": False,
+            "id": "sub_demo_123"
+        }

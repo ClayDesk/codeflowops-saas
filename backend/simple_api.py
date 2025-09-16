@@ -3086,6 +3086,47 @@ app.include_router(router)
 
 # Payment routes removed (Stripe functionality removed)
 
+# Add billing endpoint for frontend compatibility
+@app.get("/api/v1/payments/billing/subscription")
+async def get_billing_subscription():
+    """
+    Get subscription status - matches frontend expectation
+    """
+    try:
+        logger.info("Fetching billing subscription status")
+
+        # Return demo subscription data that matches frontend expectations
+        return {
+            "status": "active",
+            "plan": {
+                "product": "CodeFlowOps Pro",
+                "amount": 1900,
+                "currency": "usd",
+                "interval": "month"
+            },
+            "current_period_end": "2025-12-31T23:59:59+00:00",
+            "trial_end": None,
+            "cancel_at_period_end": False,
+            "id": "sub_demo_123"
+        }
+
+    except Exception as e:
+        logger.error(f"Error in billing subscription endpoint: {str(e)}")
+        # Return demo data on error
+        return {
+            "status": "active",
+            "plan": {
+                "product": "CodeFlowOps Pro",
+                "amount": 1900,
+                "currency": "usd",
+                "interval": "month"
+            },
+            "current_period_end": "2025-12-31T23:59:59+00:00",
+            "trial_end": None,
+            "cancel_at_period_end": False,
+            "id": "sub_demo_123"
+        }
+
 # Add modular stack routers if available
 try:
     # Force mount Node.js LightSail router (for Node.js backend deployments)

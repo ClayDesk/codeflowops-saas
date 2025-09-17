@@ -74,11 +74,23 @@ function ProfilePageContent() {
     try {
       // Use the correct API URL for production
       const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'https://api.codeflowops.com'
-      
-      const token = localStorage.getItem('auth_token') || localStorage.getItem('codeflowops_access_token')
+
+      // Align token retrieval with auth-context: check cookies first, then localStorage
+      const getCookieValue = (name: string) => {
+        if (typeof document === 'undefined') return null
+        const match = document.cookie.match(new RegExp('(?:^|; )' + name.replace(/([.$?*|{}()\[\]\\\/\+^])/g, '\\$1') + '=([^;]*)'))
+        return match ? decodeURIComponent(match[1]) : null
+      }
+
+      const token =
+        getCookieValue('auth_token') ||
+        getCookieValue('codeflowops_access_token') ||
+        localStorage.getItem('codeflowops_access_token') ||
+        localStorage.getItem('auth_token') ||
+        null
       
       // Determine the correct endpoint based on user provider
-      let endpoint = `${API_BASE}/api/v1/billing/subscription` // Default for regular users
+  let endpoint = `${API_BASE}/api/v1/billing/subscription` // Default for regular users
       
       if (user?.provider === 'github') {
         endpoint = `${API_BASE}/api/v1/auth/github/subscription`
@@ -87,15 +99,23 @@ function ProfilePageContent() {
       console.log('Fetching subscription data from:', endpoint)
       console.log('User provider:', user?.provider)
       
+      const headers: Record<string, string> = { 'Content-Type': 'application/json', 'Accept': 'application/json' }
+      if (token) headers['Authorization'] = `Bearer ${token}`
+
       const response = await fetch(endpoint, {
         method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': token ? `Bearer ${token}` : ''
-        }
+        headers
       })
       
       if (response.ok) {
+        const contentType = response.headers.get('content-type') || ''
+        if (!contentType.toLowerCase().includes('application/json')) {
+          // Avoid JSON parse errors on HTML error pages
+          const text = await response.text()
+          console.warn('Expected JSON but received:', contentType, text.slice(0, 200))
+          setSubscription(null)
+          return
+        }
         const data = await response.json()
         console.log('Subscription data received:', data)
         console.log('Setting subscription to:', data.subscription || data)

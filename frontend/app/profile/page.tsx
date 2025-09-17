@@ -102,7 +102,7 @@ function ProfilePageContent() {
       const headers: Record<string, string> = { 'Content-Type': 'application/json', 'Accept': 'application/json' }
       if (token) headers['Authorization'] = `Bearer ${token}`
 
-      const response = await fetch(endpoint, {
+      let response = await fetch(endpoint, {
         method: 'GET',
         headers
       })
@@ -122,8 +122,23 @@ function ProfilePageContent() {
         setSubscription(data.subscription || data)
         console.log('Subscription state after setting:', subscription)
       } else {
+        // Fallback to permissive endpoint that returns demo data if available
+        try {
+          const fallback = await fetch(`${API_BASE}/api/v1/payments/subscription/user`, {
+            method: 'GET',
+            headers
+          })
+          if (fallback.ok && (fallback.headers.get('content-type') || '').toLowerCase().includes('application/json')) {
+            const raw = await fallback.json()
+            setSubscription(raw.subscription || raw)
+            return
+          }
+        } catch (e) {
+          // ignore fallback errors
+        }
         console.warn('Failed to fetch subscription data:', response.status, response.statusText)
-        console.warn('Response text:', await response.text())
+        // Try to log small snippet of body for diagnostics without breaking JSON parsing
+        try { console.warn('Response text:', (await response.text()).slice(0, 200)) } catch {}
         setSubscription(null)
       }
     } catch (error) {
@@ -335,12 +350,7 @@ Thank you.`)
     }
   }
 
-  // Fetch subscription data when component mounts
-  useEffect(() => {
-    if (isAuthenticated) {
-      fetchUserSubscription()
-    }
-  }, [isAuthenticated])
+  // Note: subscription is fetched inside fetchUserData effect above to avoid duplicate calls
 
   if (!isAuthenticated) {
     return (

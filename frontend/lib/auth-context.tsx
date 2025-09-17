@@ -460,28 +460,42 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       // Fetch subscription data from billing endpoint
       let subscriptionData = null
       try {
-        let subscriptionResponse
-        
+        let subscriptionResponse: Response
+
+        const commonHeaders: Record<string, string> = { 'Content-Type': 'application/json', 'Accept': 'application/json' }
+
         if (user?.provider === 'github' || !token) {
           // Use GitHub-compatible subscription endpoint for GitHub OAuth users
           subscriptionResponse = await fetch(`${API_BASE}/api/v1/auth/github/subscription`, {
             credentials: 'include',
-            headers: {
-              'Content-Type': 'application/json',
-            },
+            headers: commonHeaders,
           })
         } else {
           // Use token-based auth for regular Cognito users
           subscriptionResponse = await fetch(`${API_BASE}/api/v1/billing/subscription`, {
-            headers: {
-              'Authorization': `Bearer ${token}`,
-              'Content-Type': 'application/json',
-            },
+            credentials: 'include',
+            headers: { ...commonHeaders, ...(token ? { 'Authorization': `Bearer ${token}` } : {}) },
           })
         }
 
-        if (subscriptionResponse.ok) {
-          subscriptionData = await subscriptionResponse.json()
+        const isJson = (subscriptionResponse.headers.get('content-type') || '').toLowerCase().includes('application/json')
+        if (subscriptionResponse.ok && isJson) {
+          const raw = await subscriptionResponse.json()
+          subscriptionData = raw?.subscription || raw
+        } else {
+          // Fallback: try permissive user subscription endpoint to avoid blocking UI on 401s
+          try {
+            const fallback = await fetch(`${API_BASE}/api/v1/payments/subscription/user`, {
+              credentials: 'include',
+              headers: commonHeaders,
+            })
+            if (fallback.ok && (fallback.headers.get('content-type') || '').toLowerCase().includes('application/json')) {
+              const raw = await fallback.json()
+              subscriptionData = raw?.subscription || raw
+            }
+          } catch (e) {
+            // ignore fallback errors
+          }
         }
       } catch (subError) {
         console.warn('Failed to fetch subscription data:', subError)

@@ -457,45 +457,68 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
       }
 
-      // Fetch subscription data from billing endpoint
+      // Fetch subscription data from real subscription endpoint
       let subscriptionData = null
       try {
-        let subscriptionResponse: Response
-
         const commonHeaders: Record<string, string> = { 'Content-Type': 'application/json', 'Accept': 'application/json' }
+        // Primary real endpoint requiring auth; supports Bearer token via get_current_user
+        const subResp = await fetch(`${API_BASE}/api/v1/subscriptions/status`, {
+          credentials: 'include',
+          headers: { ...commonHeaders, ...(token ? { 'Authorization': `Bearer ${token}` } : {}) },
+        })
 
-        if (user?.provider === 'github' || !token) {
-          // Use GitHub-compatible subscription endpoint for GitHub OAuth users
-          subscriptionResponse = await fetch(`${API_BASE}/api/v1/auth/github/subscription`, {
-            credentials: 'include',
-            headers: commonHeaders,
-          })
-        } else {
-          // Use token-based auth for regular Cognito users
-          subscriptionResponse = await fetch(`${API_BASE}/api/v1/billing/subscription`, {
-            credentials: 'include',
-            headers: { ...commonHeaders, ...(token ? { 'Authorization': `Bearer ${token}` } : {}) },
-          })
-        }
+        const isJson = (subResp.headers.get('content-type') || '').toLowerCase().includes('application/json')
 
-        const isJson = (subscriptionResponse.headers.get('content-type') || '').toLowerCase().includes('application/json')
-        if (subscriptionResponse.ok && isJson) {
-          const raw = await subscriptionResponse.json()
-          subscriptionData = raw?.subscription || raw
-        } else {
-          // Fallback: try permissive user subscription endpoint to avoid blocking UI on 401s
+        if (subResp.status === 401 && token) {
+          // Try one refresh and retry for token-based users
           try {
-            const fallback = await fetch(`${API_BASE}/api/v1/payments/subscription/user`, {
-              credentials: 'include',
-              headers: commonHeaders,
-            })
-            if (fallback.ok && (fallback.headers.get('content-type') || '').toLowerCase().includes('application/json')) {
-              const raw = await fallback.json()
-              subscriptionData = raw?.subscription || raw
+            await refreshToken()
+            const newToken = getStoredToken()
+            if (newToken) {
+              const retry = await fetch(`${API_BASE}/api/v1/subscriptions/status`, {
+                credentials: 'include',
+                headers: { ...commonHeaders, 'Authorization': `Bearer ${newToken}` },
+              })
+              if (retry.ok && (retry.headers.get('content-type') || '').toLowerCase().includes('application/json')) {
+                const raw = await retry.json()
+                // Map status response to UI-friendly subscription object if subscribed
+                subscriptionData = raw?.has_subscription
+                  ? {
+                      id: raw.stripe_subscription_id || 'unknown',
+                      status: raw.status,
+                      plan: {
+                        product: raw.plan || 'CodeFlowOps Pro',
+                        amount: raw.amount || 1900,
+                        currency: raw.currency || 'usd',
+                        interval: raw.interval || 'month',
+                      },
+                      current_period_end: raw.current_period_end ? Date.parse(raw.current_period_end) : undefined,
+                      trial_end: raw.trial_end ? Date.parse(raw.trial_end) : undefined,
+                      cancel_at_period_end: false,
+                    }
+                  : null
+              }
             }
-          } catch (e) {
-            // ignore fallback errors
+          } catch {
+            // ignore; no demo fallback
           }
+        } else if (subResp.ok && isJson) {
+          const raw = await subResp.json()
+          subscriptionData = raw?.has_subscription
+            ? {
+                id: raw.stripe_subscription_id || 'unknown',
+                status: raw.status,
+                plan: {
+                  product: raw.plan || 'CodeFlowOps Pro',
+                  amount: raw.amount || 1900,
+                  currency: raw.currency || 'usd',
+                  interval: raw.interval || 'month',
+                },
+                current_period_end: raw.current_period_end ? Date.parse(raw.current_period_end) : undefined,
+                trial_end: raw.trial_end ? Date.parse(raw.trial_end) : undefined,
+                cancel_at_period_end: false,
+              }
+            : null
         }
       } catch (subError) {
         console.warn('Failed to fetch subscription data:', subError)

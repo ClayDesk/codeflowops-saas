@@ -69,83 +69,7 @@ function ProfilePageContent() {
   const [isCancellingSubscription, setIsCancellingSubscription] = useState(false)
   const [paymentSuccess, setPaymentSuccess] = useState(false)
 
-  // Fetch user subscription data
-  const fetchUserSubscription = useCallback(async () => {
-    try {
-      // Use the correct API URL for production
-      const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'https://api.codeflowops.com'
-
-      // Align token retrieval with auth-context: check cookies first, then localStorage
-      const getCookieValue = (name: string) => {
-        if (typeof document === 'undefined') return null
-        const match = document.cookie.match(new RegExp('(?:^|; )' + name.replace(/([.$?*|{}()\[\]\\\/\+^])/g, '\\$1') + '=([^;]*)'))
-        return match ? decodeURIComponent(match[1]) : null
-      }
-
-      const token =
-        getCookieValue('auth_token') ||
-        getCookieValue('codeflowops_access_token') ||
-        localStorage.getItem('codeflowops_access_token') ||
-        localStorage.getItem('auth_token') ||
-        null
-      
-      // Determine the correct endpoint based on user provider
-  let endpoint = `${API_BASE}/api/v1/billing/subscription` // Default for regular users
-      
-      if (user?.provider === 'github') {
-        endpoint = `${API_BASE}/api/v1/auth/github/subscription`
-      }
-      
-      console.log('Fetching subscription data from:', endpoint)
-      console.log('User provider:', user?.provider)
-      
-      const headers: Record<string, string> = { 'Content-Type': 'application/json', 'Accept': 'application/json' }
-      if (token) headers['Authorization'] = `Bearer ${token}`
-
-      let response = await fetch(endpoint, {
-        method: 'GET',
-        headers
-      })
-      
-      if (response.ok) {
-        const contentType = response.headers.get('content-type') || ''
-        if (!contentType.toLowerCase().includes('application/json')) {
-          // Avoid JSON parse errors on HTML error pages
-          const text = await response.text()
-          console.warn('Expected JSON but received:', contentType, text.slice(0, 200))
-          setSubscription(null)
-          return
-        }
-        const data = await response.json()
-        console.log('Subscription data received:', data)
-        console.log('Setting subscription to:', data.subscription || data)
-        setSubscription(data.subscription || data)
-        console.log('Subscription state after setting:', subscription)
-      } else {
-        // Fallback to permissive endpoint that returns demo data if available
-        try {
-          const fallback = await fetch(`${API_BASE}/api/v1/payments/subscription/user`, {
-            method: 'GET',
-            headers
-          })
-          if (fallback.ok && (fallback.headers.get('content-type') || '').toLowerCase().includes('application/json')) {
-            const raw = await fallback.json()
-            setSubscription(raw.subscription || raw)
-            return
-          }
-        } catch (e) {
-          // ignore fallback errors
-        }
-        console.warn('Failed to fetch subscription data:', response.status, response.statusText)
-        // Try to log small snippet of body for diagnostics without breaking JSON parsing
-        try { console.warn('Response text:', (await response.text()).slice(0, 200)) } catch {}
-        setSubscription(null)
-      }
-    } catch (error) {
-      console.error('Error fetching subscription:', error)
-      setSubscription(null)
-    }
-  }, [user?.provider])
+  // Removed local subscription fetcher; rely on auth-context's fetchUserProfile exclusively
 
   // Fetch user data from API
   useEffect(() => {
@@ -161,15 +85,17 @@ function ProfilePageContent() {
           localStorage.removeItem('no_subscription_message')
         }
         
-        // Always fetch subscription data for authenticated users
-        await fetchUserSubscription()
+  // We'll rely on auth-context's fetchUserProfile to include subscription data
         
         // Check for payment success parameter
         const payment = searchParams.get('payment')
         if (payment === 'success') {
           setPaymentSuccess(true)
-          // Refresh subscription data immediately after payment
-          await fetchUserSubscription()
+          // Refresh user+subscription via auth-context
+          const refreshed = await fetchUserProfile()
+          if (refreshed?.subscription) {
+            setSubscription(refreshed.subscription.subscription || refreshed.subscription)
+          }
           // Clear the payment parameter from URL after showing success
           setTimeout(() => {
             const newUrl = window.location.pathname + window.location.search.replace(/[?&]payment=success/, '')
@@ -185,6 +111,9 @@ function ProfilePageContent() {
             full_name: profileResponse.user.full_name || '',
             email: profileResponse.user.email || ''
           })
+          if (profileResponse.subscription) {
+            setSubscription(profileResponse.subscription.subscription || profileResponse.subscription)
+          }
         }
         
         // Fetch user deployments
@@ -205,7 +134,7 @@ function ProfilePageContent() {
     if (isAuthenticated) {
       fetchUserData()
     }
-  }, [isAuthenticated, searchParams, fetchUserProfile, fetchUserDeployments, fetchUserSubscription])
+  }, [isAuthenticated, searchParams, fetchUserProfile, fetchUserDeployments])
 
   // Handle tab selection from URL parameters
   useEffect(() => {
@@ -350,7 +279,7 @@ Thank you.`)
     }
   }
 
-  // Note: subscription is fetched inside fetchUserData effect above to avoid duplicate calls
+  // Note: we rely on auth-context's fetchUserProfile for subscription data to avoid duplicate calls
 
   if (!isAuthenticated) {
     return (

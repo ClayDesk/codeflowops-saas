@@ -396,6 +396,25 @@ except ImportError:
     # Billing routes removed (Stripe functionality removed)
     logger.info("Billing functionality has been removed from the application")
 
+# Include real subscription routes (auth-required) for accurate subscription status
+try:
+    from .api.subscription_routes import router as subscription_router
+    app.include_router(
+        subscription_router,
+        tags=["subscriptions"]
+    )
+    logger.info("✅ Subscription routes loaded successfully")
+except ImportError:
+    try:
+        from api.subscription_routes import router as subscription_router
+        app.include_router(
+            subscription_router,
+            tags=["subscriptions"]
+        )
+        logger.info("✅ Subscription routes loaded successfully (fallback)")
+    except ImportError:
+        logger.warning("⚠️ Subscription routes not available")
+
 
 # Enhanced root endpoint
 @app.get("/")

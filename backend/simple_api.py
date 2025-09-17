@@ -11,7 +11,7 @@ os.environ['GIT_PYTHON_REFRESH'] = 'quiet'
 from dotenv import load_dotenv
 load_dotenv()
 
-from fastapi import FastAPI, HTTPException, APIRouter, Request
+from fastapi import FastAPI, HTTPException, APIRouter, Request, Depends, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, Response
 from pydantic import BaseModel, EmailStr
@@ -33,6 +33,28 @@ import boto3
 import shutil
 from concurrent.futures import ThreadPoolExecutor
 import threading
+
+from pathlib import Path
+
+# Ensure a logger is available before any early import-time logging
+logger = logging.getLogger(__name__)
+
+# Ensure backend/src is importable for enhanced modules
+backend_path = Path(__file__).parent
+src_path = backend_path / "src"
+if str(src_path) not in sys.path:
+    sys.path.append(str(src_path))
+
+# Import real auth dependency and subscription flow to eliminate demo data
+try:
+    from src.auth.dependencies import get_current_user
+    from src.models.enhanced_models import User
+    from src.services.enhanced_subscription_flow import EnhancedSubscriptionFlow
+    ENHANCED_SUBS_AVAILABLE = True
+    logger.info("✅ Enhanced subscription flow available in simple_api")
+except Exception as e:
+    ENHANCED_SUBS_AVAILABLE = False
+    logger.warning(f"⚠️ Enhanced subscription flow not available in simple_api: {e}")
 
 # Import the ReactDeployer for React-specific deployments
 try:
@@ -102,8 +124,6 @@ except Exception as e:
     STRIPE_AVAILABLE = False
 
 # Add backend paths to import existing components
-backend_path = Path(__file__).parent
-src_path = backend_path / "src"
 sys.path.append(str(backend_path))
 sys.path.append(str(src_path))
 
@@ -867,68 +887,41 @@ async def get_public_pricing(
         "personalized": False
     }
 
-# Subscription endpoints
+def _map_status_to_subscription_payload(status_info: dict) -> dict:
+    """Map EnhancedSubscriptionFlow status to legacy subscription payload shape."""
+    plan = status_info.get("plan") or {}
+    amount = status_info.get("amount")
+    currency = (status_info.get("currency") or "usd").lower()
+    interval = status_info.get("interval") or "month"
+    return {
+        "id": status_info.get("subscription_id") or "sub_unknown",
+        "status": status_info.get("status") or ("active" if status_info.get("has_subscription") else "incomplete"),
+        "plan": {
+            "id": plan if isinstance(plan, str) else plan.get("id", "pro") if isinstance(plan, dict) else "pro",
+            "name": plan if isinstance(plan, str) else plan.get("name", "Pro") if isinstance(plan, dict) else "Pro",
+            "product": "CodeFlowOps Pro",
+            "amount": amount if isinstance(amount, int) else 0,
+            "currency": currency,
+            "interval": interval
+        },
+        "current_period_start": status_info.get("current_period_start"),
+        "current_period_end": status_info.get("current_period_end"),
+        "trial_end": status_info.get("trial_end"),
+        "cancel_at_period_end": status_info.get("cancel_at_period_end", False)
+    }
+
+# Subscription endpoints (legacy path kept, but backed by real auth + data)
 @router.get("/api/v1/billing/subscription")
-async def get_user_subscription(request: Request):
+async def get_user_subscription(request: Request, current_user: "User" = Depends(get_current_user)):
     """
-    Get current user's subscription status
-    Requires authentication via Authorization header
+    Get current user's subscription status using real authentication.
     """
+    if not ENHANCED_SUBS_AVAILABLE:
+        raise HTTPException(status_code=503, detail="Subscription service unavailable")
     try:
-        # Extract token from Authorization header
-        auth_header = request.headers.get("Authorization")
-        if not auth_header or not auth_header.startswith("Bearer "):
-            raise HTTPException(status_code=401, detail="Missing or invalid authorization header")
-
-        token = auth_header.split(" ")[1]
-
-        # Extract user info from token (simplified - in production use proper JWT validation)
-        try:
-            parts = token.split("-")
-            if len(parts) >= 3 and parts[0] == "token":
-                user_id = parts[1]
-            else:
-                raise HTTPException(status_code=401, detail="Invalid token format")
-        except:
-            raise HTTPException(status_code=401, detail="Invalid token")
-
-        # Find user by ID
-        user_email = None
-        for email, user_data in verified_users.items():
-            if user_data.get("id") == user_id:
-                user_email = email
-                break
-
-        if not user_email:
-            raise HTTPException(status_code=404, detail="User not found")
-
-        # For demo purposes, return a mock Pro subscription
-        # In production, this would query your actual billing/subscription database
-        subscription_data = {
-            "id": f"sub_{user_id}_demo",
-            "status": "active",
-            "plan": {
-                "id": "pro",
-                "name": "Pro",
-                "product": "CodeFlowOps Pro",
-                "amount": 1900,  # $19.00 in cents
-                "currency": "usd",
-                "interval": "month"
-            },
-            "current_period_start": "2024-09-16T00:00:00+00:00",
-            "current_period_end": "2025-12-31T23:59:59+00:00",
-            "trial_end": None,
-            "cancel_at_period_end": False
-        }
-
-        logger.info(f"Subscription data retrieved for user {user_email}")
-
-        return {
-            "success": True,
-            "message": "Subscription retrieved successfully",
-            "subscription": subscription_data
-        }
-
+        status_info = await EnhancedSubscriptionFlow.get_user_subscription_status(current_user.user_id)
+        payload = _map_status_to_subscription_payload(status_info)
+        return {"success": True, "message": "Subscription retrieved successfully", "subscription": payload}
     except HTTPException:
         raise
     except Exception as e:
@@ -936,53 +929,14 @@ async def get_user_subscription(request: Request):
         raise HTTPException(status_code=500, detail=f"Failed to retrieve subscription: {str(e)}")
 
 @router.get("/api/v1/auth/github/subscription")
-async def get_github_user_subscription(request: Request):
-    """
-    Get GitHub OAuth user's subscription status
-    Requires authentication via Authorization header
-    """
+async def get_github_user_subscription(current_user: "User" = Depends(get_current_user)):
+    """GitHub OAuth users share the same subscription lookup via current_user."""
+    if not ENHANCED_SUBS_AVAILABLE:
+        raise HTTPException(status_code=503, detail="Subscription service unavailable")
     try:
-        # Extract token from Authorization header
-        auth_header = request.headers.get("Authorization")
-        if not auth_header or not auth_header.startswith("Bearer "):
-            raise HTTPException(status_code=401, detail="Missing or invalid authorization header")
-
-        token = auth_header.split(" ")[1]
-
-        # For GitHub users, we'll use a different token format or validation
-        # For now, we'll accept any valid-looking token and return mock data
-        if not token or len(token) < 10:
-            raise HTTPException(status_code=401, detail="Invalid token")
-
-        # For demo purposes, return a mock Pro subscription for GitHub users
-        # In production, this would query your actual billing/subscription database
-        subscription_data = {
-            "id": f"sub_github_demo_{random.randint(1000, 9999)}",
-            "status": "active",
-            "plan": {
-                "id": "pro",
-                "name": "Pro",
-                "product": "CodeFlowOps Pro",
-                "amount": 1900,  # $19.00 in cents
-                "currency": "usd",
-                "interval": "month"
-            },
-            "current_period_start": "2024-09-16T00:00:00+00:00",
-            "current_period_end": "2025-12-31T23:59:59+00:00",
-            "trial_end": None,
-            "cancel_at_period_end": False
-        }
-
-        logger.info(f"GitHub subscription data retrieved for token: {token[:10]}...")
-
-        return {
-            "success": True,
-            "message": "GitHub subscription retrieved successfully",
-            "subscription": subscription_data
-        }
-
-    except HTTPException:
-        raise
+        status_info = await EnhancedSubscriptionFlow.get_user_subscription_status(current_user.user_id)
+        payload = _map_status_to_subscription_payload(status_info)
+        return {"success": True, "message": "Subscription retrieved successfully", "subscription": payload}
     except Exception as e:
         logger.error(f"Error retrieving GitHub subscription: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to retrieve GitHub subscription: {str(e)}")
@@ -3229,135 +3183,71 @@ app.include_router(router)
 
 # Payment routes removed (Stripe functionality removed)
 
-# Add billing endpoint for frontend compatibility
+# Include real subscription routes so /api/v1/subscriptions/status is available
+try:
+    from src.api.subscription_routes import router as subscription_router
+    app.include_router(subscription_router)
+    logger.info("✅ Subscription routes mounted in simple_api app")
+except Exception as e:
+    logger.warning(f"⚠️ Unable to mount subscription routes in simple_api: {e}")
+
+def _map_status_to_billing_payload(status_info: dict) -> dict:
+    """Map EnhancedSubscriptionFlow status to flat billing payload shape."""
+    plan = status_info.get("plan") or {}
+    amount = status_info.get("amount")
+    currency = (status_info.get("currency") or "usd").lower()
+    interval = status_info.get("interval") or "month"
+    return {
+        "status": status_info.get("status") or ("active" if status_info.get("has_subscription") else "inactive"),
+        "plan": {
+            "product": "CodeFlowOps Pro",
+            "amount": amount if isinstance(amount, int) else 0,
+            "currency": currency,
+            "interval": interval
+        },
+        "current_period_end": status_info.get("current_period_end"),
+        "trial_end": status_info.get("trial_end"),
+        "cancel_at_period_end": status_info.get("cancel_at_period_end", False),
+        "id": status_info.get("subscription_id") or "sub_unknown"
+    }
+
+# Add billing endpoint for frontend compatibility (now backed by real data)
 @app.get("/api/v1/payments/billing/subscription")
-async def get_billing_subscription():
-    """
-    Get subscription status - matches frontend expectation
-    """
+async def get_billing_subscription(current_user: "User" = Depends(get_current_user)):
+    """Get subscription status (flat shape) using real authentication."""
+    if not ENHANCED_SUBS_AVAILABLE:
+        raise HTTPException(status_code=503, detail="Subscription service unavailable")
     try:
-        logger.info("Fetching billing subscription status")
-
-        # Return demo subscription data that matches frontend expectations
-        return {
-            "status": "active",
-            "plan": {
-                "product": "CodeFlowOps Pro",
-                "amount": 1900,
-                "currency": "usd",
-                "interval": "month"
-            },
-            "current_period_end": "2025-12-31T23:59:59+00:00",
-            "trial_end": None,
-            "cancel_at_period_end": False,
-            "id": "sub_demo_123"
-        }
-
+        status_info = await EnhancedSubscriptionFlow.get_user_subscription_status(current_user.user_id)
+        return _map_status_to_billing_payload(status_info)
     except Exception as e:
         logger.error(f"Error in billing subscription endpoint: {str(e)}")
-        # Return demo data on error
-        return {
-            "status": "active",
-            "plan": {
-                "product": "CodeFlowOps Pro",
-                "amount": 1900,
-                "currency": "usd",
-                "interval": "month"
-            },
-            "current_period_end": "2025-12-31T23:59:59+00:00",
-            "trial_end": None,
-            "cancel_at_period_end": False,
-            "id": "sub_demo_123"
-        }
+        raise HTTPException(status_code=500, detail="Failed to retrieve subscription status")
 
-# Add additional subscription endpoints for frontend compatibility
 @app.get("/api/v1/billing/subscription")
-async def get_subscription_status():
-    """
-    Get subscription status - alternative endpoint without /payments prefix
-    """
+async def get_subscription_status_alt(current_user: "User" = Depends(get_current_user)):
+    """Alternative endpoint returning flat billing payload shape using real data."""
+    if not ENHANCED_SUBS_AVAILABLE:
+        raise HTTPException(status_code=503, detail="Subscription service unavailable")
     try:
-        logger.info("Fetching subscription status (alternative endpoint)")
-
-        # Return demo subscription data that matches frontend expectations
-        return {
-            "status": "active",
-            "plan": {
-                "product": "CodeFlowOps Pro",
-                "amount": 1900,
-                "currency": "usd",
-                "interval": "month"
-            },
-            "current_period_end": "2025-12-31T23:59:59+00:00",
-            "trial_end": None,
-            "cancel_at_period_end": False,
-            "id": "sub_demo_123"
-        }
-
+        status_info = await EnhancedSubscriptionFlow.get_user_subscription_status(current_user.user_id)
+        return _map_status_to_billing_payload(status_info)
     except Exception as e:
         logger.error(f"Error in subscription status endpoint: {str(e)}")
-        # Return demo data on error
-        return {
-            "status": "active",
-            "plan": {
-                "product": "CodeFlowOps Pro",
-                "amount": 1900,
-                "currency": "usd",
-                "interval": "month"
-            },
-            "current_period_end": "2025-12-31T23:59:59+00:00",
-            "trial_end": None,
-            "cancel_at_period_end": False,
-            "id": "sub_demo_123"
-        }
+        raise HTTPException(status_code=500, detail="Failed to retrieve subscription status")
 
-# Add user subscription endpoint that matches profile page expectations
 @app.get("/api/v1/payments/subscription/user")
-async def get_user_subscription():
-    """
-    Get current user's subscription status - matches profile page expectation
-    Returns data wrapped in 'subscription' key as expected by frontend
-    """
+async def get_user_subscription_flat(current_user: "User" = Depends(get_current_user)):
+    """Return subscription wrapped in 'subscription' key using real data."""
+    if not ENHANCED_SUBS_AVAILABLE:
+        raise HTTPException(status_code=503, detail="Subscription service unavailable")
     try:
-        logger.info("Fetching user subscription status")
-
-        # Return demo subscription data wrapped in subscription key
-        return {
-            "subscription": {
-                "status": "active",
-                "plan": {
-                    "product": "CodeFlowOps Pro",
-                    "amount": 1900,
-                    "currency": "usd",
-                    "interval": "month"
-                },
-                "current_period_end": "2025-12-31T23:59:59+00:00",
-                "trial_end": None,
-                "cancel_at_period_end": False,
-                "id": "sub_demo_123"
-            },
-            "message": "Subscription status retrieved successfully"
-        }
-
+        status_info = await EnhancedSubscriptionFlow.get_user_subscription_status(current_user.user_id)
+        subscription = _map_status_to_billing_payload(status_info)
+        return {"subscription": subscription, "message": "Subscription status retrieved successfully"}
     except Exception as e:
         logger.error(f"Error in user subscription endpoint: {str(e)}")
-        # Return demo data on error
-        return {
-            "subscription": {
-                "status": "active",
-                "plan": {
-                    "product": "CodeFlowOps Pro",
-                    "amount": 1900,
-                    "currency": "usd",
-                    "interval": "month"
-                },
-                "current_period_end": "2025-12-31T23:59:59+00:00",
-                "trial_end": None,
-                "cancel_at_period_end": False,
-                "id": "sub_demo_123"
-            },
-            "message": "Subscription status retrieved (fallback)"
-        }
+        raise HTTPException(status_code=500, detail="Failed to retrieve subscription status")
 
 # Add user data endpoint for frontend compatibility
 @app.get("/api/v1/auth/me")
@@ -3386,46 +3276,17 @@ async def get_current_user():
             "full_name": "Demo User"
         }
 
-# Add GitHub subscription endpoint for frontend compatibility
 @app.get("/api/v1/auth/github/subscription")
-async def get_github_user_subscription():
-    """
-    Get subscription status for GitHub OAuth users - matches frontend expectation
-    """
+async def get_github_user_subscription_flat(current_user: "User" = Depends(get_current_user)):
+    """GitHub OAuth users use the same subscription lookup via current_user."""
+    if not ENHANCED_SUBS_AVAILABLE:
+        raise HTTPException(status_code=503, detail="Subscription service unavailable")
     try:
-        logger.info("Fetching GitHub user subscription status")
-
-        # Return demo subscription data that matches frontend expectations
-        return {
-            "status": "active",
-            "plan": {
-                "product": "CodeFlowOps Pro",
-                "amount": 1900,
-                "currency": "usd",
-                "interval": "month"
-            },
-            "current_period_end": "2025-12-31T23:59:59+00:00",
-            "trial_end": None,
-            "cancel_at_period_end": False,
-            "id": "sub_demo_123"
-        }
-
+        status_info = await EnhancedSubscriptionFlow.get_user_subscription_status(current_user.user_id)
+        return _map_status_to_billing_payload(status_info)
     except Exception as e:
         logger.error(f"Error in GitHub subscription endpoint: {str(e)}")
-        # Return demo data on error
-        return {
-            "status": "active",
-            "plan": {
-                "product": "CodeFlowOps Pro",
-                "amount": 1900,
-                "currency": "usd",
-                "interval": "month"
-            },
-            "current_period_end": "2025-12-31T23:59:59+00:00",
-            "trial_end": None,
-            "cancel_at_period_end": False,
-            "id": "sub_demo_123"
-        }
+        raise HTTPException(status_code=500, detail="Failed to retrieve subscription status")
 
 # Add modular stack routers if available
 try:

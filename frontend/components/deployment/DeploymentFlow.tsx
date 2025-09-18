@@ -499,7 +499,7 @@ const DeploymentFlowContent: React.FC<DeploymentFlowProps> = ({ onComplete, onCa
       try {
         const response = await fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.STATUS(deploymentId)}`, {
           headers: {
-            'Authorization': `Bearer demo-token`
+            'Authorization': `Bearer ${localStorage.getItem('codeflowops_access_token') || ''}`
           }
         });
 

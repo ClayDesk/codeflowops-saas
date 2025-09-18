@@ -44,12 +44,17 @@ class SubscriptionStatusResponse(BaseModel):
 async def get_subscription_status(current_user: User = Depends(get_current_user)):
     """Get current user's subscription status"""
     try:
-        status_info = await EnhancedSubscriptionFlow.get_user_subscription_status(current_user.user_id)
+        # Support both user.user_id and user.id fields
+        user_id = getattr(current_user, 'user_id', None) or getattr(current_user, 'id', None)
+        if not user_id:
+            raise ValueError("Missing user id on current_user")
+        status_info = await EnhancedSubscriptionFlow.get_user_subscription_status(user_id)
         
         return SubscriptionStatusResponse(**status_info)
         
     except Exception as e:
-        logger.error(f"Error getting subscription status for user {current_user.user_id}: {str(e)}")
+        uid_dbg = getattr(current_user, 'user_id', None) or getattr(current_user, 'id', 'unknown')
+        logger.error(f"Error getting subscription status for user {uid_dbg}: {str(e)}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to get subscription status: {str(e)}"
@@ -62,8 +67,11 @@ async def create_free_trial(
 ):
     """Create a free trial subscription for the current user"""
     try:
+        user_id = getattr(current_user, 'user_id', None) or getattr(current_user, 'id', None)
+        if not user_id:
+            raise ValueError("Missing user id on current_user")
         # Check if user already has a subscription
-        existing_status = await EnhancedSubscriptionFlow.get_user_subscription_status(current_user.user_id)
+        existing_status = await EnhancedSubscriptionFlow.get_user_subscription_status(user_id)
         
         if existing_status.get("has_subscription"):
             return SubscriptionResponse(
@@ -74,8 +82,8 @@ async def create_free_trial(
         
         # Create free trial
         trial_result = await EnhancedSubscriptionFlow.create_free_trial_subscription(
-            user_id=current_user.user_id,
-            email=current_user.email,
+            user_id=user_id,
+            email=getattr(current_user, 'email', None) or "",
             trial_days=request.trial_days
         )
         
@@ -93,7 +101,8 @@ async def create_free_trial(
         )
         
     except Exception as e:
-        logger.error(f"Error creating trial for user {current_user.user_id}: {str(e)}")
+        uid_dbg = getattr(current_user, 'user_id', None) or getattr(current_user, 'id', 'unknown')
+        logger.error(f"Error creating trial for user {uid_dbg}: {str(e)}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to create trial: {str(e)}"

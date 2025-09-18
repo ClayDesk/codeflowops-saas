@@ -72,12 +72,15 @@ export const useApiConfig = () => {
 export const useSmartDeployApi = () => {
   const { baseUrl, authToken } = useApiConfig();
 
-  // For Smart Deploy API, use demo-token if no auth token is available
-  const effectiveToken = authToken || 'demo-token';
-  
-  const headers = {
-    'Content-Type': 'application/json',
-    'Authorization': `Bearer ${effectiveToken}`
+  // Require a real auth token; no demo fallback
+  const getAuthHeaders = () => {
+    if (!authToken) {
+      throw new Error('Not authenticated. Please sign in to continue.');
+    }
+    return {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${authToken}`
+    } as const;
   };
 
   // SDK Backend Integration - Repository Analysis
@@ -193,7 +196,7 @@ export const useSmartDeployApi = () => {
 
     const response = await fetch(endpoint, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: getAuthHeaders(),
       body: JSON.stringify(payload)
     });
 
@@ -214,7 +217,7 @@ export const useSmartDeployApi = () => {
   // SDK Backend Integration - Get Deployment Status
   const getDeploymentStatusSDK = async (deploymentId: string) => {
     const response = await fetch(`${baseUrl}/api/deployment/${deploymentId}/status`, {
-      headers: { 'Content-Type': 'application/json' }
+      headers: getAuthHeaders()
     });
 
     if (!response.ok) {
@@ -229,7 +232,7 @@ export const useSmartDeployApi = () => {
     console.log('📊 getDeploymentResult called for:', deploymentId);
     
     const response = await fetch(`${baseUrl}/api/deployment/${deploymentId}/result`, {
-      headers: { 'Content-Type': 'application/json' }
+      headers: getAuthHeaders()
     });
 
     console.log('📥 Result response status:', response.status, response.statusText);
@@ -253,7 +256,7 @@ export const useSmartDeployApi = () => {
   }) => {
     const response = await fetch(`${baseUrl}/api/validate-credentials`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: getAuthHeaders(),
       body: JSON.stringify({
         aws_access_key: credentials.aws_access_key,
         aws_secret_key: credentials.aws_secret_key,
@@ -278,7 +281,7 @@ export const useSmartDeployApi = () => {
   // Get Plugin System Status
   const getPluginStatus = async () => {
     const response = await fetch(`${baseUrl}/api/plugins/status`, {
-      headers: { 'Content-Type': 'application/json' }
+      headers: getAuthHeaders()
     });
 
     if (!response.ok) {
@@ -320,7 +323,7 @@ export const useSmartDeployApi = () => {
     
     const response = await fetch(endpoint, {
       method: 'POST',
-      headers,
+      headers: getAuthHeaders(),
       body: JSON.stringify(request)
     });
 
@@ -333,7 +336,7 @@ export const useSmartDeployApi = () => {
 
   const getDeploymentStatus = async (deploymentId: string): Promise<DeploymentStatus> => {
     const response = await fetch(`${baseUrl}/api/deployment/${deploymentId}/status`, {
-      headers
+      headers: getAuthHeaders()
     });
 
     if (!response.ok) {
@@ -345,7 +348,7 @@ export const useSmartDeployApi = () => {
 
   const getDeploymentLogs = async (deploymentId: string) => {
     const response = await fetch(`${baseUrl}/api/v1/deployments/${deploymentId}/logs`, {
-      headers
+      headers: getAuthHeaders()
     });
 
     if (!response.ok) {
@@ -360,7 +363,7 @@ export const useSmartDeployApi = () => {
 
   const checkHealth = async () => {
     const response = await fetch(`${baseUrl}/api/health`, {
-      headers
+      headers: getAuthHeaders()
     });
     return response.json();
   };

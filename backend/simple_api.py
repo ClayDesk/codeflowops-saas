@@ -919,7 +919,10 @@ async def get_user_subscription(request: Request, current_user: "User" = Depends
     if not ENHANCED_SUBS_AVAILABLE:
         raise HTTPException(status_code=503, detail="Subscription service unavailable")
     try:
-        status_info = await EnhancedSubscriptionFlow.get_user_subscription_status(current_user.user_id)
+        user_id = getattr(current_user, 'user_id', None) or getattr(current_user, 'id', None)
+        if not user_id:
+            raise HTTPException(status_code=401, detail="Invalid user context")
+        status_info = await EnhancedSubscriptionFlow.get_user_subscription_status(user_id)
         payload = _map_status_to_subscription_payload(status_info)
         return {"success": True, "message": "Subscription retrieved successfully", "subscription": payload}
     except HTTPException:
@@ -934,7 +937,10 @@ async def get_github_user_subscription(current_user: "User" = Depends(get_curren
     if not ENHANCED_SUBS_AVAILABLE:
         raise HTTPException(status_code=503, detail="Subscription service unavailable")
     try:
-        status_info = await EnhancedSubscriptionFlow.get_user_subscription_status(current_user.user_id)
+        user_id = getattr(current_user, 'user_id', None) or getattr(current_user, 'id', None)
+        if not user_id:
+            raise HTTPException(status_code=401, detail="Invalid user context")
+        status_info = await EnhancedSubscriptionFlow.get_user_subscription_status(user_id)
         payload = _map_status_to_subscription_payload(status_info)
         return {"success": True, "message": "Subscription retrieved successfully", "subscription": payload}
     except Exception as e:
@@ -3218,7 +3224,10 @@ async def get_billing_subscription(current_user: "User" = Depends(get_current_us
     if not ENHANCED_SUBS_AVAILABLE:
         raise HTTPException(status_code=503, detail="Subscription service unavailable")
     try:
-        status_info = await EnhancedSubscriptionFlow.get_user_subscription_status(current_user.user_id)
+        user_id = getattr(current_user, 'user_id', None) or getattr(current_user, 'id', None)
+        if not user_id:
+            raise HTTPException(status_code=401, detail="Invalid user context")
+        status_info = await EnhancedSubscriptionFlow.get_user_subscription_status(user_id)
         return _map_status_to_billing_payload(status_info)
     except Exception as e:
         logger.error(f"Error in billing subscription endpoint: {str(e)}")
@@ -3230,7 +3239,10 @@ async def get_subscription_status_alt(current_user: "User" = Depends(get_current
     if not ENHANCED_SUBS_AVAILABLE:
         raise HTTPException(status_code=503, detail="Subscription service unavailable")
     try:
-        status_info = await EnhancedSubscriptionFlow.get_user_subscription_status(current_user.user_id)
+        user_id = getattr(current_user, 'user_id', None) or getattr(current_user, 'id', None)
+        if not user_id:
+            raise HTTPException(status_code=401, detail="Invalid user context")
+        status_info = await EnhancedSubscriptionFlow.get_user_subscription_status(user_id)
         return _map_status_to_billing_payload(status_info)
     except Exception as e:
         logger.error(f"Error in subscription status endpoint: {str(e)}")
@@ -3242,7 +3254,10 @@ async def get_user_subscription_flat(current_user: "User" = Depends(get_current_
     if not ENHANCED_SUBS_AVAILABLE:
         raise HTTPException(status_code=503, detail="Subscription service unavailable")
     try:
-        status_info = await EnhancedSubscriptionFlow.get_user_subscription_status(current_user.user_id)
+        user_id = getattr(current_user, 'user_id', None) or getattr(current_user, 'id', None)
+        if not user_id:
+            raise HTTPException(status_code=401, detail="Invalid user context")
+        status_info = await EnhancedSubscriptionFlow.get_user_subscription_status(user_id)
         subscription = _map_status_to_billing_payload(status_info)
         return {"subscription": subscription, "message": "Subscription status retrieved successfully"}
     except Exception as e:
@@ -3282,7 +3297,10 @@ async def get_github_user_subscription_flat(current_user: "User" = Depends(get_c
     if not ENHANCED_SUBS_AVAILABLE:
         raise HTTPException(status_code=503, detail="Subscription service unavailable")
     try:
-        status_info = await EnhancedSubscriptionFlow.get_user_subscription_status(current_user.user_id)
+        user_id = getattr(current_user, 'user_id', None) or getattr(current_user, 'id', None)
+        if not user_id:
+            raise HTTPException(status_code=401, detail="Invalid user context")
+        status_info = await EnhancedSubscriptionFlow.get_user_subscription_status(user_id)
         return _map_status_to_billing_payload(status_info)
     except Exception as e:
         logger.error(f"Error in GitHub subscription endpoint: {str(e)}")

@@ -127,7 +127,7 @@ const InfrastructurePreview = () => {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token') || 'demo-token'}`
+          'Authorization': `Bearer ${localStorage.getItem('codeflowops_access_token') || ''}`
         },
         body: JSON.stringify({
           cloud_provider: selectedProvider,
@@ -139,32 +139,15 @@ const InfrastructurePreview = () => {
         const data = await response.json();
         setPreviewData(data);
       } else {
-        // Fallback to mock data
-        generateMockPreview();
+        console.error('Failed to generate preview: ', response.status, response.statusText);
+        setPreviewData(null);
       }
     } catch (error) {
       console.error('Failed to generate preview:', error);
-      generateMockPreview();
+      setPreviewData(null);
     } finally {
       setIsGenerating(false);
     }
-  };
-
-  const generateMockPreview = () => {
-    const projectType = projectTypes.find(pt => pt.id === selectedProjectType);
-    const mockData = {
-      cloud_provider: selectedProvider,
-      project_type: selectedProjectType,
-      estimated_cost: Math.random() * 100 + 20,
-      resources: projectType?.resources.map((resource, index) => ({
-        id: `resource-${index}`,
-        name: resource,
-        type: getResourceType(resource),
-        cost: Math.random() * 30 + 5,
-        status: 'planned'
-      })) || []
-    };
-    setPreviewData(mockData);
   };
 
   const getResourceType = (resourceName: string) => {
@@ -370,8 +353,6 @@ const RealtimeMonitor = ({ deployments }: { deployments: any[] }) => {
       
       wsRef.current.onerror = () => {
         setWsStatus('disconnected');
-        // Fallback to simulated real-time updates
-        simulateRealtimeUpdates();
       };
       
       wsRef.current.onclose = () => {
@@ -381,27 +362,7 @@ const RealtimeMonitor = ({ deployments }: { deployments: any[] }) => {
       };
     } catch (error) {
       setWsStatus('disconnected');
-      simulateRealtimeUpdates();
     }
-  };
-
-  const simulateRealtimeUpdates = () => {
-    setWsStatus('connected');
-    // Simulate real-time events for demo
-    const interval = setInterval(() => {
-      const mockEvent = {
-        id: Date.now(),
-        timestamp: new Date().toISOString(),
-        deployment_id: deployments[0]?.id || 'demo',
-        event: 'progress_update',
-        message: 'Infrastructure deployment in progress...',
-        progress: Math.min(100, Math.random() * 100)
-      };
-      setRealtimeEvents(prev => [mockEvent, ...prev.slice(0, 49)]);
-    }, 3000);
-
-    // Clean up interval after 30 seconds
-    setTimeout(() => clearInterval(interval), 30000);
   };
 
   return (
@@ -509,7 +470,7 @@ const RepositoryUpload = ({ onUploadComplete }: { onUploadComplete: () => void }
       const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'https://api.codeflowops.com'}/api/v1/smart-deploy/upload-repository`, {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token') || 'demo-token'}`
+          'Authorization': `Bearer ${localStorage.getItem('codeflowops_access_token') || ''}`
         },
         body: formData
       });
@@ -522,39 +483,14 @@ const RepositoryUpload = ({ onUploadComplete }: { onUploadComplete: () => void }
         const uploadResult = await response.json();
         await performAnalysis(uploadResult.temp_path);
       } else {
-        // Fallback to mock analysis
-        setUploadState('analyzing');
-        await performMockAnalysis(file);
+        throw new Error(`Upload failed with status ${response.status}`);
       }
     } catch (error) {
       console.error('Upload failed:', error);
-      setUploadState('analyzing');
-      await performMockAnalysis(file);
+      alert('Upload failed. Please try again.');
+      setUploadState('idle');
+      setUploadProgress(0);
     }
-  };
-
-  const performMockAnalysis = async (file: File) => {
-    // Simulate AI analysis delay
-    await new Promise(resolve => setTimeout(resolve, 3000));
-    
-    const mockAnalysis = {
-      project_type: 'spa',
-      framework: detectFramework(file.name),
-      languages: ['TypeScript', 'JavaScript', 'CSS'],
-      dependencies: ['react', 'next.js', 'tailwindcss', 'typescript'],
-      recommendations: [
-        'Use AWS CloudFront for global CDN',
-        'Enable automatic SSL with AWS Certificate Manager',
-        'Implement auto-scaling with Application Load Balancer',
-        'Add RDS for database with automated backups',
-        'Configure CloudWatch for monitoring and alerts'
-      ],
-      estimated_resources: 5,
-      estimated_cost: 47.50
-    };
-
-    setAnalysisResult(mockAnalysis);
-    setUploadState('complete');
   };
 
   const performAnalysis = async (tempPath: string) => {
@@ -563,7 +499,7 @@ const RepositoryUpload = ({ onUploadComplete }: { onUploadComplete: () => void }
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token') || 'demo-token'}`
+          'Authorization': `Bearer ${localStorage.getItem('codeflowops_access_token') || ''}`
         },
         body: JSON.stringify({ temp_path: tempPath })
       });
@@ -578,13 +514,10 @@ const RepositoryUpload = ({ onUploadComplete }: { onUploadComplete: () => void }
         throw new Error('Analysis failed');
       }
     } catch (error) {
-      await performMockAnalysis(new File([], 'fallback.zip'));
+      console.error('Analysis failed:', error);
+      alert('Analysis failed. Please try again.');
+      setUploadState('idle');
     }
-  };
-
-  const detectFramework = (filename: string): string => {
-    const frameworks = ['React', 'Vue.js', 'Angular', 'Next.js', 'Nuxt.js'];
-    return frameworks[Math.floor(Math.random() * frameworks.length)];
   };
 
   const handleDrop = (e: React.DragEvent) => {
@@ -833,7 +766,10 @@ function SmartDeployDashboardContent() {
 
   // Helper function to get auth headers
   const getAuthHeaders = () => {
-    const token = localStorage.getItem('codeflowops_access_token') || 'demo-token';
+    const token = localStorage.getItem('codeflowops_access_token');
+    if (!token) {
+      throw new Error('Not authenticated. Missing access token.');
+    }
     return {
       'Authorization': `Bearer ${token}`,
       'Content-Type': 'application/json'
@@ -857,53 +793,15 @@ function SmartDeployDashboardContent() {
         const data = await response.json();
         setDeployments(data.deployments || []);
       } else {
-        // Fallback to demo data if backend not available
-        console.log('Backend not available, using demo data');
-        setDemoDeployments();
+        console.error('Failed to fetch deployments: ', response.status, response.statusText);
+        setDeployments([]);
       }
     } catch (error) {
       console.error('Failed to fetch deployments:', error);
-      // Fallback to demo data
-      setDemoDeployments();
+      setDeployments([]);
     } finally {
       setIsLoading(false);
     }
-  };
-
-  const setDemoDeployments = () => {
-    // Demo data as fallback
-    setDeployments([
-      {
-        id: 'deploy-1',
-        project_name: 'React E-commerce App',
-        status: 'completed' as const,
-        progress: 100,
-        cloud_provider: 'aws',
-        environment: 'production',
-        created_at: new Date().toISOString(),
-        deployment_url: 'https://my-app.example.com'
-      },
-      {
-        id: 'deploy-2',
-        project_name: 'Next.js Blog',
-        status: 'deploying' as const,
-        progress: 65,
-        cloud_provider: 'gcp',
-        environment: 'staging',
-        created_at: new Date(Date.now() - 3600000).toISOString(),
-        estimated_completion: '2 minutes'
-      },
-      {
-        id: 'deploy-3',
-        project_name: 'Vue.js Dashboard',
-        status: 'analyzing' as const,
-        progress: 25,
-        cloud_provider: 'azure',
-        environment: 'development',
-        created_at: new Date(Date.now() - 7200000).toISOString(),
-        estimated_completion: '5 minutes'
-      }
-    ]);
   };
 
   const fetchStats = async () => {
@@ -917,26 +815,25 @@ function SmartDeployDashboardContent() {
         const data = await response.json();
         setStats(data);
       } else {
-        // Fallback to demo stats
-        setDemoStats();
+        console.error('Failed to fetch stats: ', response.status, response.statusText);
+        setStats({
+          total_deployments: 0,
+          active_deployments: 0,
+          successful_deployments: 0,
+          monthly_cost: 0,
+          ai_generations: 0
+        });
       }
     } catch (error) {
       console.error('Failed to fetch stats:', error);
-      setDemoStats();
+      setStats({
+        total_deployments: 0,
+        active_deployments: 0,
+        successful_deployments: 0,
+        monthly_cost: 0,
+        ai_generations: 0
+      });
     }
-  };
-
-  const setDemoStats = () => {
-    setStats({
-      total_deployments: 12,
-      active_deployments: 3,
-      successful_deployments: 9,
-      monthly_cost: 127.45,
-      ai_generations: 45
-    });
-    
-    // Add demo deployments
-    setDemoDeployments();
   };
 
   const startStatusPolling = (deploymentId: string) => {
@@ -1012,7 +909,7 @@ function SmartDeployDashboardContent() {
       // Create a deployment object for the UI
       const newDeployment = {
         id: createResult.deployment_id,
-        project_name: deploymentData.project_name || 'Demo Project',
+        project_name: deploymentData.project_name || 'Unnamed Project',
         status: (createResult.status as 'analyzing' | 'generating' | 'deploying' | 'completed' | 'failed') || 'analyzing',
         progress: 5, // Initial progress
         cloud_provider: deploymentData.cloud_provider || 'aws',

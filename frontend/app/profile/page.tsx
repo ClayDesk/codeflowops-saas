@@ -64,12 +64,7 @@ function ProfilePageContent() {
     email: user?.email || ''
   })
   const [isUploadingPicture, setIsUploadingPicture] = useState(false)
-  const [activeTab, setActiveTab] = useState('subscription')
-  const [subscription, setSubscription] = useState<any>(null)
-  const [isCancellingSubscription, setIsCancellingSubscription] = useState(false)
-  const [paymentSuccess, setPaymentSuccess] = useState(false)
-
-  // Removed local subscription fetcher; rely on auth-context's fetchUserProfile exclusively
+  const [activeTab, setActiveTab] = useState('settings')
 
   // Fetch user data from API
   useEffect(() => {
@@ -79,31 +74,6 @@ function ProfilePageContent() {
       try {
         setIsLoading(true)
         
-        // Clear any cached subscription-related messages
-        if (typeof window !== 'undefined') {
-          localStorage.removeItem('subscription_status')
-          localStorage.removeItem('no_subscription_message')
-        }
-        
-  // We'll rely on auth-context's fetchUserProfile to include subscription data
-        
-        // Check for payment success parameter
-        const payment = searchParams.get('payment')
-        if (payment === 'success') {
-          setPaymentSuccess(true)
-          // Refresh user+subscription via auth-context
-          const refreshed = await fetchUserProfile()
-          if (refreshed?.subscription) {
-            setSubscription(refreshed.subscription.subscription || refreshed.subscription)
-          }
-          // Clear the payment parameter from URL after showing success
-          setTimeout(() => {
-            const newUrl = window.location.pathname + window.location.search.replace(/[?&]payment=success/, '')
-            window.history.replaceState({}, '', newUrl)
-            setPaymentSuccess(false)
-          }, 5000)
-        }
-        
         // Use auth context functions for consistent error handling
         const profileResponse = await fetchUserProfile()
         if (profileResponse.user) {
@@ -111,9 +81,6 @@ function ProfilePageContent() {
             full_name: profileResponse.user.full_name || '',
             email: profileResponse.user.email || ''
           })
-          if (profileResponse.subscription) {
-            setSubscription(profileResponse.subscription.subscription || profileResponse.subscription)
-          }
         }
         
         // Fetch user deployments
@@ -134,12 +101,12 @@ function ProfilePageContent() {
     if (isAuthenticated) {
       fetchUserData()
     }
-  }, [isAuthenticated, searchParams, fetchUserProfile, fetchUserDeployments])
+  }, [isAuthenticated, fetchUserProfile, fetchUserDeployments])
 
   // Handle tab selection from URL parameters
   useEffect(() => {
     const tab = searchParams.get('tab')
-    if (tab && ['subscription', 'settings'].includes(tab)) {
+    if (tab && ['settings'].includes(tab)) {
       setActiveTab(tab)
     }
   }, [searchParams])
@@ -228,58 +195,7 @@ Thank you.`)
     window.location.href = `mailto:support@codeflowops.com?subject=${subject}&body=${body}`
   }
 
-  // Cancel user subscription
-  const cancelUserSubscription = async () => {
-    if (!subscription?.id) {
-      alert('No active subscription found to cancel.')
-      return
-    }
 
-    try {
-      setIsCancellingSubscription(true)
-      
-      // Use the backend API directly
-      const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'https://api.codeflowops.com'
-      const token = localStorage.getItem('auth_token') || localStorage.getItem('codeflowops_access_token')
-      
-      const response = await fetch(`${API_BASE}/api/v1/payments/cancel-subscription`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': token ? `Bearer ${token}` : ''
-        },
-        body: JSON.stringify({
-          subscription_id: subscription.id,
-          cancel_at_period_end: true
-        })
-      })
-
-      if (response.ok) {
-        const data = await response.json()
-        setSubscription(data.subscription)
-        alert('Subscription cancelled successfully. You will retain access until the end of your billing period.')
-      } else if (response.status === 401) {
-        alert('Authentication failed. Please log in again.')
-      } else if (response.status === 404) {
-        alert('Subscription not found. It may have already been cancelled.')
-        setSubscription(null)
-      } else {
-        const errorData = await response.json().catch(() => ({}))
-        throw new Error(errorData.detail || `Failed to cancel subscription (${response.status})`)
-      }
-    } catch (error) {
-      console.error('Error cancelling subscription:', error)
-      if (error instanceof TypeError && error.message.includes('Failed to fetch')) {
-        alert('Network error. Please check your connection and try again.')
-      } else {
-        alert(`Failed to cancel subscription: ${error instanceof Error ? error.message : 'Unknown error'}`)
-      }
-    } finally {
-      setIsCancellingSubscription(false)
-    }
-  }
-
-  // Note: we rely on auth-context's fetchUserProfile for subscription data to avoid duplicate calls
 
   if (!isAuthenticated) {
     return (
@@ -307,15 +223,7 @@ Thank you.`)
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 py-8">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        {/* Payment Success Alert */}
-        {paymentSuccess && (
-          <Alert className="mb-6 border-green-200 bg-green-50 dark:border-green-800 dark:bg-green-950">
-            <CheckCircle className="h-4 w-4 text-green-600" />
-            <AlertDescription className="text-green-800 dark:text-green-200">
-              <strong>Payment Successful!</strong> Welcome to CodeFlowOps Pro! Your subscription has been activated and you now have access to all premium features.
-            </AlertDescription>
-          </Alert>
-        )}
+
         
         {/* Header */}
         <div className="mb-8">
@@ -383,8 +291,7 @@ Thank you.`)
         </div>
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="grid w-full grid-cols-2">
-            <TabsTrigger value="subscription">Subscription</TabsTrigger>
+          <TabsList className="grid w-full grid-cols-1">
             <TabsTrigger value="settings">Settings</TabsTrigger>
           </TabsList>
 
@@ -392,196 +299,7 @@ Thank you.`)
 
 
 
-          <TabsContent value="subscription" className="space-y-6">
-            {/* Debug subscription state */}
-            {(() => { 
-              console.log('Profile page subscription state:', subscription); 
-              console.log('Auth context user:', user);
-              return null; 
-            })()}
-            
-            {/* Force clear any cached "no subscription" messages */}
-            {(() => { 
-              if (typeof window !== 'undefined') {
-                const cachedElements = document.querySelectorAll('[data-subscription-message]');
-                cachedElements.forEach(el => el.remove());
-              }
-              return null; 
-            })()}
-            
-            {/* Payment Success Alert */}
-            {paymentSuccess && (
-              <Alert className="border-green-200 bg-green-50 dark:border-green-800 dark:bg-green-950">
-                <CheckCircle className="h-4 w-4 text-green-600" />
-                <AlertDescription className="text-green-800 dark:text-green-200">
-                  <strong>Payment Successful!</strong> Welcome to CodeFlowOps Pro! Your subscription is now active.
-                </AlertDescription>
-              </Alert>
-            )}
-            
-            {/* Subscription Status Alert */}
-            {subscription ? (
-              <Alert className="border-blue-200 bg-blue-50 dark:border-blue-800 dark:bg-blue-950">
-                <Shield className="h-4 w-4 text-blue-600" />
-                <AlertDescription className="text-blue-800 dark:text-blue-200">
-                  <strong>You are a Pro subscriber!</strong> You have full access to all premium features and unlimited deployments.
-                </AlertDescription>
-              </Alert>
-            ) : (
-              <Alert className="border-orange-200 bg-orange-50 dark:border-orange-800 dark:bg-orange-950">
-                <Shield className="h-4 w-4 text-orange-600" />
-                <AlertDescription className="text-orange-800 dark:text-orange-200">
-                  <strong>No active subscription found.</strong> Upgrade to Pro to access premium features and unlimited deployments.
-                </AlertDescription>
-              </Alert>
-            )}
-            
-            {/* Subscription Management Card */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Shield className="h-5 w-5" />
-                  Subscription Management
-                </CardTitle>
-                <CardDescription>
-                  Manage your CodeFlowOps Pro subscription
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-6">
-                {subscription ? (
-                  <>
-                    {/* Active Subscription Status */}
-                    <div className="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-950 dark:to-indigo-950 p-6 rounded-lg border border-blue-200 dark:border-blue-800">
-                      <div className="flex items-center justify-between mb-4">
-                        <div>
-                          <h3 className="text-lg font-semibold text-blue-900 dark:text-blue-100">
-                            {subscription.plan?.product || 'CodeFlowOps Pro'}
-                          </h3>
-                          <p className="text-blue-700 dark:text-blue-300">
-                            ${((subscription.plan?.amount || 1900) / 100).toFixed(2)}/{subscription.plan?.interval || 'month'}
-                          </p>
-                        </div>
-                        <Badge className={`${
-                          subscription.cancel_at_period_end 
-                            ? 'bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200'
-                            : 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
-                        }`}>
-                          {subscription.cancel_at_period_end 
-                            ? 'Cancelling' 
-                            : subscription.status === 'active' 
-                              ? 'Active' 
-                              : subscription.status || 'Active'
-                          }
-                        </Badge>
-                      </div>
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
-                        <div>
-                          <p className="text-blue-600 dark:text-blue-400 font-medium">Status</p>
-                          <p className="text-blue-900 dark:text-blue-100">
-                            {subscription.cancel_at_period_end 
-                              ? 'Cancelling at period end' 
-                              : 'Active Subscription'
-                            }
-                          </p>
-                        </div>
-                        <div>
-                          <p className="text-blue-600 dark:text-blue-400 font-medium">Next Billing</p>
-                          <p className="text-blue-900 dark:text-blue-100">
-                            {subscription.current_period_end 
-                              ? (() => {
-                                  const endDate = typeof subscription.current_period_end === 'number' && subscription.current_period_end > 1e10 
-                                    ? new Date(subscription.current_period_end) 
-                                    : new Date(subscription.current_period_end * 1000)
-                                  return endDate.toLocaleDateString()
-                                })()
-                              : 'N/A'
-                            }
-                          </p>
-                        </div>
-                        <div>
-                          <p className="text-blue-600 dark:text-blue-400 font-medium">Payment Method</p>
-                          <p className="text-blue-900 dark:text-blue-100">•••• •••• •••• 4242</p>
-                        </div>
-                      </div>
-                    </div>
-                  </>
-                ) : (
-                  <>
-                    {/* No Subscription State */}
-                    <div className="bg-gradient-to-r from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800 p-6 rounded-lg border border-gray-200 dark:border-gray-700">
-                      <div className="text-center space-y-4">
-                        <div>
-                          <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">No Active Subscription</h3>
-                          <p className="text-gray-600 dark:text-gray-400">Subscribe to CodeFlowOps Pro to unlock premium features</p>
-                        </div>
-                        <Button 
-                          className="w-full md:w-auto"
-                          onClick={() => window.location.href = '/pricing'}
-                        >
-                          View Pricing Plans
-                        </Button>
-                      </div>
-                    </div>
-                  </>
-                )}
 
-                {/* Subscription Actions - Only show if subscription exists */}
-                {subscription && (
-                  <div className="flex justify-start">
-                    <Button
-                      variant="outline"
-                      className="h-12 border-red-200 text-red-700 hover:bg-red-50 dark:border-red-800 dark:text-red-400 dark:hover:bg-red-950"
-                      onClick={async () => {
-                        if (confirm('Are you sure you want to cancel your subscription? You will lose access to Pro features at the end of your billing period.')) {
-                          await cancelUserSubscription()
-                        }
-                      }}
-                      disabled={isCancellingSubscription || subscription.cancel_at_period_end}
-                    >
-                      {isCancellingSubscription ? 'Cancelling...' : subscription.cancel_at_period_end ? 'Cancelling...' : 'Cancel Subscription'}
-                    </Button>
-                  </div>
-                )}
-
-                {/* Billing History - Only show if subscription exists */}
-                {subscription && (
-                  <div>
-                    <h4 className="text-md font-semibold mb-4">Billing History</h4>
-                    <div className="space-y-3">
-                      <div className="flex items-center justify-between p-4 border rounded-lg">
-                        <div>
-                          <p className="font-medium">September 2025</p>
-                          <p className="text-sm text-muted-foreground">{subscription.plan?.product || 'CodeFlowOps Pro'} - {subscription.plan?.interval || 'Monthly'}</p>
-                        </div>
-                        <div className="text-right">
-                          <p className="font-medium">${((subscription.plan?.amount || 1900) / 100).toFixed(2)}</p>
-                          <Badge variant="outline" className="text-green-600">Paid</Badge>
-                        </div>
-                      </div>
-                      <div className="flex items-center justify-between p-4 border rounded-lg">
-                        <div>
-                          <p className="font-medium">August 2025</p>
-                          <p className="text-sm text-muted-foreground">{subscription.plan?.product || 'CodeFlowOps Pro'} - {subscription.plan?.interval || 'Monthly'}</p>
-                        </div>
-                        <div className="text-right">
-                          <p className="font-medium">${((subscription.plan?.amount || 1900) / 100).toFixed(2)}</p>
-                          <Badge variant="outline" className="text-green-600">Paid</Badge>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {/* Support Contact */}
-                <Alert>
-                  <Shield className="h-4 w-4" />
-                  <AlertDescription>
-                    Need help with your subscription? <a href="/contact" className="text-blue-600 hover:underline">Contact our support team</a>
-                  </AlertDescription>
-                </Alert>
-              </CardContent>
-            </Card>
-          </TabsContent>
 
           <TabsContent value="settings" className="space-y-6">
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">

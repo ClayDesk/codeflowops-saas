@@ -10,7 +10,8 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import { LogOut, User, Settings, ChevronDown } from 'lucide-react'
+import { LogOut, User, Settings, ChevronDown, CreditCard } from 'lucide-react'
+import Link from 'next/link'
 
 export function UserNav() {
   const { user, logout, isAuthenticated } = useAuth()
@@ -50,9 +51,17 @@ export function UserNav() {
           </div>
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
-        <DropdownMenuItem>
-          <User className="mr-2 h-4 w-4" />
-          <span>Profile</span>
+        <DropdownMenuItem asChild>
+          <Link href="/profile">
+            <User className="mr-2 h-4 w-4" />
+            <span>Profile</span>
+          </Link>
+        </DropdownMenuItem>
+        <DropdownMenuItem asChild>
+          <Link href="/subscriptions">
+            <CreditCard className="mr-2 h-4 w-4" />
+            <span>Subscriptions</span>
+          </Link>
         </DropdownMenuItem>
         <DropdownMenuItem>
           <Settings className="mr-2 h-4 w-4" />

@@ -237,6 +237,52 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setUser(null)
   }
 
+  const pickFirstString = (source: Record<string, unknown>, ...keys: string[]): string | undefined => {
+    for (const key of keys) {
+      if (!(key in source)) continue
+      const value = source[key]
+      if (typeof value === 'string' && value.trim() !== '') {
+        return value
+      }
+    }
+    return undefined
+  }
+
+  const buildUserFromRecord = (
+    record: Record<string, unknown>,
+    options: { fallbackProvider: string; fallbackUsername?: string }
+  ): User | null => {
+    const id = pickFirstString(record, 'id', 'sub', 'user_id')
+    const email = pickFirstString(record, 'email', 'user_email')
+
+    if (!id || !email) {
+      return null
+    }
+
+    const provider = pickFirstString(record, 'provider', 'auth_provider') || options.fallbackProvider
+    const name = pickFirstString(record, 'name')
+    const username = pickFirstString(record, 'username', 'login') || options.fallbackUsername
+    const fullName = pickFirstString(record, 'full_name', 'name')
+
+    const userData: User = {
+      id,
+      email,
+      provider
+    }
+
+    if (name) {
+      userData.name = name
+    }
+    if (username) {
+      userData.username = username
+    }
+    if (fullName) {
+      userData.full_name = fullName
+    }
+
+    return userData
+  }
+
   // API functions with enhanced error handling
   const login = async (data: LoginData): Promise<void> => {
     try {
@@ -441,20 +487,75 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
 
       if (!userResponse.ok) {
+        if (userResponse.status === 401 || userResponse.status === 403) {
+          clearAuthData()
+          router.push('/login')
+          return
+        }
         throw new Error('Failed to fetch user profile')
       }
 
-      const responseData = await userResponse.json()
-      
-      // Extract user data - GitHub OAuth returns nested user object
-      let userData = responseData.user || responseData
-      
-      // Map GitHub fields to frontend User interface
-      if (userData.login && !userData.username) {
-        userData = {
-          ...userData,
-          username: userData.login // Map GitHub 'login' to 'username'
-        }
+      const contentType = userResponse.headers.get('content-type') || 'unknown'
+      const rawBody = await userResponse.text()
+      const preview = rawBody.slice(0, 200)
+      const trimmedBody = rawBody.trim()
+
+      if (trimmedBody.startsWith('<')) {
+        console.error('Profile endpoint returned HTML instead of JSON', {
+          status: userResponse.status,
+          contentType,
+          preview
+        })
+        return
+      }
+
+      let parsedData: unknown = null
+      try {
+        parsedData = trimmedBody ? JSON.parse(trimmedBody) : null
+      } catch (parseError) {
+        console.error('Failed to parse profile response JSON', {
+          parseError,
+          status: userResponse.status,
+          contentType,
+          preview
+        })
+        return
+      }
+
+      if (!parsedData || typeof parsedData !== 'object') {
+        console.error('Unexpected profile response structure', {
+          status: userResponse.status,
+          contentType,
+          preview
+        })
+        return
+      }
+
+      const responseData = parsedData as Record<string, unknown>
+      const rawNestedUser = responseData['user']
+      const isRecord = (value: unknown): value is Record<string, unknown> =>
+        !!value && typeof value === 'object'
+
+      const userRecord = isRecord(rawNestedUser) ? rawNestedUser : responseData
+      const loginValue = typeof userRecord['login'] === 'string' ? (userRecord['login'] as string) : undefined
+      const usernameValue = typeof userRecord['username'] === 'string' ? (userRecord['username'] as string) : undefined
+      const normalizedUserRecord: Record<string, unknown> = loginValue && !usernameValue
+        ? { ...userRecord, username: loginValue }
+        : userRecord
+
+      const userData = buildUserFromRecord(normalizedUserRecord, {
+        fallbackProvider: loginValue ? 'github' : 'cognito',
+        fallbackUsername: usernameValue ?? loginValue
+      })
+
+      if (!userData) {
+        console.error('Profile response missing required user fields', {
+          status: userResponse.status,
+          contentType,
+          preview,
+          keys: Object.keys(normalizedUserRecord)
+        })
+        return
       }
 
       // Fetch subscription data from real subscription endpoint

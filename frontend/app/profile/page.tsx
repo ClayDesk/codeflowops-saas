@@ -30,7 +30,10 @@ import {
   Camera,
   Upload,
   Sun,
-  Moon
+  Moon,
+  CreditCard,
+  ArrowRight,
+  AlertTriangle
 } from 'lucide-react'
 
 interface Deployment {
@@ -42,6 +45,29 @@ interface Deployment {
   createdAt?: string
   created_at?: string  // Support both naming conventions
   technology?: string
+}
+
+interface SubscriptionData {
+  id: string
+  status: string
+  plan?: {
+    product?: string
+    amount?: number
+    currency?: string
+    interval?: string
+  }
+  current_period_end?: number
+  trial_end?: number
+  cancel_at_period_end?: boolean
+}
+
+const isSubscriptionData = (value: unknown): value is SubscriptionData => {
+  if (!value || typeof value !== 'object') {
+    return false
+  }
+
+  const record = value as Partial<SubscriptionData>
+  return typeof record.id === 'string' && typeof record.status === 'string'
 }
 
 function ProfilePageContent() {
@@ -59,6 +85,7 @@ function ProfilePageContent() {
   const [isLoading, setIsLoading] = useState(true)
   const [isEditing, setIsEditing] = useState(false)
   const [deployments, setDeployments] = useState<Deployment[]>([])
+  const [subscription, setSubscription] = useState<SubscriptionData | null>(null)
   const [profileData, setProfileData] = useState({
     full_name: user?.full_name || '',
     email: user?.email || ''
@@ -76,11 +103,18 @@ function ProfilePageContent() {
         
         // Use auth context functions for consistent error handling
         const profileResponse = await fetchUserProfile()
-        if (profileResponse.user) {
+        if (profileResponse?.user) {
           setProfileData({
             full_name: profileResponse.user.full_name || '',
             email: profileResponse.user.email || ''
           })
+        }
+
+        const subscriptionCandidate = profileResponse?.subscription
+        if (isSubscriptionData(subscriptionCandidate)) {
+          setSubscription(subscriptionCandidate)
+        } else {
+          setSubscription(null)
         }
         
         // Fetch user deployments
@@ -90,6 +124,7 @@ function ProfilePageContent() {
         }
       } catch (error) {
         console.error('Error fetching user data:', error)
+        setSubscription(null)
         // Set empty deployments if API fails - don't use hardcoded fallback
         setDeployments([])
         
@@ -195,6 +230,68 @@ Thank you.`)
     window.location.href = `mailto:support@codeflowops.com?subject=${subject}&body=${body}`
   }
 
+  const getSubscriptionStatusBadge = (status?: string) => {
+    if (!status) {
+      return <Badge variant="outline">Unknown</Badge>
+    }
+
+    const normalized = status.toLowerCase()
+    const variants = {
+      active: 'default',
+      trialing: 'secondary',
+      canceled: 'outline',
+      cancelled: 'outline',
+      past_due: 'destructive'
+    } as const
+
+    const label = normalized.charAt(0).toUpperCase() + normalized.slice(1).replace('_', ' ')
+
+    return (
+      <Badge variant={variants[normalized as keyof typeof variants] || 'outline'}>
+        {label}
+      </Badge>
+    )
+  }
+
+  const getSubscriptionStatusIcon = (status?: string) => {
+    switch (status?.toLowerCase()) {
+      case 'active':
+        return <CheckCircle className="h-4 w-4 text-green-500" />
+      case 'trialing':
+        return <Clock className="h-4 w-4 text-blue-500" />
+      case 'past_due':
+        return <AlertTriangle className="h-4 w-4 text-amber-500" />
+      case 'canceled':
+      case 'cancelled':
+        return <XCircle className="h-4 w-4 text-red-500" />
+      default:
+        return <Shield className="h-4 w-4 text-muted-foreground" />
+    }
+  }
+
+  const formatSubscriptionAmount = (amount?: number, currency?: string) => {
+    if (typeof amount !== 'number') {
+      return '—'
+    }
+
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: (currency || 'USD').toUpperCase()
+    }).format(amount / 100)
+  }
+
+  const formatSubscriptionDate = (timestamp?: number) => {
+    if (!timestamp) {
+      return '—'
+    }
+
+    return new Date(timestamp).toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric'
+    })
+  }
+
 
 
   if (!isAuthenticated) {
@@ -289,6 +386,104 @@ Thank you.`)
             </div>
           </div>
         </div>
+
+        {/* Subscription Summary */}
+        <Card className="mb-8 border-primary/10 shadow-sm">
+          <CardHeader className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <CardTitle className="flex items-center gap-2 text-xl">
+                <CreditCard className="h-5 w-5" />
+                Subscription Overview
+              </CardTitle>
+              <CardDescription>
+                Review your current plan details and manage billing.
+              </CardDescription>
+            </div>
+            <Button asChild size="lg" className="w-full sm:w-auto">
+              <Link href="/subscriptions" className="flex items-center gap-2">
+                Manage subscription
+                <ArrowRight className="h-4 w-4" />
+              </Link>
+            </Button>
+          </CardHeader>
+          <CardContent>
+            {isLoading ? (
+              <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4 animate-pulse">
+                {[...Array(4)].map((_, index) => (
+                  <div key={index} className="space-y-3">
+                    <div className="h-4 w-24 bg-muted rounded" />
+                    <div className="h-6 w-32 bg-muted rounded" />
+                    <div className="h-4 w-20 bg-muted rounded" />
+                  </div>
+                ))}
+              </div>
+            ) : subscription ? (
+              <div className="space-y-6">
+                <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
+                  <div className="space-y-2">
+                    <p className="text-sm font-medium text-muted-foreground">Plan</p>
+                    <p className="text-xl font-semibold text-foreground">
+                      {subscription.plan?.product || 'CodeFlowOps Pro'}
+                    </p>
+                    <p className="text-sm text-muted-foreground">
+                      Billed {subscription.plan?.interval || 'monthly'}
+                    </p>
+                  </div>
+                  <div className="space-y-2">
+                    <p className="text-sm font-medium text-muted-foreground">Status</p>
+                    <div className="flex items-center gap-2">
+                      {getSubscriptionStatusIcon(subscription.status)}
+                      {getSubscriptionStatusBadge(subscription.status)}
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <p className="text-sm font-medium text-muted-foreground">Price</p>
+                    <p className="text-xl font-semibold text-foreground">
+                      {formatSubscriptionAmount(subscription.plan?.amount, subscription.plan?.currency)}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      Subscription ID: <span className="font-mono">{subscription.id}</span>
+                    </p>
+                  </div>
+                  <div className="space-y-2">
+                    <p className="text-sm font-medium text-muted-foreground">Next billing date</p>
+                    <p className="text-lg font-medium text-foreground">
+                      {formatSubscriptionDate(subscription.current_period_end)}
+                    </p>
+                    {subscription.trial_end ? (
+                      <p className="text-xs text-muted-foreground">
+                        Trial ends {formatSubscriptionDate(subscription.trial_end)}
+                      </p>
+                    ) : null}
+                  </div>
+                </div>
+
+                {subscription.cancel_at_period_end && (
+                  <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800 dark:border-amber-900/60 dark:bg-amber-950/40 dark:text-amber-200">
+                    Your subscription is scheduled to cancel at the end of the current billing period.
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="flex flex-col gap-4 rounded-lg border border-dashed border-muted-foreground/30 p-6 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <h3 className="text-lg font-semibold text-foreground">No active subscription</h3>
+                  <p className="text-sm text-muted-foreground">
+                    Upgrade to unlock advanced deployment analytics, automation, and priority support.
+                  </p>
+                </div>
+                <div className="flex flex-col gap-2 sm:flex-row">
+                  <Button variant="outline" asChild className="w-full sm:w-auto">
+                    <Link href="/pricing">View pricing</Link>
+                  </Button>
+                  <Button asChild className="w-full sm:w-auto">
+                    <Link href="/subscriptions">Explore options</Link>
+                  </Button>
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
           <TabsList className="grid w-full grid-cols-1">

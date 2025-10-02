@@ -27,15 +27,24 @@ class SubscriptionResponse(BaseModel):
     subscription: Optional[Dict[str, Any]] = None
     error: Optional[str] = None
 
+class SubscriptionPlanDetails(BaseModel):
+    """Nested plan details matching frontend SubscriptionData interface"""
+    product: str
+    amount: int
+    currency: str
+    interval: str
+
 class SubscriptionStatusResponse(BaseModel):
+    """Response format matching frontend SubscriptionData interface"""
     has_subscription: bool
+    id: Optional[str] = None  # Subscription ID
     status: Optional[str] = None
-    plan: Optional[str] = None
-    amount: Optional[int] = None
-    currency: Optional[str] = None
-    interval: Optional[str] = None
-    current_period_end: Optional[str] = None
-    trial_end: Optional[str] = None
+    plan: Optional[SubscriptionPlanDetails] = None  # Nested plan object
+    current_period_end: Optional[int] = None  # Unix timestamp
+    trial_end: Optional[int] = None  # Unix timestamp
+    cancel_at_period_end: Optional[bool] = False
+    # Additional fields for backward compatibility
+    stripe_subscription_id: Optional[str] = None
     is_trial: Optional[bool] = None
     message: Optional[str] = None
     error: Optional[str] = None
@@ -50,7 +59,65 @@ async def get_subscription_status(current_user: User = Depends(get_current_user)
             raise ValueError("Missing user id on current_user")
         status_info = await EnhancedSubscriptionFlow.get_user_subscription_status(user_id)
         
-        return SubscriptionStatusResponse(**status_info)
+        # Transform the response to match frontend SubscriptionData interface
+        response_data = {
+            "has_subscription": status_info.get("has_subscription", False),
+            "is_trial": status_info.get("is_trial", False),
+            "message": status_info.get("message"),
+            "error": status_info.get("error")
+        }
+        
+        # Only include subscription details if user has subscription
+        if status_info.get("has_subscription"):
+            # Get subscription ID
+            subscription_id = (
+                status_info.get("subscription_id") or 
+                status_info.get("stripe_subscription_id") or 
+                "sub_unknown"
+            )
+            
+            # Create nested plan object
+            plan_details = SubscriptionPlanDetails(
+                product=status_info.get("plan", "CodeFlowOps Pro"),
+                amount=status_info.get("amount", 1900),
+                currency=(status_info.get("currency") or "usd").lower(),
+                interval=status_info.get("interval", "month")
+            )
+            
+            response_data.update({
+                "id": subscription_id,
+                "stripe_subscription_id": subscription_id,
+                "status": status_info.get("status", "active"),
+                "plan": plan_details,
+                "cancel_at_period_end": status_info.get("cancel_at_period_end", False)
+            })
+            
+            # Convert ISO date strings to Unix timestamps
+            if status_info.get("current_period_end"):
+                try:
+                    from datetime import datetime
+                    end_str = status_info["current_period_end"]
+                    if isinstance(end_str, str):
+                        dt = datetime.fromisoformat(end_str.replace('Z', '+00:00'))
+                        response_data["current_period_end"] = int(dt.timestamp() * 1000)
+                    elif isinstance(end_str, int):
+                        response_data["current_period_end"] = end_str
+                except Exception as date_err:
+                    logger.warning(f"Failed to parse current_period_end: {date_err}")
+            
+            if status_info.get("trial_end"):
+                try:
+                    from datetime import datetime
+                    trial_str = status_info["trial_end"]
+                    if isinstance(trial_str, str):
+                        dt = datetime.fromisoformat(trial_str.replace('Z', '+00:00'))
+                        response_data["trial_end"] = int(dt.timestamp() * 1000)
+                    elif isinstance(trial_str, int):
+                        response_data["trial_end"] = trial_str
+                except Exception as date_err:
+                    logger.warning(f"Failed to parse trial_end: {date_err}")
+        
+        return SubscriptionStatusResponse(**response_data)
         
     except Exception as e:
         uid_dbg = getattr(current_user, 'user_id', None) or getattr(current_user, 'id', 'unknown')

@@ -259,6 +259,8 @@ class EnhancedSubscriptionFlow:
                 
                 return {
                     "has_subscription": True,
+                    "subscription_id": subscription.stripe_subscription_id,  # Add subscription ID
+                    "stripe_subscription_id": subscription.stripe_subscription_id,
                     "status": subscription.status.value,
                     "plan": subscription.plan.value,
                     "amount": subscription.amount,
@@ -266,8 +268,8 @@ class EnhancedSubscriptionFlow:
                     "interval": subscription.interval,
                     "current_period_end": subscription.current_period_end.isoformat() if subscription.current_period_end else None,
                     "trial_end": subscription.trial_end.isoformat() if subscription.trial_end else None,
-                    "is_trial": subscription.status == SubscriptionStatus.TRIALING,
-                    "stripe_subscription_id": subscription.stripe_subscription_id
+                    "cancel_at_period_end": subscription.cancel_at_period_end if hasattr(subscription, 'cancel_at_period_end') else False,  # Add cancel flag
+                    "is_trial": subscription.status == SubscriptionStatus.TRIALING
                 }
                 
         except Exception as e:

@@ -582,44 +582,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               })
               if (retry.ok && (retry.headers.get('content-type') || '').toLowerCase().includes('application/json')) {
                 const raw = await retry.json()
-                // Map status response to UI-friendly subscription object if subscribed
-                subscriptionData = raw?.has_subscription
-                  ? {
-                      id: raw.stripe_subscription_id || 'unknown',
-                      status: raw.status,
-                      plan: {
-                        product: raw.plan || 'CodeFlowOps Pro',
-                        amount: raw.amount || 1900,
-                        currency: raw.currency || 'usd',
-                        interval: raw.interval || 'month',
-                      },
-                      current_period_end: raw.current_period_end ? Date.parse(raw.current_period_end) : undefined,
-                      trial_end: raw.trial_end ? Date.parse(raw.trial_end) : undefined,
-                      cancel_at_period_end: false,
-                    }
-                  : null
+                console.log('✅ Subscription data received (after retry):', raw)
+                // Backend now returns properly formatted data - use directly
+                subscriptionData = raw?.has_subscription ? raw : null
               }
             }
-          } catch {
+          } catch (retryError) {
+            console.error('❌ Subscription fetch retry failed:', retryError)
             // ignore; no demo fallback
           }
         } else if (subResp.ok && isJson) {
           const raw = await subResp.json()
-          subscriptionData = raw?.has_subscription
-            ? {
-                id: raw.stripe_subscription_id || 'unknown',
-                status: raw.status,
-                plan: {
-                  product: raw.plan || 'CodeFlowOps Pro',
-                  amount: raw.amount || 1900,
-                  currency: raw.currency || 'usd',
-                  interval: raw.interval || 'month',
-                },
-                current_period_end: raw.current_period_end ? Date.parse(raw.current_period_end) : undefined,
-                trial_end: raw.trial_end ? Date.parse(raw.trial_end) : undefined,
-                cancel_at_period_end: false,
-              }
-            : null
+          console.log('✅ Subscription data received:', raw)
+          // Backend now returns properly formatted data matching SubscriptionData interface
+          // Fields: id, status, plan{product, amount, currency, interval}, current_period_end, trial_end, cancel_at_period_end
+          subscriptionData = raw?.has_subscription ? raw : null
         }
       } catch (subError) {
         console.warn('Failed to fetch subscription data:', subError)

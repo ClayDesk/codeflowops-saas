@@ -54,15 +54,21 @@ export default function SubscriptionsPage() {
         setLoading(true)
         setError(null)
         
+        console.log('📊 Fetching subscription data...')
         const profileData = await fetchUserProfile()
+        console.log('📊 Profile data received:', profileData)
+        
         if (profileData?.subscription) {
+          console.log('✅ Subscription found:', profileData.subscription)
           setSubscription(profileData.subscription as unknown as SubscriptionData)
         } else {
+          console.log('ℹ️ No subscription found')
           setSubscription(null)
         }
       } catch (err) {
-        console.error('Error fetching subscription:', err)
-        setError('Failed to load subscription information. Please try again.')
+        console.error('❌ Error fetching subscription:', err)
+        const errorMessage = err instanceof Error ? err.message : 'Unknown error'
+        setError(`Failed to load subscription information: ${errorMessage}. Please try again or contact support.`)
       } finally {
         setLoading(false)
       }

@@ -1,7 +1,7 @@
 # Authentication Dependencies for FastAPI
 # Provides dependency injection for authentication and authorization
 
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends, HTTPException, status, Request
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from typing import Optional
 import jwt
@@ -11,8 +11,8 @@ import logging
 from ..models.enhanced_models import User
 from .auth_utils import decode_jwt_token, get_user_by_id
 
-# Security scheme for Bearer token authentication
-security = HTTPBearer()
+# Security scheme for Bearer token authentication (optional for GitHub OAuth)
+security = HTTPBearer(auto_error=False)
 
 logger = logging.getLogger(__name__)
 
@@ -21,13 +21,16 @@ class AuthenticationError(Exception):
     pass
 
 async def get_current_user(
-    credentials: HTTPAuthorizationCredentials = Depends(security)
+    request: Request,
+    credentials: Optional[HTTPAuthorizationCredentials] = Depends(security)
 ) -> User:
     """
-    Dependency to get the current authenticated user from JWT token
+    Dependency to get the current authenticated user from JWT token OR session cookies
+    Supports both Cognito (Bearer token) and GitHub OAuth (session cookies)
     
     Args:
-        credentials: HTTP Bearer token credentials
+        request: FastAPI request object (for cookies)
+        credentials: Optional HTTP Bearer token credentials
         
     Returns:
         User: The authenticated user object
@@ -35,10 +38,28 @@ async def get_current_user(
     Raises:
         HTTPException: If authentication fails
     """
-    try:
-        # Extract token from credentials
+    token = None
+    
+    # Try to get token from Bearer auth first
+    if credentials:
         token = credentials.credentials
-        
+    
+    # If no Bearer token, try to get from cookies (GitHub OAuth)
+    if not token:
+        token = (
+            request.cookies.get('auth_token') or 
+            request.cookies.get('codeflowops_access_token') or
+            request.cookies.get('github_auth_token')
+        )
+    
+    if not token:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="No authentication credentials provided",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    
+    try:
         # Demo mode - accept demo-token for development
         if token == "demo-token":
             from ..models.enhanced_models import User
@@ -47,6 +68,7 @@ async def get_current_user(
             demo_user.email = "demo@example.com"
             demo_user.username = "demo_user"
             demo_user.is_active = True
+            logger.info("🧪 Using demo user")
             return demo_user
         
         # Try Cognito validation first
@@ -63,9 +85,33 @@ async def get_current_user(
                 user.username = result.username
                 user.full_name = result.full_name
                 user.is_active = True
+                logger.info(f"✅ Cognito user authenticated: {user.email}")
                 return user
         except Exception as e:
-            logger.warning(f"Cognito validation failed: {e}")
+            logger.debug(f"Cognito validation skipped: {e}")
+        
+        # Try GitHub OAuth session validation
+        try:
+            # Check if we have user_id in cookies (from OAuth callback)
+            user_id_cookie = request.cookies.get('user_id')
+            if user_id_cookie and token:
+                # Validate this is a real session by checking session storage
+                from ..utils.session_storage import SessionStorage
+                session_store = SessionStorage()
+                session_data = await session_store.get_session(token)
+                
+                if session_data:
+                    from ..models.enhanced_models import User
+                    user = User()
+                    user.id = user_id_cookie
+                    user.email = session_data.get('email', f'{user_id_cookie}@github.com')
+                    user.username = session_data.get('username', user_id_cookie)
+                    user.full_name = session_data.get('name')
+                    user.is_active = True
+                    logger.info(f"✅ GitHub OAuth user authenticated: {user.username}")
+                    return user
+        except Exception as e:
+            logger.debug(f"GitHub OAuth validation skipped: {e}")
         
         # Fallback to JWT token validation
         try:

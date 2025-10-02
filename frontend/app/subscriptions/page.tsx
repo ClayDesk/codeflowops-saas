@@ -38,10 +38,42 @@ export default function SubscriptionsPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
-  // Redirect to login if not authenticated
+  // Debug: Log auth state changes
   useEffect(() => {
+    console.log('🔐 Auth State:', { 
+      authLoading, 
+      isAuthenticated, 
+      user: user?.email || 'none',
+      hasToken: !!localStorage.getItem('codeflowops_access_token')
+    })
+  }, [authLoading, isAuthenticated, user])
+
+  // Redirect to login if not authenticated (with delay to allow auth initialization)
+  useEffect(() => {
+    console.log('🔍 Checking if redirect needed:', { authLoading, isAuthenticated })
+    
     if (!authLoading && !isAuthenticated) {
-      window.location.href = '/login'
+      console.log('⚠️ Not authenticated - redirecting to login in 1 second...')
+      
+      // Add a small delay to allow auth state to initialize
+      const timeoutId = setTimeout(() => {
+        // Double-check auth state before redirecting
+        const hasToken = !!localStorage.getItem('codeflowops_access_token')
+        const hasUser = !!localStorage.getItem('codeflowops_user')
+        
+        console.log('🔍 Final check before redirect:', { hasToken, hasUser, isAuthenticated })
+        
+        if (!isAuthenticated && !hasToken) {
+          console.log('❌ Redirecting to login page')
+          window.location.href = '/login'
+        } else {
+          console.log('✅ Auth data found in storage, not redirecting')
+        }
+      }, 1000)
+      
+      return () => clearTimeout(timeoutId)
+    } else {
+      console.log('✅ Auth check passed:', isAuthenticated ? 'Authenticated' : 'Still loading')
     }
   }, [isAuthenticated, authLoading])
 

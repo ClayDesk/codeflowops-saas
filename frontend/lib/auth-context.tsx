@@ -196,6 +196,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const storeAuthData = (authData: AuthResponse) => {
     if (typeof window === 'undefined') return
 
+    console.log('💾 Storing auth data for user:', authData.user?.email)
+
+    // Store tokens in localStorage
+    localStorage.setItem(ACCESS_TOKEN_KEY, authData.access_token)
+    if (authData.refresh_token) {
+      localStorage.setItem(REFRESH_TOKEN_KEY, authData.refresh_token)
+    }
+
     // Store in cookies for server-side session management
     document.cookie = `auth_token=${authData.access_token}; path=/; secure; samesite=strict; max-age=86400` // 24 hours
     document.cookie = `codeflowops_access_token=${authData.access_token}; path=/; secure; samesite=strict; max-age=86400`
@@ -210,9 +218,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       sessionStorage.setItem('codeflowops_user', JSON.stringify(authData.user))
       localStorage.setItem(USER_KEY, JSON.stringify(authData.user))
       document.cookie = `user_id=${authData.user.id}; path=/; secure; samesite=strict; max-age=86400`
+      console.log('✅ User data stored:', authData.user.email)
     }
 
     setUser(authData.user)
+    console.log('✅ Auth state updated, isAuthenticated:', !!authData.user)
   }
 
   const clearAuthData = () => {
@@ -893,41 +903,36 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     const initializeAuth = async () => {
       try {
-        // First check if user has GitHub authentication
-        const hasGitHubAuth = await checkGitHubAuth()
+        console.log('🔄 Initializing authentication state...')
+        
+        // Check for token-based authentication first (Cognito/username-password)
+        const storedUser = getStoredUser()
+        const token = getStoredToken()
 
-        if (!hasGitHubAuth) {
-          // Fallback to traditional token authentication
-          const storedUser = getStoredUser()
-          const token = getStoredToken()
+        console.log('📝 Stored user:', storedUser ? '✅ Found' : '❌ Not found')
+        console.log('🔑 Access token:', token ? '✅ Found' : '❌ Not found')
 
-          if (storedUser && token) {
-            // Verify token is still valid
-            const response = await fetch(`${API_BASE}/api/health`, {
-              headers: {
-                'Authorization': `Bearer ${token}`,
-              },
-            })
-
-            if (response.ok) {
-              setUser(storedUser)
-            } else if (response.status === 401) {
-              // Try to refresh token
-              try {
-                await refreshToken()
-              } catch {
-                clearAuthData()
-              }
-            } else {
-              clearAuthData()
-            }
+        if (storedUser && token) {
+          console.log('✅ Token-based auth detected (Cognito/username-password)')
+          // For Cognito/token-based auth, trust the stored user if we have a token
+          setUser(storedUser)
+          console.log('✅ User set from stored data:', storedUser.email)
+        } else {
+          // No token-based auth, check for GitHub OAuth
+          console.log('🔍 Checking for GitHub OAuth authentication...')
+          const hasGitHubAuth = await checkGitHubAuth()
+          
+          if (!hasGitHubAuth) {
+            console.log('ℹ️ No authentication found')
+            clearAuthData()
           }
         }
       } catch (error) {
-        console.error('Auth initialization error:', error)
-        clearAuthData()
+        console.error('❌ Auth initialization error:', error)
+        // Don't clear auth data on error - might be network issue
       } finally {
         setLoading(false)
+        console.log('✅ Auth initialization complete')
       }
     }
 

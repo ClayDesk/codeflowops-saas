@@ -77,7 +77,22 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined)
 
 // Auth provider component
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [user, setUser] = useState<User | null>(null)
+  // Initialize user from storage immediately (SSR-safe)
+  const [user, setUser] = useState<User | null>(() => {
+    if (typeof window !== 'undefined') {
+      const storedUser = sessionStorage.getItem('codeflowops_user') || localStorage.getItem('codeflowops_user')
+      if (storedUser) {
+        try {
+          const parsed = JSON.parse(storedUser)
+          console.log('🚀 Initial user state from storage:', parsed.email)
+          return parsed
+        } catch (e) {
+          console.warn('Failed to parse stored user on init:', e)
+        }
+      }
+    }
+    return null
+  })
   const [loading, setLoading] = useState(true)
   const [profilePicture, setProfilePicture] = useState<string | null>(null)
   const [lastActivity, setLastActivity] = useState<number>(Date.now())

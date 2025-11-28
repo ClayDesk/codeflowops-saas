@@ -1,0 +1,46 @@
+# CodeFlowOps Documentation Drift Detection
+# This workflow checks if your documentation is out of sync with your code.
+# Learn more: https://codeflowops.com/docs/drift-detection
+
+name: CodeFlowOps Documentation Drift Check
+
+on:
+  push:
+    branches: [main, master, develop]
+  pull_request:
+    branches: [main, master, develop]
+  schedule:
+    # Weekly check every Monday at 9 AM UTC
+    - cron: '0 9 * * 1'
+
+jobs:
+  drift-check:
+    runs-on: ubuntu-latest
+    name: Check Documentation Drift
+    
+    # Required permissions for PR comments
+    permissions:
+      contents: read
+      pull-requests: write
+      issues: write
+    
+    # Skip if PR from fork (no secrets access)
+    if: |
+      github.event_name != 'pull_request' || 
+      github.event.pull_request.head.repo.full_name == github.repository
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Full history for better analysis
+          
+      - name: CodeFlowOps Drift Detection
+        uses: codeflowops/drift-action@v1
+        with:
+          manifest-path: './codeflowops-manifest.json'
+          api-key: ${{ secrets.CODEFLOWOPS_API_KEY }}
+          fail-on-drift: false
+          comment-on-pr: true
+          report-level: 'changes-only'
+          check-frequency: 'smart'

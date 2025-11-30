@@ -7,235 +7,276 @@
     "isPrivate": false
   },
   "documentation": {
-    "generatedAt": "2025-11-28T20:20:13.475Z",
-    "commitHash": "5759a94fbed3555bad7d40e59c1e38f93fea7c68",
+    "generatedAt": "2025-11-30T17:46:35.154Z",
+    "commitHash": "fdd30fa44871211e2413385a293fde1d27b4085b",
     "branch": "master",
-    "totalWordCount": 8236,
+    "totalWordCount": 8242,
     "sectionsCount": 17,
     "techStack": [
       "AWS",
-      "Elastic Beanstalk",
       "PostgreSQL",
       "Redis",
-      "DynamoDB",
-      "AWS Cognito",
-      "JWT",
       "FastAPI",
       "Stripe",
-      "Terraform",
-      "Docker"
+      "JWT",
+      "Docker",
+      "Terraform"
     ]
   },
   "sections": [
     {
       "sectionNumber": 1,
       "title": "Executive Summary",
-      "wordCount": 482,
+      "wordCount": 508,
       "keyTopics": [
-        "AWS services integration",
-        "FastAPI backend",
-        "Stripe payment processing"
+        "AWS integration",
+        "deployment management",
+        "environment configuration"
       ],
       "codeLinks": []
     },
     {
       "sectionNumber": 2,
       "title": "System Architecture",
-      "wordCount": 488,
+      "wordCount": 445,
       "keyTopics": [
-        "Elastic Beanstalk deployment",
-        "Microservices architecture",
-        "Load balancing"
-      ],
-      "codeLinks": []
-    },
-    {
-      "sectionNumber": 3,
-      "title": "Data Architecture",
-      "wordCount": 465,
-      "keyTopics": [
-        "PostgreSQL schema",
-        "Redis caching",
-        "DynamoDB usage"
+        "Elastic Beanstalk",
+        "AWS Cognito",
+        "system components"
       ],
       "codeLinks": [
         {
-          "id": "2e16465be643",
-          "sectionNumber": 3,
-          "sectionTitle": "Data Architecture",
+          "id": "6091cc95a328",
+          "sectionNumber": 2,
+          "sectionTitle": "System Architecture",
+          "filePath": ".env.example",
+          "startLine": 28,
+          "endLine": 31,
+          "commitHash": "fdd30fa44871211e2413385a293fde1d27b4085b",
+          "contentHash": "8e77ce48e97165f868d9eb8ce44525e1e38e10dd6ea58bb1334c3545eb29fb48",
+          "codeType": "other"
+        },
+        {
+          "id": "46040fb38da7",
+          "sectionNumber": 2,
+          "sectionTitle": "System Architecture",
+          "filePath": ".env.example",
+          "startLine": 6,
+          "endLine": 8,
+          "commitHash": "fdd30fa44871211e2413385a293fde1d27b4085b",
+          "contentHash": "76426e90a7663cd78d92016088e328853b6cfdd8ebb69e697134e707cb43d882",
+          "codeType": "other"
+        },
+        {
+          "id": "db3b5d7e822d",
+          "sectionNumber": 2,
+          "sectionTitle": "System Architecture",
           "filePath": ".env.example",
           "startLine": 11,
           "endLine": 13,
-          "commitHash": "5759a94fbed3555bad7d40e59c1e38f93fea7c68",
+          "commitHash": "fdd30fa44871211e2413385a293fde1d27b4085b",
           "contentHash": "3308e51d64415c39afb66aa90c5c01f8982e291f3bd0c4efb01b765950c0a6d5",
           "codeType": "other"
         }
       ]
     },
     {
-      "sectionNumber": 4,
-      "title": "Core Features & Workflows",
-      "wordCount": 464,
+      "sectionNumber": 3,
+      "title": "Data Architecture",
+      "wordCount": 525,
       "keyTopics": [
-        "User authentication",
-        "Subscription management",
-        "API request handling"
+        "PostgreSQL schema",
+        "Redis caching",
+        "data validation"
       ],
       "codeLinks": []
+    },
+    {
+      "sectionNumber": 4,
+      "title": "Core Features & Workflows",
+      "wordCount": 424,
+      "keyTopics": [
+        "user authentication",
+        "subscription management",
+        "deployment workflows"
+      ],
+      "codeLinks": [
+        {
+          "id": "c8ef6acf27c1",
+          "sectionNumber": 4,
+          "sectionTitle": "Core Features & Workflows",
+          "filePath": ".env.example",
+          "startLine": 28,
+          "endLine": 31,
+          "commitHash": "fdd30fa44871211e2413385a293fde1d27b4085b",
+          "contentHash": "8e77ce48e97165f868d9eb8ce44525e1e38e10dd6ea58bb1334c3545eb29fb48",
+          "codeType": "other"
+        },
+        {
+          "id": "359fe21c8de5",
+          "sectionNumber": 4,
+          "sectionTitle": "Core Features & Workflows",
+          "filePath": ".env.example",
+          "startLine": 34,
+          "endLine": 36,
+          "commitHash": "fdd30fa44871211e2413385a293fde1d27b4085b",
+          "contentHash": "629b4c4523110ac0aea8e4919a5313d6f1743e826f730cc3c84ce2add4c344cb",
+          "codeType": "other"
+        },
+        {
+          "id": "f7221cfc014f",
+          "sectionNumber": 4,
+          "sectionTitle": "Core Features & Workflows",
+          "filePath": ".env.example",
+          "startLine": 21,
+          "endLine": 22,
+          "commitHash": "fdd30fa44871211e2413385a293fde1d27b4085b",
+          "contentHash": "71d06a80fd96d0f54d1b94c8972174c69d6960904937c9b83d0a0156d97df2ee",
+          "codeType": "other"
+        }
+      ]
     },
     {
       "sectionNumber": 5,
       "title": "API Reference",
-      "wordCount": 419,
+      "wordCount": 483,
       "keyTopics": [
-        "Endpoint specifications",
+        "API endpoints",
         "JWT authentication",
-        "Request/response formats"
+        "request/response formats"
       ],
-      "codeLinks": [
-        {
-          "id": "b88be4348b40",
-          "sectionNumber": 5,
-          "sectionTitle": "API Reference",
-          "filePath": ".env.example",
-          "startLine": 34,
-          "endLine": 36,
-          "commitHash": "5759a94fbed3555bad7d40e59c1e38f93fea7c68",
-          "contentHash": "629b4c4523110ac0aea8e4919a5313d6f1743e826f730cc3c84ce2add4c344cb",
-          "codeType": "other"
-        }
-      ]
+      "codeLinks": []
     },
     {
       "sectionNumber": 6,
       "title": "Security Architecture",
-      "wordCount": 439,
+      "wordCount": 463,
       "keyTopics": [
-        "Data encryption",
-        "Rate limiting",
-        "Bcrypt password hashing"
-      ],
-      "codeLinks": []
-    },
-    {
-      "sectionNumber": 7,
-      "title": "DevOps & Deployment",
-      "wordCount": 474,
-      "keyTopics": [
-        "CI/CD processes",
-        "Environment configurations",
-        "Docker containerization"
+        "JWT security",
+        "rate limiting",
+        "data protection"
       ],
       "codeLinks": [
         {
-          "id": "3132dd9caf4d",
-          "sectionNumber": 7,
-          "sectionTitle": "DevOps & Deployment",
+          "id": "4057ecab89e9",
+          "sectionNumber": 6,
+          "sectionTitle": "Security Architecture",
           "filePath": ".env.example",
-          "startLine": 6,
-          "endLine": 8,
-          "commitHash": "5759a94fbed3555bad7d40e59c1e38f93fea7c68",
-          "contentHash": "76426e90a7663cd78d92016088e328853b6cfdd8ebb69e697134e707cb43d882",
+          "startLine": 34,
+          "endLine": 36,
+          "commitHash": "fdd30fa44871211e2413385a293fde1d27b4085b",
+          "contentHash": "629b4c4523110ac0aea8e4919a5313d6f1743e826f730cc3c84ce2add4c344cb",
           "codeType": "other"
         },
         {
-          "id": "4b560ae2383b",
-          "sectionNumber": 7,
-          "sectionTitle": "DevOps & Deployment",
+          "id": "6199e164ddaa",
+          "sectionNumber": 6,
+          "sectionTitle": "Security Architecture",
           "filePath": ".env.example",
-          "startLine": 16,
-          "endLine": 18,
-          "commitHash": "5759a94fbed3555bad7d40e59c1e38f93fea7c68",
-          "contentHash": "ca4f87b4f3e55f8fcfc8145272768af5abb577ca622276677a122529f7403b1c",
+          "startLine": 11,
+          "endLine": 12,
+          "commitHash": "fdd30fa44871211e2413385a293fde1d27b4085b",
+          "contentHash": "2a7877fae7555d6f393c2d4c4f6d033e1a890edc1e7bc1328c29423450eaa45b",
           "codeType": "other"
         }
       ]
     },
     {
-      "sectionNumber": 8,
-      "title": "Reliability & Performance",
-      "wordCount": 453,
+      "sectionNumber": 7,
+      "title": "DevOps & Deployment",
+      "wordCount": 460,
       "keyTopics": [
-        "Error handling",
-        "Performance monitoring",
-        "Scalability strategies"
+        "CI/CD processes",
+        "Docker containers",
+        "environment management"
       ],
       "codeLinks": []
     },
     {
+      "sectionNumber": 8,
+      "title": "Reliability & Performance",
+      "wordCount": 468,
+      "keyTopics": [
+        "error handling",
+        "performance monitoring",
+        "scalability"
+      ],
+      "codeLinks": [
+        {
+          "id": "8f7877527f3e",
+          "sectionNumber": 8,
+          "sectionTitle": "Reliability & Performance",
+          "filePath": ".env.example",
+          "startLine": 64,
+          "endLine": 66,
+          "commitHash": "fdd30fa44871211e2413385a293fde1d27b4085b",
+          "contentHash": "ebab1ba53ad139fcf7e151ea7fd9cafa169adec4b94ce395d9864b97ef3fe211",
+          "codeType": "other"
+        }
+      ]
+    },
+    {
       "sectionNumber": 9,
       "title": "Threat Modeling & Security Analysis",
-      "wordCount": 520,
+      "wordCount": 515,
       "keyTopics": [
         "STRIDE analysis",
-        "Attack surface evaluation",
-        "Risk assessment"
+        "attack surface",
+        "risk assessment"
       ],
       "codeLinks": []
     },
     {
       "sectionNumber": 10,
       "title": "Compliance & Regulatory",
-      "wordCount": 544,
+      "wordCount": 483,
       "keyTopics": [
         "GDPR compliance",
         "HIPAA considerations",
-        "Audit requirements"
+        "audit requirements"
       ],
       "codeLinks": []
     },
     {
       "sectionNumber": 11,
       "title": "Non-Functional Requirements (NFR) Matrix",
-      "wordCount": 573,
+      "wordCount": 530,
       "keyTopics": [
-        "Availability targets",
-        "Scalability requirements",
-        "Performance benchmarks"
+        "availability targets",
+        "scalability metrics",
+        "performance benchmarks"
       ],
       "codeLinks": []
     },
     {
       "sectionNumber": 12,
       "title": "SLO/SLA/SLI Definitions",
-      "wordCount": 522,
+      "wordCount": 521,
       "keyTopics": [
-        "Service level objectives",
-        "Service agreements",
-        "Error budgets"
+        "service level objectives",
+        "error budgets",
+        "service agreements"
       ],
       "codeLinks": []
     },
     {
       "sectionNumber": 13,
       "title": "Observability & Monitoring",
-      "wordCount": 450,
+      "wordCount": 472,
       "keyTopics": [
-        "Logging strategies",
-        "Metrics collection",
-        "Alerting systems"
+        "logging",
+        "metrics collection",
+        "alerting systems"
       ],
-      "codeLinks": [
-        {
-          "id": "b3100a5615af",
-          "sectionNumber": 13,
-          "sectionTitle": "Observability & Monitoring",
-          "filePath": ".env.example",
-          "startLine": 57,
-          "endLine": 60,
-          "commitHash": "5759a94fbed3555bad7d40e59c1e38f93fea7c68",
-          "contentHash": "caeebf41e36a8b665c640c1a0f3f863f80654a35b80060ad43ff7cd28a520bfa",
-          "codeType": "other"
-        }
-      ]
+      "codeLinks": []
     },
     {
       "sectionNumber": 14,
       "title": "Infrastructure as Code (IaC)",
-      "wordCount": 484,
+      "wordCount": 445,
       "keyTopics": [
         "Terraform scripts",
-        "Kubernetes configurations",
+        "Kubernetes configuration",
         "Docker setup"
       ],
       "codeLinks": []
@@ -243,96 +284,140 @@
     {
       "sectionNumber": 15,
       "title": "Disaster Recovery & Business Continuity",
-      "wordCount": 482,
+      "wordCount": 574,
       "keyTopics": [
-        "Backup strategies",
-        "Failover mechanisms",
-        "Recovery objectives"
+        "RTO/RPO",
+        "backup strategies",
+        "failover mechanisms"
       ],
       "codeLinks": []
     },
     {
       "sectionNumber": 16,
       "title": "Versioning & Release Management",
-      "wordCount": 513,
+      "wordCount": 478,
       "keyTopics": [
-        "Semantic versioning",
-        "Branching strategies",
-        "Release process"
+        "semantic versioning",
+        "release process",
+        "rollback strategies"
       ],
       "codeLinks": []
     },
     {
       "sectionNumber": 17,
       "title": "Future Roadmap",
-      "wordCount": 464,
+      "wordCount": 448,
       "keyTopics": [
-        "Feature limitations",
-        "Potential improvements",
-        "Long-term goals"
+        "feature limitations",
+        "planned improvements",
+        "community suggestions"
       ],
       "codeLinks": []
     }
   ],
   "allCodeLinks": [
     {
-      "id": "2e16465be643",
-      "sectionNumber": 3,
-      "sectionTitle": "Data Architecture",
+      "id": "6091cc95a328",
+      "sectionNumber": 2,
+      "sectionTitle": "System Architecture",
       "filePath": ".env.example",
-      "startLine": 11,
-      "endLine": 13,
-      "commitHash": "5759a94fbed3555bad7d40e59c1e38f93fea7c68",
-      "contentHash": "3308e51d64415c39afb66aa90c5c01f8982e291f3bd0c4efb01b765950c0a6d5",
+      "startLine": 28,
+      "endLine": 31,
+      "commitHash": "fdd30fa44871211e2413385a293fde1d27b4085b",
+      "contentHash": "8e77ce48e97165f868d9eb8ce44525e1e38e10dd6ea58bb1334c3545eb29fb48",
       "codeType": "other"
     },
     {
-      "id": "b88be4348b40",
-      "sectionNumber": 5,
-      "sectionTitle": "API Reference",
-      "filePath": ".env.example",
-      "startLine": 34,
-      "endLine": 36,
-      "commitHash": "5759a94fbed3555bad7d40e59c1e38f93fea7c68",
-      "contentHash": "629b4c4523110ac0aea8e4919a5313d6f1743e826f730cc3c84ce2add4c344cb",
-      "codeType": "other"
-    },
-    {
-      "id": "3132dd9caf4d",
-      "sectionNumber": 7,
-      "sectionTitle": "DevOps & Deployment",
+      "id": "46040fb38da7",
+      "sectionNumber": 2,
+      "sectionTitle": "System Architecture",
       "filePath": ".env.example",
       "startLine": 6,
       "endLine": 8,
-      "commitHash": "5759a94fbed3555bad7d40e59c1e38f93fea7c68",
+      "commitHash": "fdd30fa44871211e2413385a293fde1d27b4085b",
       "contentHash": "76426e90a7663cd78d92016088e328853b6cfdd8ebb69e697134e707cb43d882",
       "codeType": "other"
     },
     {
-      "id": "4b560ae2383b",
-      "sectionNumber": 7,
-      "sectionTitle": "DevOps & Deployment",
+      "id": "db3b5d7e822d",
+      "sectionNumber": 2,
+      "sectionTitle": "System Architecture",
       "filePath": ".env.example",
-      "startLine": 16,
-      "endLine": 18,
-      "commitHash": "5759a94fbed3555bad7d40e59c1e38f93fea7c68",
-      "contentHash": "ca4f87b4f3e55f8fcfc8145272768af5abb577ca622276677a122529f7403b1c",
+      "startLine": 11,
+      "endLine": 13,
+      "commitHash": "fdd30fa44871211e2413385a293fde1d27b4085b",
+      "contentHash": "3308e51d64415c39afb66aa90c5c01f8982e291f3bd0c4efb01b765950c0a6d5",
       "codeType": "other"
     },
     {
-      "id": "b3100a5615af",
-      "sectionNumber": 13,
-      "sectionTitle": "Observability & Monitoring",
+      "id": "c8ef6acf27c1",
+      "sectionNumber": 4,
+      "sectionTitle": "Core Features & Workflows",
       "filePath": ".env.example",
-      "startLine": 57,
-      "endLine": 60,
-      "commitHash": "5759a94fbed3555bad7d40e59c1e38f93fea7c68",
-      "contentHash": "caeebf41e36a8b665c640c1a0f3f863f80654a35b80060ad43ff7cd28a520bfa",
+      "startLine": 28,
+      "endLine": 31,
+      "commitHash": "fdd30fa44871211e2413385a293fde1d27b4085b",
+      "contentHash": "8e77ce48e97165f868d9eb8ce44525e1e38e10dd6ea58bb1334c3545eb29fb48",
+      "codeType": "other"
+    },
+    {
+      "id": "359fe21c8de5",
+      "sectionNumber": 4,
+      "sectionTitle": "Core Features & Workflows",
+      "filePath": ".env.example",
+      "startLine": 34,
+      "endLine": 36,
+      "commitHash": "fdd30fa44871211e2413385a293fde1d27b4085b",
+      "contentHash": "629b4c4523110ac0aea8e4919a5313d6f1743e826f730cc3c84ce2add4c344cb",
+      "codeType": "other"
+    },
+    {
+      "id": "f7221cfc014f",
+      "sectionNumber": 4,
+      "sectionTitle": "Core Features & Workflows",
+      "filePath": ".env.example",
+      "startLine": 21,
+      "endLine": 22,
+      "commitHash": "fdd30fa44871211e2413385a293fde1d27b4085b",
+      "contentHash": "71d06a80fd96d0f54d1b94c8972174c69d6960904937c9b83d0a0156d97df2ee",
+      "codeType": "other"
+    },
+    {
+      "id": "4057ecab89e9",
+      "sectionNumber": 6,
+      "sectionTitle": "Security Architecture",
+      "filePath": ".env.example",
+      "startLine": 34,
+      "endLine": 36,
+      "commitHash": "fdd30fa44871211e2413385a293fde1d27b4085b",
+      "contentHash": "629b4c4523110ac0aea8e4919a5313d6f1743e826f730cc3c84ce2add4c344cb",
+      "codeType": "other"
+    },
+    {
+      "id": "6199e164ddaa",
+      "sectionNumber": 6,
+      "sectionTitle": "Security Architecture",
+      "filePath": ".env.example",
+      "startLine": 11,
+      "endLine": 12,
+      "commitHash": "fdd30fa44871211e2413385a293fde1d27b4085b",
+      "contentHash": "2a7877fae7555d6f393c2d4c4f6d033e1a890edc1e7bc1328c29423450eaa45b",
+      "codeType": "other"
+    },
+    {
+      "id": "8f7877527f3e",
+      "sectionNumber": 8,
+      "sectionTitle": "Reliability & Performance",
+      "filePath": ".env.example",
+      "startLine": 64,
+      "endLine": 66,
+      "commitHash": "fdd30fa44871211e2413385a293fde1d27b4085b",
+      "contentHash": "ebab1ba53ad139fcf7e151ea7fd9cafa169adec4b94ce395d9864b97ef3fe211",
       "codeType": "other"
     }
   ],
   "checksum": {
-    "manifestHash": "7e32d486f85edb45d0e468aa0e6c0df4c622b3eab29d06948925893a4f280fd0",
-    "combinedCodeHash": "0d97210b3ae1284879d52ad322b71c2a4ed09792ab4e503d8180a663dad2a18d"
+    "manifestHash": "66e1138aeb4432c46d20e658335e6060b61a1b07962dff4a7381734dec94047a",
+    "combinedCodeHash": "5b42e3238b0d4f22c8368af3f74c07578cd1f0b3dec8f3994caaa77c55141e22"
   }
 }
